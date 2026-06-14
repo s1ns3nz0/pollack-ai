@@ -1,0 +1,67 @@
+# ─────────────────────────────────────────
+# UAV AI SOC Platform — .gitignore
+# ─────────────────────────────────────────
+
+# ── 보안 (절대 커밋 금지) ─────────────────
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.p12
+*.pfx
+
+# ── Python ────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# ── 가상환경 ──────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── 테스트 / 커버리지 ─────────────────────
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# ── mypy ──────────────────────────────────
+.mypy_cache/
+.dmypy.json
+
+# ── ruff ──────────────────────────────────
+.ruff_cache/
+
+# ── IDE ───────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# ── GraphRAG 출력물 ───────────────────────
+output/
+graphrag/cache/
+graphrag/output/
+
+# ── PyRIT 결과 (민감 데이터 포함 가능) ────
+pyrit_results/
+*.pyrit
+
+# ── 로그 ──────────────────────────────────
+*.log
+logs/
+
+# ── 기타 ──────────────────────────────────
+*.tmp
+*.bak

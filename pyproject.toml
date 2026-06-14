@@ -1,0 +1,127 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# ─────────────────────────────────────────
+# 프로젝트 메타데이터
+# ─────────────────────────────────────────
+[project]
+name = "pollack-ai"
+version = "0.1.0"
+description = "방산 UAV 보안 SaaS 플랫폼 — LangGraph 기반 AI SOC"
+requires-python = ">=3.11"
+
+dependencies = [
+    # LangGraph / LangChain
+    "langgraph>=0.2.0",
+    "langchain>=0.3.0",
+    "langchain-openai>=0.2.0",
+
+    # Azure
+    "azure-identity>=1.17.0",
+    "azure-monitor-query>=1.4.0",
+
+    # HTTP / 비동기
+    "httpx>=0.27.0",
+
+    # 설정 관리
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.3.0",
+
+    # 그래프 RAG
+    "graphrag>=0.3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=24.0.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pre-commit>=3.7.0",
+]
+eval = [
+    "ragas>=0.1.0",
+    "pyrit>=0.4.0",
+]
+
+# ─────────────────────────────────────────
+# black — 포매터
+# ─────────────────────────────────────────
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+# 큰따옴표 통일 (기본값)
+
+# ─────────────────────────────────────────
+# ruff — 린터 + isort
+# ─────────────────────────────────────────
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle 오류
+    "W",   # pycodestyle 경고
+    "F",   # pyflakes (미사용 임포트 등)
+    "I",   # isort (임포트 순서)
+    "B",   # flake8-bugbear (잠재적 버그)
+    "UP",  # pyupgrade (구식 문법 자동 업그레이드)
+    "S",   # flake8-bandit (보안 이슈)
+    "ANN", # flake8-annotations (타입 힌트 누락)
+]
+ignore = [
+    "ANN101", # self 타입 힌트 생략 허용
+    "ANN102", # cls 타입 힌트 생략 허용
+    "S101",   # assert 허용 (테스트 코드)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ANN", "S"]   # 테스트 파일은 타입힌트·보안 룰 완화
+"scripts/**" = ["ANN", "S"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["agents", "tools", "core", "utils"]
+force-sort-within-sections = true
+
+# ─────────────────────────────────────────
+# mypy — 타입 검사
+# ─────────────────────────────────────────
+[tool.mypy]
+python_version = "3.11"
+strict = true                    # 모든 strict 옵션 활성화
+
+# strict 세부 항목 (strict = true 와 동일하지만 명시)
+disallow_any_generics = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+
+# 서드파티 타입 스텁 없는 패키지 허용
+[[tool.mypy.overrides]]
+module = [
+    "graphrag.*",
+    "pyrit.*",
+    "ragas.*",
+]
+ignore_missing_imports = true
+
+# ─────────────────────────────────────────
+# pytest
+# ─────────────────────────────────────────
+[tool.pytest.ini_options]
+asyncio_mode = "auto"            # pytest-asyncio 자동 모드
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "-v",
+]

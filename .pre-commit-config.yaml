@@ -1,0 +1,52 @@
+# ─────────────────────────────────────────
+# UAV AI SOC Platform — pre-commit 설정
+# ─────────────────────────────────────────
+# 설치: pre-commit install
+# 수동 실행: pre-commit run --all-files
+# ─────────────────────────────────────────
+
+repos:
+  # ── 기본 검사 ───────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace        # 후행 공백 제거
+      - id: end-of-file-fixer          # 파일 끝 개행 보장
+      - id: check-yaml                 # YAML 문법 검사 (Sigma Rules 포함)
+      - id: check-toml                 # TOML 문법 검사
+      - id: check-json                 # JSON 문법 검사
+      - id: check-merge-conflict       # 머지 충돌 마커 검사
+      - id: detect-private-key         # 개인키 커밋 방지
+      - id: check-added-large-files    # 대용량 파일 커밋 방지
+        args: ["--maxkb=1000"]
+
+  # ── 보안: 시크릿 탐지 ───────────────────
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks                   # API 키, 토큰 커밋 방지
+
+  # ── black — 포매터 ──────────────────────
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+        language_version: python3.11
+
+  # ── ruff — 린터 + isort ─────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.9
+    hooks:
+      - id: ruff
+        args: ["--fix"]                # 자동 수정 가능한 건 자동 수정
+      - id: ruff-format
+
+  # ── mypy — 타입 검사 ────────────────────
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - pydantic>=2.7.0
+          - pydantic-settings>=2.3.0
+          - types-httpx
