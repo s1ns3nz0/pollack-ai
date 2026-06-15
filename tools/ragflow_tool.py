@@ -11,6 +11,7 @@ GraphRAG(Azure) 로 교체하더라도 Agent 계층은 동일한 `RetrievedChunk
 
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 import httpx
@@ -31,11 +32,24 @@ if TYPE_CHECKING:
 _logger = get_logger("ragflow_tool")
 
 
+class KbCategory(StrEnum):
+    """KB 데이터 구성도 범주(문서 메타데이터 `category`)."""
+
+    INCIDENT_CASES = "incident_cases"
+    ATTACK_TECHNIQUES = "attack_techniques"
+    STANDARDS = "standards"
+    DATASETS = "datasets"
+
+
 class RagflowQueryInput(BaseModel):
     """RAGFlow 검색 도구 입력 스키마."""
 
     query: str = Field(..., description="검색 질의 문자열.")
     k: int = Field(default=5, gt=0, le=50, description="반환할 청크 수.")
+    category: KbCategory | None = Field(
+        default=None,
+        description="검색 범주 한정(미지정 시 전체 KB 검색).",
+    )
 
 
 class RagflowRetrievalTool(BaseTool):
@@ -57,12 +71,16 @@ class RagflowRetrievalTool(BaseTool):
         """검색에 사용할 비동기 HTTP 클라이언트를 생성한다(테스트에서 주입 가능)."""
         return httpx.AsyncClient(timeout=self.settings.ragflow_timeout_seconds)
 
-    async def aretrieve(self, query: str, k: int = 5) -> list[RetrievedChunk]:
+    async def aretrieve(
+        self, query: str, k: int = 5, category: KbCategory | None = None
+    ) -> list[RetrievedChunk]:
         """질의에 대한 컨텍스트 청크를 검색한다(타입 안전 API).
 
         Args:
             query: 검색 질의 문자열.
             k: 반환할 최대 청크 수.
+            category: 지정 시 해당 범주 문서로만 검색을 한정한다(서버단
+                metadata 필터). 미지정이면 전체 KB 검색.
 
         Returns:
             유사도 내림차순의 `RetrievedChunk` 목록. 결과가 없으면 빈 목록.
@@ -87,6 +105,17 @@ class RagflowRetrievalTool(BaseTool):
             "vector_similarity_weight": self.settings.ragflow_vector_weight,
             "top_k": self.settings.ragflow_top_k,
         }
+        if category is not None:
+            payload["metadata_condition"] = {
+                "logic": "and",
+                "conditions": [
+                    {
+                        "name": "category",
+                        "comparison_operator": "is",
+                        "value": category.value,
+                    }
+                ],
+            }
         token = self.settings.ragflow_api_token.get_secret_value()
         headers = {"Authorization": f"Bearer {token}"}
 
@@ -145,12 +174,18 @@ class RagflowRetrievalTool(BaseTool):
         self,
         query: str,
         k: int = 5,
+        category: KbCategory | None = None,
         run_manager: AsyncCallbackManagerForToolRun | None = None,
     ) -> str:
         """LangChain 비동기 진입점. 검색 결과를 사람이 읽을 텍스트로 반환한다."""
         del run_manager  # 추적 콜백 미사용
-        chunks = await self.aretrieve(query, k)
-        _logger.info("ragflow 검색: query=%s, hits=%d", query[:60], len(chunks))
+        chunks = await self.aretrieve(query, k, category)
+        _logger.info(
+            "ragflow 검색: query=%s, category=%s, hits=%d",
+            query[:60],
+            category.value if category else "all",
+            len(chunks),
+        )
         if not chunks:
             return "관련 컨텍스트를 찾지 못했습니다."
         return "\n\n".join(f"[{c.score:.3f}] {c.source}\n{c.text}" for c in chunks)
@@ -159,10 +194,11 @@ class RagflowRetrievalTool(BaseTool):
         self,
         query: str,
         k: int = 5,
+        category: KbCategory | None = None,
         run_manager: CallbackManagerForToolRun | None = None,
     ) -> str:
         """동기 진입점은 지원하지 않는다(비동기 전용 도구)."""
-        del query, k, run_manager
+        del query, k, category, run_manager
         raise NotImplementedError(
             "RagflowRetrievalTool 은 비동기 전용입니다. ainvoke() 를 사용하세요."
         )

@@ -15,13 +15,28 @@ UAV 보안 지식베이스(RAGFlow)를 비동기로 검색하는 RAG 도구.
   Aissou/IEEE/NetworkComm 데이터셋 실측 분석 117문서). 원천 문서 목록은
   `data/knowledge_base/MANIFEST.md` 참고(본문은 코드 레포에 커밋하지 않음).
 
+### 데이터 구성도 (한 KB + 범주 메타데이터)
+
+KB 문서는 메타데이터 `category` 로 4개 범주로 구성된다. 검색 시 범주를 한정하면
+서버단 metadata 필터로 해당 범주만 검색한다.
+
+| category | 개수 | 내용 |
+|---|---:|---|
+| `incident_cases` | 3 | UAV 보안 사고 사례 |
+| `attack_techniques` | 99 | MITRE ATT&CK for ICS 기법 |
+| `standards` | 3 | IEC 62443 표준·대응 템플릿 |
+| `datasets` | 9 | Aissou/IEEE/NetComm 데이터셋 분석 |
+
+목록은 `data/knowledge_base/MANIFEST.md`.
+
 ### 사용
 
 ```python
-from tools.ragflow_tool import RagflowRetrievalTool
+from tools.ragflow_tool import RagflowRetrievalTool, KbCategory
 
 tool = RagflowRetrievalTool()                       # 설정은 RAGFLOW_* env/.env 에서
-chunks = await tool.aretrieve("GPS 재밍 탐지", k=5)  # 타입 안전 API
+chunks = await tool.aretrieve("GPS 재밍 탐지", k=5)  # 전체 KB 검색
+cases = await tool.aretrieve("GPS 스푸핑", category=KbCategory.INCIDENT_CASES)  # 범주 한정
 text = await tool.ainvoke({"query": "GPS 재밍", "k": 5})  # LangChain 표준 진입점
 ```
 

@@ -1,129 +1,146 @@
-# Knowledge Base 매니페스트
+# Knowledge Base 매니페스트 (데이터 구성도)
 
-이 목록은 RAGFlow 지식베이스(`uav_soc_rag`)에 적재되는 **원천 문서 목록**이다.
-원본 파일은 데이터/코드 분리 원칙에 따라 **코드 레포에 커밋하지 않는다**(.gitignore).
+RAGFlow KB(`uav_soc_rag`)에 적재되는 원천 문서. 본문은 코드 레포에 커밋하지 않고
+(.gitignore) 이 매니페스트만 커밋한다. 정본 위치: 
+`/gpfs/home/jm00055/pollack-ai/projects/uav_soc_rag_poc/ragflow_ingest/`
 
-- 정본 위치(이 머신): `/gpfs/home/jm00055/pollack-ai/projects/uav_soc_rag_poc/ragflow_ingest/`
-- 로컬 복원: 위 경로에서 `data/knowledge_base/` 로 복사하거나 ingest 파이프라인 실행
-- RAG 백엔드: 문서는 RAGFlow KB(임베딩 `bge-m3`)에 적재되어 검색됨
+## 구성도 (한 KB + 범주 메타데이터)
 
-## 문서 목록 (116개)
+각 문서는 RAGFlow 메타데이터 `{category, source, scenarios}` 를 가지며,
+검색 시 `category` 로 범주를 한정할 수 있다(`RagflowRetrievalTool(category=...)`).
 
-| 경로 | 크기(bytes) |
-|---|---:|
-| `aissou_gps_spoofing_dataset.md` | 1517 |
-| `aissou_gps_spoofing_feature_summary.md` | 2033 |
-| `dataset_card_aissou_gps_spoofing.md` | 1955 |
-| `dataset_card_uav_attack_dataset.md` | 4313 |
-| `dataset_download_status.md` | 2816 |
-| `iec62443_raw/gca_leveraging_isa62443_risk_assessment.pdf` | 418772 |
-| `iec62443_raw/isa_iec_62443_overview.html` | 93027 |
-| `iec62443_uav_response_templates.md` | 1921 |
-| `ieee_uav_attack_gps_signatures.md` | 2815 |
-| `incident_cases/incident_case_gps_jamming_vs_spoofing.md` | 1678 |
-| `incident_cases/incident_case_gps_spoofing_gcs_normal.md` | 889 |
-| `incident_cases/incident_case_wifi_deauth_network_primary.md` | 742 |
-| `mitre_ics_filtered/activate_firmware_update_mode.md` | 905 |
-| `mitre_ics_filtered/adversary_in_the_middle.md` | 1318 |
-| `mitre_ics_filtered/automated_collection.md` | 773 |
-| `mitre_ics_filtered/autorun_image.md` | 1529 |
-| `mitre_ics_filtered/block_command_message.md` | 798 |
-| `mitre_ics_filtered/block_communications.md` | 1390 |
-| `mitre_ics_filtered/block_operational_technology_message.md` | 1805 |
-| `mitre_ics_filtered/block_reporting_message.md` | 1160 |
-| `mitre_ics_filtered/block_serial_com.md` | 1598 |
-| `mitre_ics_filtered/broadcast_discovery.md` | 1154 |
-| `mitre_ics_filtered/brute_force_i_o.md` | 1166 |
-| `mitre_ics_filtered/change_credential.md` | 1719 |
-| `mitre_ics_filtered/change_operating_mode.md` | 2341 |
-| `mitre_ics_filtered/change_program_state.md` | 527 |
-| `mitre_ics_filtered/command_line_interface.md` | 1135 |
-| `mitre_ics_filtered/command_message.md` | 1306 |
-| `mitre_ics_filtered/connection_proxy.md` | 1149 |
-| `mitre_ics_filtered/control_device_identification.md` | 772 |
-| `mitre_ics_filtered/damage_to_property.md` | 2267 |
-| `mitre_ics_filtered/data_destruction.md` | 1245 |
-| `mitre_ics_filtered/data_from_information_repositories.md` | 1354 |
-| `mitre_ics_filtered/data_from_local_system.md` | 923 |
-| `mitre_ics_filtered/data_historian_compromise.md` | 1510 |
-| `mitre_ics_filtered/default_credentials.md` | 1066 |
-| `mitre_ics_filtered/denial_of_control.md` | 1017 |
-| `mitre_ics_filtered/denial_of_service.md` | 2046 |
-| `mitre_ics_filtered/denial_of_view.md` | 1081 |
-| `mitre_ics_filtered/detect_operating_mode.md` | 2270 |
-| `mitre_ics_filtered/device_restart_shutdown.md` | 947 |
-| `mitre_ics_filtered/download_all.md` | 730 |
-| `mitre_ics_filtered/drive_by_compromise.md` | 1576 |
-| `mitre_ics_filtered/engineering_workstation_compromise.md` | 1248 |
-| `mitre_ics_filtered/execution_through_api.md` | 606 |
-| `mitre_ics_filtered/exploit_public_facing_application.md` | 1213 |
-| `mitre_ics_filtered/exploitation_for_evasion.md` | 1091 |
-| `mitre_ics_filtered/exploitation_for_privilege_escalation.md` | 1655 |
-| `mitre_ics_filtered/exploitation_of_remote_services.md` | 1217 |
-| `mitre_ics_filtered/external_remote_services.md` | 1692 |
-| `mitre_ics_filtered/hardcoded_credentials.md` | 1217 |
-| `mitre_ics_filtered/hooking.md` | 999 |
-| `mitre_ics_filtered/i_o_image.md` | 1354 |
-| `mitre_ics_filtered/i_o_module_discovery.md` | 994 |
-| `mitre_ics_filtered/insecure_credentials.md` | 1015 |
-| `mitre_ics_filtered/internet_accessible_device.md` | 1927 |
-| `mitre_ics_filtered/lateral_tool_transfer.md` | 893 |
-| `mitre_ics_filtered/location_identification.md` | 1515 |
-| `mitre_ics_filtered/loss_of_availability.md` | 857 |
-| `mitre_ics_filtered/loss_of_control.md` | 1046 |
-| `mitre_ics_filtered/loss_of_productivity_and_revenue.md` | 1558 |
-| `mitre_ics_filtered/loss_of_protection.md` | 1224 |
-| `mitre_ics_filtered/loss_of_safety.md` | 1280 |
-| `mitre_ics_filtered/loss_of_view.md` | 795 |
-| `mitre_ics_filtered/manipulate_i_o_image.md` | 1329 |
-| `mitre_ics_filtered/manipulation_of_control.md` | 1498 |
-| `mitre_ics_filtered/manipulation_of_view.md` | 1028 |
-| `mitre_ics_filtered/modify_alarm_settings.md` | 1739 |
-| `mitre_ics_filtered/modify_control_logic.md` | 3051 |
-| `mitre_ics_filtered/modify_controller_tasking.md` | 1497 |
-| `mitre_ics_filtered/modify_firmware.md` | 1629 |
-| `mitre_ics_filtered/modify_parameter.md` | 1325 |
-| `mitre_ics_filtered/modify_program.md` | 1188 |
-| `mitre_ics_filtered/module_firmware.md` | 2257 |
-| `mitre_ics_filtered/monitor_process_state.md` | 655 |
-| `mitre_ics_filtered/multicast_discovery.md` | 1024 |
-| `mitre_ics_filtered/native_api.md` | 1070 |
-| `mitre_ics_filtered/network_service_scanning.md` | 1597 |
-| `mitre_ics_filtered/online_edit.md` | 797 |
-| `mitre_ics_filtered/point_tag_identification.md` | 970 |
-| `mitre_ics_filtered/port_scan.md` | 1078 |
-| `mitre_ics_filtered/program_append.md` | 813 |
-| `mitre_ics_filtered/program_download.md` | 1718 |
-| `mitre_ics_filtered/program_upload.md` | 733 |
-| `mitre_ics_filtered/project_file_infection.md` | 1321 |
-| `mitre_ics_filtered/remote_services.md` | 1990 |
-| `mitre_ics_filtered/remote_system_discovery.md` | 720 |
-| `mitre_ics_filtered/remote_system_information_discovery.md` | 1242 |
-| `mitre_ics_filtered/replication_through_removable_media.md` | 1652 |
-| `mitre_ics_filtered/reporting_message.md` | 1160 |
-| `mitre_ics_filtered/rogue_master.md` | 1083 |
-| `mitre_ics_filtered/role_identification.md` | 1496 |
-| `mitre_ics_filtered/rootkit.md` | 1382 |
-| `mitre_ics_filtered/screen_capture.md` | 940 |
-| `mitre_ics_filtered/serial_com.md` | 1600 |
-| `mitre_ics_filtered/serial_connection_enumeration.md` | 1383 |
-| `mitre_ics_filtered/service_stop.md` | 784 |
-| `mitre_ics_filtered/spoof_reporting_message.md` | 1224 |
-| `mitre_ics_filtered/standard_application_layer_protocol.md` | 835 |
-| `mitre_ics_filtered/supply_chain_compromise.md` | 2580 |
-| `mitre_ics_filtered/system_binary_proxy_execution.md` | 2291 |
-| `mitre_ics_filtered/system_firmware.md` | 1081 |
-| `mitre_ics_filtered/theft_of_operational_information.md` | 774 |
-| `mitre_ics_filtered/transient_cyber_asset.md` | 1595 |
-| `mitre_ics_filtered/unauthorized_command_message.md` | 1314 |
-| `mitre_ics_filtered/unauthorized_message.md` | 1384 |
-| `mitre_ics_filtered/valid_accounts.md` | 1695 |
-| `mitre_ics_filtered/wi_fi.md` | 943 |
-| `mitre_ics_filtered/wireless_compromise.md` | 1492 |
-| `mitre_ics_filtered/wireless_sniffing.md` | 1904 |
-| `mitre_ics_filtered_summary.md` | 68 |
-| `uav_attack_dataset_metadata.md` | 1047 |
-| `uav_networkcommunication_feature_summary.md` | 1968 |
-| `uav_networkcommunication_file_manifest.md` | 1517 |
-| `uav_networkcommunication_readme.md` | 1069 |
-| `uav_soc_project_dataset_plan.md` | 1370 |
+| 범주(category) | 개수 | source | 설명 |
+|---|---:|---|---|
+| `incident_cases` | 3 | authored | UAV 보안 사고 사례(유사사례 검색의 핵심) |
+| `attack_techniques` | 99 | MITRE ATT&CK for ICS | ICS 공격 기법 |
+| `standards` | 3 | IEC 62443 | 표준 원문 + 대응 템플릿 |
+| `datasets` | 9 | Aissou/IEEE/NetComm | 데이터셋 실측 분석 |
+
+> `project_meta`(진행 메모·다운로드 상태)는 검색 노이즈라 KB에서 제외했다.
+
+## incident_cases (3) — source: authored
+
+- `incident_case_gps_jamming_vs_spoofing.md`
+- `incident_case_gps_spoofing_gcs_normal.md`
+- `incident_case_wifi_deauth_network_primary.md`
+
+## attack_techniques (99) — source: MITRE ATT&CK for ICS
+
+- `activate_firmware_update_mode.md`
+- `adversary_in_the_middle.md`
+- `automated_collection.md`
+- `autorun_image.md`
+- `block_command_message.md`
+- `block_communications.md`
+- `block_operational_technology_message.md`
+- `block_reporting_message.md`
+- `block_serial_com.md`
+- `broadcast_discovery.md`
+- `brute_force_i_o.md`
+- `change_credential.md`
+- `change_operating_mode.md`
+- `change_program_state.md`
+- `command_line_interface.md`
+- `command_message.md`
+- `connection_proxy.md`
+- `control_device_identification.md`
+- `damage_to_property.md`
+- `data_destruction.md`
+- `data_from_information_repositories.md`
+- `data_from_local_system.md`
+- `data_historian_compromise.md`
+- `default_credentials.md`
+- `denial_of_control.md`
+- `denial_of_service.md`
+- `denial_of_view.md`
+- `detect_operating_mode.md`
+- `device_restart_shutdown.md`
+- `download_all.md`
+- `drive_by_compromise.md`
+- `engineering_workstation_compromise.md`
+- `execution_through_api.md`
+- `exploit_public_facing_application.md`
+- `exploitation_for_evasion.md`
+- `exploitation_for_privilege_escalation.md`
+- `exploitation_of_remote_services.md`
+- `external_remote_services.md`
+- `hardcoded_credentials.md`
+- `hooking.md`
+- `i_o_image.md`
+- `i_o_module_discovery.md`
+- `insecure_credentials.md`
+- `internet_accessible_device.md`
+- `lateral_tool_transfer.md`
+- `location_identification.md`
+- `loss_of_availability.md`
+- `loss_of_control.md`
+- `loss_of_productivity_and_revenue.md`
+- `loss_of_protection.md`
+- `loss_of_safety.md`
+- `loss_of_view.md`
+- `manipulate_i_o_image.md`
+- `manipulation_of_control.md`
+- `manipulation_of_view.md`
+- `mitre_ics_filtered_summary.md`
+- `modify_alarm_settings.md`
+- `modify_control_logic.md`
+- `modify_controller_tasking.md`
+- `modify_firmware.md`
+- `modify_parameter.md`
+- `modify_program.md`
+- `module_firmware.md`
+- `monitor_process_state.md`
+- `multicast_discovery.md`
+- `native_api.md`
+- `network_service_scanning.md`
+- `online_edit.md`
+- `point_tag_identification.md`
+- `port_scan.md`
+- `program_append.md`
+- `program_download.md`
+- `program_upload.md`
+- `project_file_infection.md`
+- `remote_services.md`
+- `remote_system_discovery.md`
+- `remote_system_information_discovery.md`
+- `replication_through_removable_media.md`
+- `reporting_message.md`
+- `rogue_master.md`
+- `role_identification.md`
+- `rootkit.md`
+- `screen_capture.md`
+- `serial_com.md`
+- `serial_connection_enumeration.md`
+- `service_stop.md`
+- `spoof_reporting_message.md`
+- `standard_application_layer_protocol.md`
+- `supply_chain_compromise.md`
+- `system_binary_proxy_execution.md`
+- `system_firmware.md`
+- `theft_of_operational_information.md`
+- `transient_cyber_asset.md`
+- `unauthorized_command_message.md`
+- `unauthorized_message.md`
+- `valid_accounts.md`
+- `wi_fi.md`
+- `wireless_compromise.md`
+- `wireless_sniffing.md`
+
+## standards (3) — source: IEC 62443
+
+- `gca_leveraging_isa62443_risk_assessment.pdf`
+- `iec62443_uav_response_templates.md`
+- `isa_iec_62443_overview.html`
+
+## datasets (9) — source: Aissou / IEEE / UAV NetworkCommunication
+
+- `aissou_gps_spoofing_dataset.md`
+- `aissou_gps_spoofing_feature_summary.md`
+- `dataset_card_aissou_gps_spoofing.md`
+- `dataset_card_uav_attack_dataset.md`
+- `ieee_uav_attack_gps_signatures.md`
+- `uav_attack_dataset_metadata.md`
+- `uav_networkcommunication_feature_summary.md`
+- `uav_networkcommunication_file_manifest.md`
+- `uav_networkcommunication_readme.md`
+
