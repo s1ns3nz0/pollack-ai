@@ -12,8 +12,8 @@ UAV 보안 지식베이스(RAGFlow)를 비동기로 검색하는 RAG 도구.
   가드레일(신뢰 출처 `kb/` 만 채택)을 통과한다.
 - **백엔드**: 로컬 RAGFlow `/api/v1/retrieval` (임베딩 `bge-m3`, 챗 `qwen2.5:14b`,
   KB `uav_soc_rag` = UAV 공격 incident case · MITRE ATT&CK for ICS · IEC 62443 ·
-  Aissou/IEEE/NetworkComm 데이터셋 실측 분석 117문서). 원천 문서는
-  `data/knowledge_base/` 에 보관.
+  Aissou/IEEE/NetworkComm 데이터셋 실측 분석 117문서). 원천 문서 목록은
+  `data/knowledge_base/MANIFEST.md` 참고(본문은 코드 레포에 커밋하지 않음).
 
 ### 사용
 
@@ -41,6 +41,6 @@ Azure 비용 없이 로컬에서 즉시 동작하는 RAG 경로를 제공한다.
 
 ### 지식베이스 적재
 
-RAGFlow 엔진과 ingest 스크립트는 별도 위치(`uav_soc_rag_poc`)에 있다. `data/
-knowledge_base/` 의 문서가 그 KB 의 원천이며, 새 문서를 추가하면 해당 ingest
-파이프라인으로 KB 를 갱신한다.
+RAGFlow 엔진과 ingest 스크립트는 별도 위치(`uav_soc_rag_poc`)에 있다. KB 원천
+문서는 데이터/코드 분리 원칙에 따라 코드 레포에 커밋하지 않으며, 목록과 복원
+방법은 `data/README.md` 와 `data/knowledge_base/MANIFEST.md` 를 따른다.
