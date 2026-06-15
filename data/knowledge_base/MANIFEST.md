@@ -3,7 +3,7 @@
 이 목록은 RAGFlow 지식베이스(`uav_soc_rag`)에 적재되는 **원천 문서 목록**이다.
 원본 파일은 데이터/코드 분리 원칙에 따라 **코드 레포에 커밋하지 않는다**(.gitignore).
 
-- 정본 위치(이 머신): `/gpfs/home/jm00055/uav_soc_rag_poc/ragflow_ingest/`
+- 정본 위치(이 머신): `/gpfs/home/jm00055/pollack-ai/projects/uav_soc_rag_poc/ragflow_ingest/`
 - 로컬 복원: 위 경로에서 `data/knowledge_base/` 로 복사하거나 ingest 파이프라인 실행
 - RAG 백엔드: 문서는 RAGFlow KB(임베딩 `bge-m3`)에 적재되어 검색됨
 

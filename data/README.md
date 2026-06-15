@@ -11,7 +11,7 @@ RAGFlow 지식베이스(`uav_soc_rag`)에 적재되는 UAV 보안 원천 문서.
 - **원본은 커밋 안 함** → `.gitignore` 로 제외 (용량·변경빈도·라이선스 고려)
 - **로컬에 채우는 법**: 정본 위치에서 복사
   ```bash
-  cp -r /gpfs/home/jm00055/uav_soc_rag_poc/ragflow_ingest/. data/knowledge_base/
+  cp -r /gpfs/home/jm00055/pollack-ai/projects/uav_soc_rag_poc/ragflow_ingest/. data/knowledge_base/
   ```
 - **RAG 적재**: 문서는 RAGFlow KB(임베딩 `bge-m3`)로 ingest 되어 검색된다.
   GraphRAG(Azure) 로 전환 시에는 Azure Blob(`GRAPHRAG_STORAGE_ACCOUNT`)로 적재한다.

@@ -59,6 +59,8 @@ eval = [
 line-length = 88
 target-version = ["py311"]
 # 큰따옴표 통일 (기본값)
+# projects/ 는 별도 관리(gitignore)되는 관련 프로젝트 모음 — 팀 도구 검사 대상 아님
+extend-exclude = "projects/"
 
 # ─────────────────────────────────────────
 # ruff — 린터 + isort
@@ -66,6 +68,8 @@ target-version = ["py311"]
 [tool.ruff]
 line-length = 88
 target-version = "py311"
+# projects/ 제외 (별도 관리되는 관련 프로젝트 모음)
+extend-exclude = ["projects"]
 
 [tool.ruff.lint]
 select = [
@@ -98,6 +102,7 @@ force-sort-within-sections = true
 [tool.mypy]
 python_version = "3.11"
 strict = true                    # 모든 strict 옵션 활성화
+exclude = "^projects/"           # 별도 관리되는 관련 프로젝트 모음 제외
 
 # strict 세부 항목 (strict = true 와 동일하지만 명시)
 disallow_any_generics = true
