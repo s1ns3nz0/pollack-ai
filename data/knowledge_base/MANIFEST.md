@@ -12,7 +12,7 @@ RAGFlow KB(`uav_soc_rag`)에 적재되는 원천 문서. 본문은 .gitignore로
 | `incident_cases` | 8 | authored |
 | `attack_techniques` | 99 | MITRE ATT&CK for ICS |
 | `standards` | 3 | IEC 62443 |
-| `datasets` | 9 | Aissou/IEEE/NetComm |
+| `datasets` | 11 | Aissou/IEEE/NetComm/LIG도메인보고서 |
 
 ## 공격 시나리오(S1~S6) ↔ incident_case 커버리지
 
@@ -146,15 +146,16 @@ RAGFlow KB(`uav_soc_rag`)에 적재되는 원천 문서. 본문은 .gitignore로
 - `iec62443_uav_response_templates.md`
 - `isa_iec_62443_overview.html`
 
-## datasets (9) — source: Aissou / IEEE / UAV NetworkCommunication
+## datasets (11) — source: Aissou / IEEE / UAV NetworkCommunication / LIG 도메인 보고서
 
 - `aissou_gps_spoofing_dataset.md`
 - `aissou_gps_spoofing_feature_summary.md`
 - `dataset_card_aissou_gps_spoofing.md`
 - `dataset_card_uav_attack_dataset.md`
 - `ieee_uav_attack_gps_signatures.md`
+- `lig_drone_catalog_report.pdf`
 - `uav_attack_dataset_metadata.md`
 - `uav_networkcommunication_feature_summary.md`
 - `uav_networkcommunication_file_manifest.md`
 - `uav_networkcommunication_readme.md`
-
+- `uav_ugv_satcom_report.pdf`
