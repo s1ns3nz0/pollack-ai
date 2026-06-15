@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from core.exceptions import RagflowQueryError
 from core.models import RetrievedChunk
-from core.settings import RagflowSettings, get_ragflow_settings
+from core.settings import Settings, get_settings
 from utils.logging import get_logger
 
 if TYPE_CHECKING:
@@ -51,11 +51,11 @@ class RagflowRetrievalTool(BaseTool):
         "템플릿을 검색한다. 입력은 자연어 질의, 출력은 출처가 표기된 컨텍스트 청크."
     )
     args_schema: type[BaseModel] = RagflowQueryInput
-    settings: RagflowSettings = Field(default_factory=get_ragflow_settings)
+    settings: Settings = Field(default_factory=get_settings)
 
     def _make_client(self) -> httpx.AsyncClient:
         """검색에 사용할 비동기 HTTP 클라이언트를 생성한다(테스트에서 주입 가능)."""
-        return httpx.AsyncClient(timeout=self.settings.timeout_seconds)
+        return httpx.AsyncClient(timeout=self.settings.ragflow_timeout_seconds)
 
     async def aretrieve(self, query: str, k: int = 5) -> list[RetrievedChunk]:
         """질의에 대한 컨텍스트 청크를 검색한다(타입 안전 API).
@@ -71,8 +71,8 @@ class RagflowRetrievalTool(BaseTool):
             RagflowQueryError: 네트워크 오류, 비정상 응답, 인증 실패 시.
         """
         if (
-            not self.settings.api_token.get_secret_value()
-            or not self.settings.dataset_id
+            not self.settings.ragflow_api_token.get_secret_value()
+            or not self.settings.ragflow_dataset_id
         ):
             raise RagflowQueryError(
                 "RAGFlow 설정이 비어 있습니다(RAGFLOW_API_TOKEN/RAGFLOW_DATASET_ID)."
@@ -80,21 +80,20 @@ class RagflowRetrievalTool(BaseTool):
 
         payload: dict[str, object] = {
             "question": query,
-            "dataset_ids": [self.settings.dataset_id],
+            "dataset_ids": [self.settings.ragflow_dataset_id],
             "page": 1,
             "page_size": k,
-            "similarity_threshold": self.settings.similarity_threshold,
-            "vector_similarity_weight": self.settings.vector_weight,
-            "top_k": self.settings.top_k,
+            "similarity_threshold": self.settings.ragflow_similarity_threshold,
+            "vector_similarity_weight": self.settings.ragflow_vector_weight,
+            "top_k": self.settings.ragflow_top_k,
         }
-        headers = {
-            "Authorization": f"Bearer {self.settings.api_token.get_secret_value()}"
-        }
+        token = self.settings.ragflow_api_token.get_secret_value()
+        headers = {"Authorization": f"Bearer {token}"}
 
         try:
             async with self._make_client() as client:
                 response = await client.post(
-                    self.settings.retrieval_url, json=payload, headers=headers
+                    self.settings.ragflow_retrieval_url, json=payload, headers=headers
                 )
                 response.raise_for_status()
                 body = response.json()

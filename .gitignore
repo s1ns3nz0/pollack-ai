@@ -65,3 +65,7 @@ logs/
 # ── 기타 ──────────────────────────────────
 *.tmp
 *.bak
+
+# KB 원천 문서는 코드 레포에 커밋하지 않음 (데이터/코드 분리)
+data/knowledge_base/**
+!data/knowledge_base/MANIFEST.md

@@ -10,7 +10,7 @@ import pytest
 
 from core.exceptions import RagflowQueryError
 from core.models import RetrievedChunk
-from core.settings import RagflowSettings
+from core.settings import Settings
 from tools.ragflow_tool import RagflowRetrievalTool
 
 _SAMPLE_RESPONSE: dict[str, object] = {
@@ -32,11 +32,11 @@ _SAMPLE_RESPONSE: dict[str, object] = {
 }
 
 
-def _settings() -> RagflowSettings:
-    return RagflowSettings(
-        base_url="http://test-ragflow:9380",
-        api_token=SecretStr("test-token"),
-        dataset_id="ds-test",
+def _settings() -> Settings:
+    return Settings(
+        ragflow_base_url="http://test-ragflow:9380",
+        ragflow_api_token=SecretStr("test-token"),
+        ragflow_dataset_id="ds-test",
     )
 
 
@@ -81,7 +81,7 @@ class TestRagflowRetrievalTool:
     async def test_empty_token_raises(self) -> None:
         """토큰/데이터셋 미설정 시 RagflowQueryError 발생."""
         tool = RagflowRetrievalTool(
-            settings=RagflowSettings(api_token=SecretStr(""), dataset_id="")
+            settings=Settings(ragflow_api_token=SecretStr(""), ragflow_dataset_id="")
         )
         with pytest.raises(RagflowQueryError):
             await tool.aretrieve("x")
