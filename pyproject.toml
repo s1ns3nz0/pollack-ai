@@ -33,6 +33,7 @@ dependencies = [
     # 설정 관리
     "pydantic>=2.7.0",
     "pydantic-settings>=2.3.0",
+    "pyyaml>=6.0",
 
     # 그래프 RAG
     "graphrag>=0.3.0",
@@ -120,6 +121,7 @@ module = [
     "graphrag.*",
     "pyrit.*",
     "ragas.*",
+    "yaml",
 ]
 ignore_missing_imports = true
 

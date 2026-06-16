@@ -1,0 +1,99 @@
+# =============================================================================
+# 심각도 정책 (h / m / l / i) — Severity Scoring Agent 의 외부화된 규칙
+# -----------------------------------------------------------------------------
+# 핵심 원칙: 심각도 = f(공격 영향, 자산 tier, 임무 맥락 METT+TC, 외부 사이버 태세)
+# 이 파일이 "추후 심각도 조정 가능"의 구현체다 — 코드가 아니라 정책으로 튜닝.
+# Validation(오탐/정탐) 피드백 → 이 파일의 가중치/임계 PR로 자동 제안.
+# =============================================================================
+
+version: 0.1
+owner: 황준식
+
+# --- 4단계 정의 (UAV 기준) ---
+levels:
+  h:
+    name: High / Critical
+    definition: 임무 실패·기체 통제권 상실·치명. 즉시 대응 필요.
+    uav_examples: [C2 하이재킹, GPS 스푸핑 항법탈취, 펌웨어 변조, GCS 침해, 함대 전파]
+    hitl: 즉시(운용자 즉시 개입, 자동 페일세이프 병행)
+    auto_response: 활성(RTB/페일세이프 자동 발동 허용)
+    oscal_evidence: full   # 전체 증거 아카이빙
+  m:
+    name: Medium
+    definition: 부분 임무 저하, 이중화 유지, 페일오버 필요.
+    uav_examples: [SATCOM 간헐 단절, 단일 센서 재밍, 데이터링크 무결성 경고]
+    hitl: 비동기 검토
+    auto_response: 부분(페일오버 자동, 무력화 대응은 승인 필요)
+    oscal_evidence: standard
+  l:
+    name: Low
+    definition: 비핵심 기능 저하, 복구 가능, 임무 영향 없음.
+    uav_examples: [텔레메트리 노이즈, 단발 이상치]
+    hitl: 불요(모니터링)
+    auto_response: 모니터링/룰 튜닝
+    oscal_evidence: summary
+  i:
+    name: Info
+    definition: 영향 없음. 정찰/스캔/관찰 단계.
+    uav_examples: [포트 스캔, 헬스체크 변동]
+    hitl: 불요
+    auto_response: 로깅·상관분석 누적
+    oscal_evidence: log-only
+
+# --- 산정 방식 (MVP = 룰 기반, 향후 점수식으로 확장 가능) ---
+scoring:
+  mode: rule-based          # rule-based | weighted-score
+  base_from: severity_baseline   # 시나리오의 baseline에서 시작
+
+  # 자산 tier 가중 (asset-tiers.yaml 참조)
+  asset_tier_modifier:
+    T1-Critical: +0          # 이미 high 전제
+    T0-AI:       +0
+    T2-Important: 0
+    T3-Support:  -1          # 한 단계 하향 후보
+
+  # 임무 단계(METT+TC phase) 가중
+  mission_phase_modifier:
+    pre-flight:  0
+    ingress:    +1           # 침투 중 = 더 위험
+    on-station:  0           # 상시 운영 기준(과상향 방지)
+    egress:      0
+    recovery:   -1
+
+  # 외부 사이버/EW 태세 (ATCIS/MIMS 모사, 국정원 경보단계)
+  posture_modifier:
+    normal:    0
+    elevated: +1
+    high:     +1
+    # 태세 상향 시 하향(de-escalation) 금지 플래그
+    lock_no_downgrade_at: elevated
+
+  # 클램프 순서: h(3) > m(2) > l(1) > i(0)
+  ordinal: { h: 3, m: 2, l: 1, i: 0 }
+  clamp: [i, h]
+
+# --- 동적 조정 규칙 (네가 "더 도출" 하라던 부분의 출발점) ---
+dynamics:
+  escalation:
+    - rule: dwelling_time_exceeds       # 체류시간 임계 초과 → 등급↑
+      threshold_min: 30
+      action: +1
+    - rule: lateral_correlation         # 상위자산(GCS/C2) 침해 시 의존 기체 등급↑
+      action: set_dependents_min
+      value: m
+  de_escalation:
+    - rule: no_effect_sustained         # 무영향 지속 → 등급↓ (단 posture lock 시 금지)
+      window_min: 60
+      action: -1
+
+# --- 휴먼 검토/피드백 루프 ---
+feedback:
+  source: validation_agent              # 오탐/정탐 판정
+  effect: 오탐 누적 자산/룰은 가중치 하향 PR 자동 제안, 정탐 미탐은 상향 제안
+  governance: 변경은 Git PR + 황준식 승인(루브릭 개선과 연동)
+
+# --- 미해결 / TODO (황준식 도출 예정) ---
+open_questions:
+  - 자산 간 의존 그래프(GCS→UAV) 정식 모델링 범위
+  - posture 입력(ATCIS/MIMS)의 실연동 vs 모사 범위
+  - 점수식(impact×likelihood×mission) 전환 시점

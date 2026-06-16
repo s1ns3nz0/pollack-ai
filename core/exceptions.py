@@ -12,3 +12,7 @@ class SOCPlatformError(Exception):
 
 class RagflowQueryError(SOCPlatformError):
     """RAGFlow 검색 API 연동 오류."""
+
+
+class PolicyError(SOCPlatformError):
+    """심각도 정책 로드/적용 오류."""
