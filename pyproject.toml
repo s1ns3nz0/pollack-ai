@@ -2,6 +2,12 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+# 플랫 레이아웃(core/tools/utils ...)이라 패키지 위치를 명시해야
+# `pip install -e .` 가 동작한다(미지정 시 hatchling 이 패키지를 못 찾고 빌드 실패).
+# 새 최상위 패키지(agents/ 등)를 추가하면 여기에도 함께 등록할 것.
+[tool.hatch.build.targets.wheel]
+packages = ["core", "tools", "utils"]
+
 # ─────────────────────────────────────────
 # 프로젝트 메타데이터
 # ─────────────────────────────────────────
@@ -27,6 +33,7 @@ dependencies = [
     # 설정 관리
     "pydantic>=2.7.0",
     "pydantic-settings>=2.3.0",
+    "pyyaml>=6.0",
 
     # 그래프 RAG
     "graphrag>=0.3.0",
@@ -53,6 +60,8 @@ eval = [
 line-length = 88
 target-version = ["py311"]
 # 큰따옴표 통일 (기본값)
+# projects/ 는 별도 관리(gitignore)되는 관련 프로젝트 모음 — 팀 도구 검사 대상 아님
+extend-exclude = "projects/"
 
 # ─────────────────────────────────────────
 # ruff — 린터 + isort
@@ -60,6 +69,8 @@ target-version = ["py311"]
 [tool.ruff]
 line-length = 88
 target-version = "py311"
+# projects/ 제외 (별도 관리되는 관련 프로젝트 모음)
+extend-exclude = ["projects"]
 
 [tool.ruff.lint]
 select = [
@@ -92,6 +103,7 @@ force-sort-within-sections = true
 [tool.mypy]
 python_version = "3.11"
 strict = true                    # 모든 strict 옵션 활성화
+exclude = "^projects/"           # 별도 관리되는 관련 프로젝트 모음 제외
 
 # strict 세부 항목 (strict = true 와 동일하지만 명시)
 disallow_any_generics = true
@@ -109,6 +121,7 @@ module = [
     "graphrag.*",
     "pyrit.*",
     "ragas.*",
+    "yaml",
 ]
 ignore_missing_imports = true
 

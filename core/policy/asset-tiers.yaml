@@ -1,0 +1,48 @@
+# =============================================================================
+# 자산 중요도(Tier) 정의 — 심각도 산정의 입력
+# 시나리오의 target_asset.id 가 여기를 참조한다.
+# Detection-as-Code: 이 파일을 고치면 심각도 결과가 바뀐다(코드 재배포 X).
+# =============================================================================
+
+tiers:
+  T1-Critical:
+    weight: 4
+    desc: 손상 시 기체 손실 또는 통제권 상실로 직결
+  T2-Important:
+    weight: 3
+    desc: 임무 실패/정보 손실, 단 즉시 기체 상실은 아님
+  T3-Support:
+    weight: 1
+    desc: 성능 저하·복구 가능, 임무 영향 경미
+  T0-AI:
+    weight: 4
+    desc: 방어 AI 자산(SOC 에이전트/RAG). 손상 시 전 자산 방어 무력화(메타)
+
+assets:
+  - id: GNSS
+    name: 위성항법 수신기/항법 솔루션
+    tier: T1-Critical
+  - id: C2_LINK
+    name: 명령·제어(C2) 데이터링크
+    tier: T1-Critical
+  - id: AUTOPILOT
+    name: 비행제어기/임베디드 펌웨어
+    tier: T1-Critical
+  - id: GCS
+    name: 지상통제소
+    tier: T1-Critical
+  - id: SATCOM
+    name: 위성통신 데이터링크
+    tier: T2-Important
+  - id: PAYLOAD_EOIR
+    name: EO/IR 임무 페이로드/온보드 인식
+    tier: T2-Important
+  - id: UGV_TELEOP
+    name: 무인지상차량 원격조종/자율주행 제어
+    tier: T1-Critical
+  - id: TELEMETRY
+    name: 텔레메트리/로깅
+    tier: T3-Support
+  - id: AI_SOC
+    name: SOC 에이전트 + RAG 지식베이스
+    tier: T0-AI
