@@ -2,10 +2,10 @@
 
 > 회사 PC에서 Notion 접근이 막혀 있어서, Notion "황준식 과업" 페이지 내용을 이 파일로 미러링합니다.
 > **앞으로는 이 파일을 최신화**합니다. (Notion 원본과 동일 내용)
-> 최종 상태: **45 tests passed**, `python run_demo.py` 기본 콘솔에서 정상 동작.
-> 상세 핸드오프/이관 가이드는 프로토타입의 `HANDOFF.md`, `WORK-HISTORY.md` 참고.
+> 최종 상태: **RAG·방어 6-에이전트 실제 구현 완료** (RAGFlow + 실 LangGraph, 팀 CI 통과). 프로토타입 45 tests passed.
+> 상세 핸드오프/이관 가이드는 프로토타입의 `HANDOFF.md`, `WORK-HISTORY.md`, `RAG_DEFENSE_STATUS.md` 참고.
 
-마지막 갱신: 2026-06-15
+마지막 갱신: 2026-06-17
 
 ---
 
@@ -21,8 +21,10 @@
 | UAV/UGV 공격 시나리오 | 됨 (S1~S11) | `scenarios/` |
 | 레드팀 매핑(PyRIT/Garak) | 매핑 됨 / 실행은 다른 PC | `redteam/` · `scenarios/*.yaml` |
 | MITRE/ATLAS/EMB3D 추적 | 됨 | `tracking/coverage-matrix.md` |
-| RAG flow | 다른 PC (이 repo는 mock) | `interfaces.py` |
-| OSCAL 통제 매핑 | 협업 대기 | `oscal.py` (stub) |
+| RAG 검색(RAGFlow) | ✅ 실제 구현 — KB 126 docs | `tools/ragflow_tool.py` |
+| 방어 6-에이전트 SOC | ✅ 실 LangGraph·async, CI 통과 | `agents/` |
+| 에이전트 LLM 추론 | mock — Azure OpenAI 교체 예정(별도 lane) | — |
+| OSCAL 통제 매핑 | 협업 대기 | `core/oscal.py` (stub) |
 
 ---
 
@@ -70,7 +72,7 @@
 
 ## 아직 남은 것
 
-- RAG flow는 다른 PC에 있어요 — 이 repo는 mock으로 격리해뒀고 나중에 연결할 예정입니다
+- RAG flow는 RAGFlow(로컬 ollama: bge-m3 임베딩 / qwen2.5:14b)로 **실제 구현 완료** — `tools/ragflow_tool.py`. 에이전트 LLM 추론만 아직 mock → Azure OpenAI 교체 예정(별도 lane)
 - S1·S4·S7·S8·S10의 EMB3D는 카테고리명으로 적어뒀고, 제출 전 emb3d.mitre.org에서 실제 TID만 채우면 돼요
 - dynamics 신호(체류시간·횡적상관)는 탐지 파이프라인이 실제로 채워줘야 합니다
 - OSCAL 통제 ID 매핑은 인프라·컴플라이언스 담당과 같이 해야 해요
