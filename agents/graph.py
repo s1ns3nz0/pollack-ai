@@ -23,6 +23,7 @@ from agents.validation_agent import (
     default_judge,
     route_after_validation,
 )
+from core.llm import LLMClient
 from core.models import SOCState
 from core.settings import Settings, get_settings
 from core.severity import SeverityEngine
@@ -33,6 +34,7 @@ def build_soc_graph(
     settings: Settings | None = None,
     engine: SeverityEngine | None = None,
     retriever: ContextRetriever | None = None,
+    llm: LLMClient | None = None,
     judge: Judge = default_judge,
 ) -> CompiledStateGraph[SOCState]:
     """6-에이전트 SOC 파이프라인을 조립해 컴파일된 그래프를 반환한다.
@@ -41,7 +43,8 @@ def build_soc_graph(
         settings: 전역 설정(미지정 시 환경에서 로드).
         engine: 심각도 엔진(미지정 시 정책 파일에서 생성).
         retriever: RAG 리트리버(미지정 시 Investigation 은 빈 컨텍스트).
-        judge: Validation 판정기.
+        llm: 요약용 LLM(미지정 시 Investigation 요약은 결정론적 폴백).
+        judge: Validation 판정기(기본은 결정론적 — 판정권을 LLM 에 주지 않음).
 
     Returns:
         컴파일된 LangGraph(`ainvoke({"alert": ...})` 로 실행).
@@ -50,7 +53,7 @@ def build_soc_graph(
     engine = engine or SeverityEngine()
 
     triage = TriageAgent(settings, engine)
-    investigation = InvestigationAgent(settings, retriever)
+    investigation = InvestigationAgent(settings, retriever, llm)
     validation = ValidationAgent(settings, judge)
     response = ResponseAgent(settings, engine)
     rule_update = RuleUpdateAgent(settings)
