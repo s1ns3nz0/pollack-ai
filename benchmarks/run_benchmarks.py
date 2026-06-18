@@ -22,9 +22,28 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import re  # noqa: E402
+
 from agents.graph import build_soc_graph  # noqa: E402
+from core.exceptions import LLMError  # noqa: E402
+from core.llm import OllamaLLMClient, get_llm_client  # noqa: E402
 from core.models import Alert, Severity, Verdict  # noqa: E402
 from tools.ragflow_tool import KbCategory, RagflowRetrievalTool  # noqa: E402
+
+_JUDGE_SYSTEM = (
+    "당신은 RAG 평가자다. 아래 기준을 1~5 정수로만 답하라(숫자 하나만)."
+)
+
+
+async def _judge_score(llm: OllamaLLMClient, criterion: str, ctx: str, answer: str) -> float:
+    """LLM-as-Judge 1~5 점수(파싱 실패 시 0)."""
+    user = f"평가기준: {criterion}\n\n[컨텍스트]\n{ctx}\n\n[답변]\n{answer}\n\n점수(1~5):"
+    try:
+        out = await llm.acomplete(_JUDGE_SYSTEM, user)
+    except LLMError:
+        return 0.0
+    m = re.search(r"[1-5]", out)
+    return float(m.group()) if m else 0.0
 
 SCEN_DIR = ROOT / "projects" / "dah2026" / "scenarios"
 POC = ROOT / "projects" / "uav_soc_rag_poc"
@@ -128,6 +147,35 @@ async def main() -> None:
         rr_sum += (1.0 / rank) if rank else 0.0
         details.append({"scenario": sid, "gold": gold, "rank": rank})
 
+    # --- 4) LLM-as-Judge (Investigation 요약 faithfulness/relevancy, 실 LLM) ---
+    faith_scores: list[float] = []
+    relev_scores: list[float] = []
+    llm_judge_n = 0
+    try:
+        llm = get_llm_client()
+        judge = OllamaLLMClient()
+        for path in scenarios:
+            graph = build_soc_graph(retriever=retriever, llm=llm)
+            s = await graph.ainvoke({"alert": _alert_from_scenario(path, Verdict.TRUE_POSITIVE)})
+            inv = s["investigation"]
+            ctx = "\n".join(f"[{c.source}] {c.text[:400]}" for c in inv.similar_cases[:5])
+            if not ctx:
+                continue
+            f = await _judge_score(
+                judge, "답변이 컨텍스트에만 근거하는가(faithfulness)", ctx, inv.summary
+            )
+            r = await _judge_score(
+                judge, "답변이 경보 질문에 적절한가(relevancy)", ctx, inv.summary
+            )
+            faith_scores.append(f)
+            relev_scores.append(r)
+            llm_judge_n += 1
+    except (LLMError, OSError):
+        pass
+
+    def _avg(xs: list[float]) -> float | None:
+        return round(sum(xs) / len(xs), 2) if xs else None
+
     results = {
         "routing_accuracy": round(route_ok / route_total, 3),
         "routing_detail": f"{route_ok}/{route_total}",
@@ -137,21 +185,25 @@ async def main() -> None:
         "mrr": round(rr_sum / recall_total, 3) if recall_total else None,
         "recall_detail": f"{recall_hits}/{recall_total}",
         "recall_per_scenario": details,
+        "llm_judge_faithfulness": _avg(faith_scores),
+        "llm_judge_relevancy": _avg(relev_scores),
+        "llm_judge_detail": f"{llm_judge_n}개 시나리오 (1~5점 척도)",
     }
     out = ROOT / "benchmarks" / "results"
     out.mkdir(parents=True, exist_ok=True)
     (out / "bench_results.json").write_text(json.dumps(results, ensure_ascii=False, indent=2))
 
     print("=" * 56)
-    print("SOC / RAG 벤치마크 결과 (LLM 불필요 지표)")
+    print("SOC / RAG 벤치마크 결과")
     print("=" * 56)
-    print(f"라우팅 정확도(TP→response/FP→rule_update): {results['routing_accuracy']} ({results['routing_detail']})")
-    print(f"S5 포이즈닝 저항성(적대주입 시 등급 유지)  : {results['s5_resistance_rate']} ({results['s5_detail']})")
-    print(f"검색 Recall@5                              : {results['recall_at_5']} ({results['recall_detail']})")
-    print(f"검색 MRR                                   : {results['mrr']}")
-    print("\n시나리오별 정답 문서 순위(rank, 0=미검출):")
-    for d in details:
-        print(f"  {d['scenario']}: rank={d['rank']}  ({d['gold']})")
+    print("[LLM 불필요 지표]")
+    print(f"  라우팅 정확도(TP→response/FP→rule_update): {results['routing_accuracy']} ({results['routing_detail']})")
+    print(f"  S5 포이즈닝 저항성(적대주입 시 등급 유지)  : {results['s5_resistance_rate']} ({results['s5_detail']})")
+    print(f"  검색 Recall@5                              : {results['recall_at_5']} ({results['recall_detail']})")
+    print(f"  검색 MRR                                   : {results['mrr']}")
+    print("[LLM-as-Judge (실 Ollama, 1~5점)]")
+    print(f"  Investigation 요약 Faithfulness            : {results['llm_judge_faithfulness']}")
+    print(f"  Investigation 요약 Relevancy               : {results['llm_judge_relevancy']}  ({results['llm_judge_detail']})")
     print(f"\n저장: {out / 'bench_results.json'}")
 
 

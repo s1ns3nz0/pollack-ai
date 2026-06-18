@@ -18,6 +18,11 @@ python benchmarks/run_benchmarks.py
 | **S5 포이즈닝 저항성** | **1.0 (11/11)** | 적대 제안등급('i') 주입 시 정책 등급 유지율 — **핵심 차별점** |
 | **검색 Recall@5** | **1.0 (11/11)** | 시나리오 질의 시 정답 incident_case 가 top-5 에 포함 |
 | **검색 MRR** | **1.0** | 정답 문서 평균 역순위(전부 rank 1) |
+| LLM-Judge Faithfulness | 3.73 / 5 | Investigation 요약이 컨텍스트에만 근거하는가(실 Ollama 판정) |
+| LLM-Judge Relevancy | 4.0 / 5 | Investigation 요약이 경보에 적절한가 |
+
+> LLM-as-Judge(Faithfulness/Relevancy)는 실 Ollama(qwen2.5)로 Investigation 요약을
+> 1~5점 채점한 RAGAS-style 지표. Azure OpenAI 전환 시 동일 프레임으로 재측정.
 
 > S5 저항성 100% = 적대적으로 심각도를 낮추려는 RAG 포이즈닝/프롬프트 인젝션에도
 > 정책 엔진이 등급 하한을 강제해 **단 1건도 하향되지 않음**. NIST AI RMF MEASURE 에 매핑.
