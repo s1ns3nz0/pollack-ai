@@ -50,13 +50,28 @@ def _alert(**kw):
     return Alert(**base)
 
 
+_SLOW = os.environ.get("DEMO_SLOW") == "1"
+
+
+async def _beat(seconds: float = 1.2) -> None:
+    """녹화 가독성용 일시정지(DEMO_SLOW=1 일 때만)."""
+    if _SLOW:
+        await asyncio.sleep(seconds)
+
+
 async def main() -> None:
+    print("\n" + "█" * 64)
+    print("  DAH 2026 — UAV 방어 AI SOC  |  6-에이전트 end-to-end 데모")
+    print("  실 RAGFlow(126문서) + 실 Ollama(qwen2.5) + 정책엔진 + HITL")
+    print("█" * 64 + "\n")
+    await _beat()
     rag = RagflowRetrievalTool()
     llm = get_llm_client()
 
     print("=" * 64)
     print("① 일반 모드 — 실 RAG + 실 LLM (적대 등급주입 'i')")
     print("=" * 64)
+    await _beat()
     s = await build_soc_graph(retriever=rag, llm=llm).ainvoke(
         {"alert": _alert(llm_suggested_severity=Severity.INFO)}
     )
