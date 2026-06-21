@@ -1,0 +1,83 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/a2f3b1c4-d5e6-7890-abcd-ef1234560001')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/a2f3b1c4-d5e6-7890-abcd-ef1234560001')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "UAV S1 - GNSS Spoofing via EKF Variance Anomaly",
+                "description": "UAV/UGV 환경에서 GNSS 스푸핑 탐지. ArduPilot EKF_STATUS_REPORT 메시지의 수평 위치잔차(PosHorizVariance)와 속도잔차(VelocityVariance) 동시 이상 급등을 z-score + 절댓값 게이트로 탐지. z-score 이상(3σ) AND 절댓값 > 0.05 (정상값 ~0.007의 7배) 동시 충족 시 알람. 지형·환경 예외는 Watchlist(GNSS_Exception_List)로 UAVId별 억제. MITRE ICS ATT&CK: T0830·T0856·T0831·T0815 / EMB3D 센서변조",
+                "severity": "High",
+                "enabled": true,
+                "query": "let ExceptionList = _GetWatchlist('GNSS_Exception_List');\nlet baselineWindow = 24h;\nlet lookbackWindow = 5m;\nlet alertWindow = 10m;\nlet zScoreThreshold = 3.0;\nlet posVarGate = 0.05;\nlet velVarGate = 0.05;\nUAVTelemetry_CL\n| where TimeGenerated > ago(baselineWindow)\n| where MsgType == \"EKF_STATUS_REPORT\"\n| make-series AvgPosVar = avg(PosHorizVariance), AvgVelVar = avg(VelocityVariance)\n    on TimeGenerated step lookbackWindow by UAVId\n| extend (PosAnomalies, PosScore, PosBaseline) = series_decompose_anomalies(AvgPosVar, zScoreThreshold)\n| extend (VelAnomalies, VelScore, VelBaseline) = series_decompose_anomalies(AvgVelVar, zScoreThreshold)\n| mv-expand TimeGenerated, AvgPosVar, AvgVelVar, PosAnomalies, PosScore, VelAnomalies, VelScore\n| where TimeGenerated > ago(alertWindow)\n| where PosAnomalies == 1 and VelAnomalies == 1\n| where todouble(AvgPosVar) > posVarGate and todouble(AvgVelVar) > velVarGate\n| join kind=leftouter (\n    ExceptionList\n    | project UAVId = UAVId_s, MaxPosResidual_d, MaxVelResidual_d\n) on UAVId\n| extend isPosException = isnotnull(MaxPosResidual_d)\n    and todouble(AvgPosVar) < todouble(MaxPosResidual_d)\n| extend isVelException = isnotnull(MaxVelResidual_d)\n    and todouble(AvgVelVar) < todouble(MaxVelResidual_d)\n| where not(isPosException and isVelException)\n| extend TriggerReason = \"Both_PosAndVel_ZScore_AboveGate\"\n| extend DetectionDetail = strcat(\n    \"PosVar:\", todouble(AvgPosVar), \"|PosScore:\", todouble(PosScore),\n    \"|VelVar:\", todouble(AvgVelVar)\n)\n| project\n    TimeGenerated = todatetime(TimeGenerated),\n    UAVId,\n    TriggerReason,\n    DetectionDetail,\n    AvgPosVar = todouble(AvgPosVar),\n    AvgVelVar = todouble(AvgVelVar),\n    PosScore = todouble(PosScore)\n| sort by TimeGenerated desc",
+                "queryFrequency": "PT10M",
+                "queryPeriod": "P1D",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "Collection",
+                    "ImpairProcessControl",
+                    "InhibitResponseFunction"
+                ],
+                "techniques": [
+                    "T0830",
+                    "T0856",
+                    "T0831",
+                    "T0815"
+                ],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": {
+                    "alertDisplayNameFormat": "GNSS Spoofing Detected - {{UAVId}}",
+                    "alertDescriptionFormat": "EKF variance spike: PosVar={{AvgPosVar}}, VelVar={{AvgVelVar}}",
+                    "alertDynamicProperties": []
+                },
+                "customDetails": {
+                    "TriggerReason": "TriggerReason",
+                    "AvgPosVar": "AvgPosVar",
+                    "AvgVelVar": "AvgVelVar"
+                },
+                "entityMappings": [
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "HostName",
+                                "columnName": "UAVId"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}
