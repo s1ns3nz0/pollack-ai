@@ -31,13 +31,18 @@ class ResponseAgent(BaseSOCAgent):
         alert = state["alert"]
         pb = alert.defense_playbook
         meta = self._engine.level_meta(state["severity"])
+        # HITL 활성 시 승인 거부면 자동대응 보류
+        approval = state.get("approval")
+        auto_response = opt_str(meta.get("auto_response"))
+        if approval is not None and approval.required and not approval.approved:
+            auto_response = "보류(운용자 거부 — 자동대응 미실행)"
         self._logger.info("response: alert=%s playbook=%s", alert.id, pb.get("id"))
         return {
             "response": ResponseResult(
                 playbook_id=opt_str(pb.get("id")),
                 actions=str_list(pb.get("actions", [])),
                 failover=opt_str(pb.get("failover")),
-                auto_response=opt_str(meta.get("auto_response")),
+                auto_response=auto_response,
                 hitl=opt_str(meta.get("hitl")),
             ),
             "trace": ["response"],

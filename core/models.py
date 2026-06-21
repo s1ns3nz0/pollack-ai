@@ -91,6 +91,14 @@ class ResponseResult(BaseModel):
     hitl: str | None = None
 
 
+class ApprovalResult(BaseModel):
+    """HITL 승인 결과(고위험 자동대응 전 운용자 개입)."""
+
+    required: bool
+    approved: bool
+    note: str = ""
+
+
 class RuleUpdateResult(BaseModel):
     """Rule Update 산출물(오탐 경로 — 탐지룰 수정 제안 stub)."""
 
@@ -142,6 +150,7 @@ class SOCState(TypedDict, total=False):
     priority: int
     investigation: InvestigationResult
     verdict: Verdict
+    approval: ApprovalResult
     response: ResponseResult
     rule_update: RuleUpdateResult
     report: SOCReport

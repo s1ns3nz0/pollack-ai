@@ -16,3 +16,7 @@ class RagflowQueryError(SOCPlatformError):
 
 class PolicyError(SOCPlatformError):
     """심각도 정책 로드/적용 오류."""
+
+
+class LLMError(SOCPlatformError):
+    """LLM(요약/판정) 호출 오류."""

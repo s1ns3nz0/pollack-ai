@@ -3,8 +3,9 @@
 RAG·LLM 외부 의존은 mock(또는 None)으로 격리해 결정론적으로 검증한다.
 """
 
-from typing import cast
+from typing import Any, cast
 
+from langgraph.types import Command
 import pytest
 
 from agents.graph import build_soc_graph
@@ -145,3 +146,34 @@ class TestSocGraph:
         result = cast(SOCState, await graph.ainvoke({"alert": alert}))
         assert result["severity"] == Severity.HIGH
         assert result["guardrail_flags"]
+
+
+class TestHitlInterrupt:
+    """HITL 승인 인터럽트(hitl=True)."""
+
+    @pytest.mark.asyncio
+    async def test_high_severity_pauses_then_resumes_approved(self) -> None:
+        """고위험 정탐 → 승인 대기(interrupt) → 승인 시 response 실행."""
+        graph = build_soc_graph(retriever=None, hitl=True)
+        config: Any = {"configurable": {"thread_id": "t-approve"}}
+        paused = await graph.ainvoke({"alert": _alert()}, config=config)
+        assert "__interrupt__" in paused  # 승인 대기로 멈춤
+        final = cast(
+            SOCState,
+            await graph.ainvoke(Command(resume={"approved": True}), config=config),
+        )
+        assert final["approval"].approved
+        assert final["report"].action_taken == "response"
+
+    @pytest.mark.asyncio
+    async def test_rejected_holds_auto_response(self) -> None:
+        """승인 거부 시 자동대응 보류."""
+        graph = build_soc_graph(retriever=None, hitl=True)
+        config: Any = {"configurable": {"thread_id": "t-reject"}}
+        await graph.ainvoke({"alert": _alert()}, config=config)
+        final = cast(
+            SOCState,
+            await graph.ainvoke(Command(resume={"approved": False}), config=config),
+        )
+        assert final["approval"].approved is False
+        assert "보류" in (final["response"].auto_response or "")

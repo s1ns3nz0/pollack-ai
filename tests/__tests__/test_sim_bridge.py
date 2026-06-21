@@ -1,0 +1,69 @@
+"""sim_bridge 테스트 — 탐지기 + 브리지(합성 텔레메트리, 오프라인).
+
+RAG/LLM 없이(None) 결정론적으로 검증한다.
+"""
+
+import pytest
+
+from core.models import Severity, Verdict
+from sim_bridge.bridge import SimBridge
+from sim_bridge.detector import GpsSpoofDetector
+from sim_bridge.models import TelemetryRecord
+from sim_bridge.synth import benign_ekf, benign_gps, spoof_ekf, spoof_gps, synth_stream
+
+
+class TestTelemetryRecord:
+    """NDJSON 별칭 파싱."""
+
+    def test_alias_parsing(self) -> None:
+        """telemetry-tap 키(PosHorizVariance 등)가 필드로 매핑된다."""
+        r = TelemetryRecord.from_ndjson(spoof_ekf())
+        assert r.msg_type == "EKF_STATUS_REPORT"
+        assert r.pos_horiz_variance == 1.35
+
+
+class TestGpsSpoofDetector:
+    """탐지기 동작."""
+
+    def test_benign_no_alert(self) -> None:
+        """정상 텔레메트리엔 경보 없음."""
+        det = GpsSpoofDetector()
+        assert det.observe(TelemetryRecord.from_ndjson(benign_gps())) is None
+        assert det.observe(TelemetryRecord.from_ndjson(benign_ekf())) is None
+
+    def test_spoof_fires_alert(self) -> None:
+        """GPS 품질저하(Eph 급증/위성감소) + EKF 잔차 급증 → S1 경보."""
+        det = GpsSpoofDetector()
+        det.observe(TelemetryRecord.from_ndjson(benign_gps()))  # 기준선 Eph
+        det.observe(TelemetryRecord.from_ndjson(spoof_gps()))  # Eph 급증
+        alert = det.observe(TelemetryRecord.from_ndjson(spoof_ekf()))  # EKF 잔차
+        assert alert is not None
+        assert alert.scenario_id == "UAV-GPS-SPOOF-001"
+        assert alert.severity_baseline == Severity.HIGH
+        assert any("EKF" in s for s in alert.signals)
+
+    def test_duplicate_suppressed(self) -> None:
+        """동일 사건 중복 발화 억제."""
+        det = GpsSpoofDetector()
+        det.observe(TelemetryRecord.from_ndjson(benign_gps()))
+        det.observe(TelemetryRecord.from_ndjson(spoof_gps()))
+        first = det.observe(TelemetryRecord.from_ndjson(spoof_ekf()))
+        second = det.observe(TelemetryRecord.from_ndjson(spoof_ekf()))
+        assert first is not None
+        assert second is None
+
+
+class TestSimBridge:
+    """브리지 → SOC 파이프라인(오프라인)."""
+
+    @pytest.mark.asyncio
+    async def test_stream_produces_soc_event(self) -> None:
+        """합성 스트림 → 탐지 → 6-에이전트 처리 결과(BridgeEvent)."""
+        bridge = SimBridge(retriever=None, llm=None)
+        events = [e async for e in bridge.run_stream(synth_stream(benign_n=3))]
+        assert len(events) == 1
+        ev = events[0]
+        assert ev.report.severity == Severity.HIGH
+        assert ev.report.verdict == Verdict.TRUE_POSITIVE
+        assert ev.report.action_taken == "response"
+        assert ev.alert.scenario_id == "UAV-GPS-SPOOF-001"

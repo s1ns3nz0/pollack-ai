@@ -9,9 +9,11 @@ Response/Report 의 HITL·자동대응·OSCAL 수준을 좌우한다.
 
 from __future__ import annotations
 
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from agents.approval_agent import ApprovalAgent
 from agents.investigation_agent import ContextRetriever, InvestigationAgent
 from agents.report_agent import ReportAgent
 from agents.response_agent import ResponseAgent
@@ -23,6 +25,7 @@ from agents.validation_agent import (
     default_judge,
     route_after_validation,
 )
+from core.llm import LLMClient
 from core.models import SOCState
 from core.settings import Settings, get_settings
 from core.severity import SeverityEngine
@@ -33,7 +36,9 @@ def build_soc_graph(
     settings: Settings | None = None,
     engine: SeverityEngine | None = None,
     retriever: ContextRetriever | None = None,
+    llm: LLMClient | None = None,
     judge: Judge = default_judge,
+    hitl: bool = False,
 ) -> CompiledStateGraph[SOCState]:
     """6-에이전트 SOC 파이프라인을 조립해 컴파일된 그래프를 반환한다.
 
@@ -41,7 +46,10 @@ def build_soc_graph(
         settings: 전역 설정(미지정 시 환경에서 로드).
         engine: 심각도 엔진(미지정 시 정책 파일에서 생성).
         retriever: RAG 리트리버(미지정 시 Investigation 은 빈 컨텍스트).
-        judge: Validation 판정기.
+        llm: 요약용 LLM(미지정 시 Investigation 요약은 결정론적 폴백).
+        judge: Validation 판정기(기본은 결정론적 — 판정권을 LLM 에 주지 않음).
+        hitl: True 면 고위험 정탐에 운용자 승인 대기(interrupt) 노드 삽입 +
+            checkpointer 동반. 호출 시 `config={"configurable":{"thread_id":...}}` 필요.
 
     Returns:
         컴파일된 LangGraph(`ainvoke({"alert": ...})` 로 실행).
@@ -50,7 +58,7 @@ def build_soc_graph(
     engine = engine or SeverityEngine()
 
     triage = TriageAgent(settings, engine)
-    investigation = InvestigationAgent(settings, retriever)
+    investigation = InvestigationAgent(settings, retriever, llm)
     validation = ValidationAgent(settings, judge)
     response = ResponseAgent(settings, engine)
     rule_update = RuleUpdateAgent(settings)
@@ -67,12 +75,21 @@ def build_soc_graph(
     graph.set_entry_point("triage")
     graph.add_edge("triage", "investigation")
     graph.add_edge("investigation", "validation")
+    # HITL on: 정탐 → approval(고위험 시 운용자 승인 대기) → response
+    tp_target = "approval" if hitl else "response"
+    if hitl:
+        graph.add_node("approval", ApprovalAgent(settings).run)
+        graph.add_edge("approval", "response")
     graph.add_conditional_edges(
         "validation",
         route_after_validation,
-        {"true_positive": "response", "false_positive": "rule_update"},
+        {"true_positive": tp_target, "false_positive": "rule_update"},
     )
     graph.add_edge("response", "report")
     graph.add_edge("rule_update", "report")
     graph.add_edge("report", END)
+
+    if hitl:
+        # interrupt 재개를 위해 checkpointer 필요. 호출 시 thread_id config 지정.
+        return graph.compile(checkpointer=MemorySaver())
     return graph.compile()

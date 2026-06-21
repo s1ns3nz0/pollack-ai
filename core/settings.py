@@ -61,10 +61,34 @@ class Settings(BaseSettings):
         description="검색 요청 타임아웃(초).",
     )
 
+    # ── LLM (구현단계=Ollama, 추후 Azure OpenAI 로 교체) ──────────
+    llm_provider: str = Field(
+        default="ollama",
+        description="LLM 제공자: ollama | azure (구현단계는 ollama).",
+    )
+    ollama_base_url: str = Field(
+        default="http://192.168.64.1:11443",
+        description="Ollama 서버 URL(전용 인스턴스).",
+    )
+    ollama_chat_model: str = Field(
+        default="qwen2.5:14b",
+        description="Ollama 챗 모델.",
+    )
+    llm_timeout_seconds: float = Field(
+        default=120.0,
+        gt=0.0,
+        description="LLM 요청 타임아웃(초).",
+    )
+
     @property
     def ragflow_retrieval_url(self) -> str:
         """RAGFlow 검색 엔드포인트 전체 URL."""
         return f"{self.ragflow_base_url.rstrip('/')}/api/v1/retrieval"
+
+    @property
+    def ollama_chat_url(self) -> str:
+        """Ollama 챗 엔드포인트 전체 URL."""
+        return f"{self.ollama_base_url.rstrip('/')}/api/chat"
 
 
 @lru_cache(maxsize=1)
