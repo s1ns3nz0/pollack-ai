@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from agents.base import BaseSOCAgent
-from core.exceptions import LLMError
+from core.exceptions import LLMError, SOCPlatformError
 from core.llm import LLMClient
 from core.models import InvestigationResult, RetrievedChunk, SOCState
 from core.settings import Settings
@@ -58,17 +58,26 @@ class InvestigationAgent(BaseSOCAgent):
         query = f"{alert.scenario_id} {alert.title} {' '.join(alert.signals)}"
 
         chunks: list[RetrievedChunk] = []
+        rag_degraded = False
         if self._retriever is not None:
-            chunks = await self._retriever.aretrieve(query, k=5)
+            try:
+                chunks = await self._retriever.aretrieve(query, k=5)
+            except SOCPlatformError as exc:
+                # RAG 장애가 SOC 전체를 막지 않도록 빈 컨텍스트로 강등(대응 계속).
+                rag_degraded = True
+                self._logger.warning(
+                    "investigation RAG 검색 실패, 빈 컨텍스트로 계속: %s", exc
+                )
 
         trusted = [c for c in chunks if c.source.startswith("kb/")]
         dropped = len(chunks) - len(trusted)
         summary = await self._summarize(alert.title, alert.signals, trusted)
         self._logger.info(
-            "investigation: alert=%s hits=%d trusted=%d",
+            "investigation: alert=%s hits=%d trusted=%d degraded=%s",
             alert.id,
             len(chunks),
             len(trusted),
+            rag_degraded,
         )
 
         result: SOCState = {
@@ -80,8 +89,13 @@ class InvestigationAgent(BaseSOCAgent):
             ),
             "trace": ["investigation"],
         }
+        flags: list[str] = []
+        if rag_degraded:
+            flags.append("RAG 검색 불가 — 빈 컨텍스트로 강등(대응 계속)")
         if dropped:
-            result["guardrail_flags"] = [f"미신뢰 컨텍스트 {dropped}건 격리"]
+            flags.append(f"미신뢰 컨텍스트 {dropped}건 격리")
+        if flags:
+            result["guardrail_flags"] = flags
         return result
 
     async def _summarize(

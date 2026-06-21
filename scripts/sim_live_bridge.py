@@ -5,9 +5,10 @@ telemetry-tap 컨테이너의 stdout(NDJSON)을 `docker logs -f` 로 받아 SimB
 투입하고, GPS 스푸핑 탐지 시 6-에이전트 SOC 결과를 대시보드로 출력한다.
 
 사전: uav-sim-env 가 `docker compose up -d` 로 기동(telemetry 흐름).
-실행: python scripts/sim_live_bridge.py [--auto] [--no-rtb]
+실행: python scripts/sim_live_bridge.py [--auto] [--no-rtb] [--no-llm]
   --auto    : 운용자 승인 없이 RTB 자동 송신(무인 데모)
   --no-rtb  : 폐루프 작동 비활성(권고만 출력)
+  --no-llm  : LLM 요약 생략(결정론 폴백 — 느리거나 미가용한 LLM 시)
 GPS 스푸핑 주입(다른 터미널):
   python scripts/sim_inject_gps_spoof.py    # SIM_GPS 파라미터 변조
 """
@@ -105,6 +106,7 @@ async def _actuate_rtb(event: BridgeEvent, actuator: RtbActuator, auto: bool) ->
 async def main() -> None:
     auto = "--auto" in sys.argv
     no_rtb = "--no-rtb" in sys.argv
+    no_llm = "--no-llm" in sys.argv  # LLM 요약 생략(결정론 폴백 — 느린/미가용 LLM 시)
     actuator: RtbActuator | None = None if no_rtb else MavlinkActuator()
 
     print("█" * 66)
@@ -114,10 +116,14 @@ async def main() -> None:
         "비활성(--no-rtb)" if no_rtb else ("자동(--auto)" if auto else "HITL 승인")
     )
     print(f"  폐루프 RTB    : {loop_mode}")
+    print(f"  LLM 요약      : {'생략(--no-llm)' if no_llm else '실연동'}")
     print("█" * 66)
     print("\n[대기] 정상 텔레메트리 모니터링 중... (GPS 스푸핑 주입 시 탐지)")
 
-    bridge = SimBridge(retriever=RagflowRetrievalTool(), llm=get_llm_client())
+    bridge = SimBridge(
+        retriever=RagflowRetrievalTool(),
+        llm=None if no_llm else get_llm_client(),
+    )
     seen = 0
     async for record in _telemetry_records():
         seen += 1

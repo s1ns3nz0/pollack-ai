@@ -18,10 +18,11 @@ class TelemetryRecord(BaseModel):
     uav_id: str = Field(default="UNKNOWN", alias="UAVId")
     msg_type: str = Field(default="", alias="MsgType")
 
-    # EKF_STATUS_REPORT (S1 GNSS 스푸핑 핵심 신호 — 잔차 비율)
+    # EKF_STATUS_REPORT (S1 GNSS 스푸핑 핵심 신호 — 잔차 비율 + 글리치 플래그)
     pos_horiz_variance: float | None = Field(default=None, alias="PosHorizVariance")
     velocity_variance: float | None = Field(default=None, alias="VelocityVariance")
     compass_variance: float | None = Field(default=None, alias="CompassVariance")
+    ekf_flags: int | None = Field(default=None, alias="EkfFlags")
 
     # GPS_RAW_INT
     fix_type: int | None = Field(default=None, alias="FixType")

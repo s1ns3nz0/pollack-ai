@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT))
 
 from sim_bridge.actuator import ActuatorError, MavlinkActuator  # noqa: E402
 
-CONN = "tcp:127.0.0.1:5760"  # av-mpd SITL 직접 포트
+CONN = "tcp:127.0.0.1:5790"  # mavlink-router 외부 진입점(5760은 라우터가 단독 점유)
 
 
 def main() -> None:

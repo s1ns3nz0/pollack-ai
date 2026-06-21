@@ -18,7 +18,7 @@ av-mpd(ArduPilot) ─MAVLink→ telemetry-tap ─NDJSON→ [sim_bridge] ─Alert
 | 파일 | 역할 |
 |---|---|
 | `models.py` | `TelemetryRecord` — telemetry-tap NDJSON 키(`PosHorizVariance/Eph_cm/...`) 그대로 매핑 |
-| `detector.py` | `GpsSpoofDetector` — EKF 잔차 급증 + GPS 품질저하 결합 → S1 `Alert` (Sigma `uav_gps_spoof_residual.yml` 런타임 근사) |
+| `detector.py` | `GpsSpoofDetector` — EKF 이상(잔차 급증/GPS_GLITCHING 플래그) + GPS 품질저하(위성/Eph) 상관결합 → S1 `Alert`. Sentinel 분석룰 `S1_GNSS_Spoofing`([dah-sentinel-content](https://github.com/s1ns3nz0/dah-sentinel-content)) 런타임 근사 |
 | `bridge.py` | `SimBridge` — 탐지 → `build_soc_graph` 실행 → `BridgeEvent`(경보+SOC결과) |
 | `actuator.py` | `MavlinkActuator` — SOC 정탐(RTB) 결정 → MAVLink `RETURN_TO_LAUNCH` 송신(폐루프). `rtb_recommended()` 가 작동 조건 판정 |
 | `synth.py` | 합성 텔레메트리(정상→스푸핑 주입) — 시뮬 빌드 없이 검증용 |

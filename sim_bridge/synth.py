@@ -13,7 +13,7 @@ from sim_bridge.models import TelemetryRecord
 
 
 def benign_ekf(uav_id: str = "MPD-001") -> dict[str, object]:
-    """정상 EKF_STATUS_REPORT 레코드."""
+    """정상 EKF_STATUS_REPORT 레코드(플래그 0x33F=건강)."""
     return {
         "TimeGenerated": "2026-06-21T00:00:00Z",
         "UAVId": uav_id,
@@ -21,6 +21,24 @@ def benign_ekf(uav_id: str = "MPD-001") -> dict[str, object]:
         "PosHorizVariance": 0.30,
         "VelocityVariance": 0.25,
         "CompassVariance": 0.10,
+        "EkfFlags": 831,
+    }
+
+
+def spoof_ekf_glitch(uav_id: str = "MPD-001") -> dict[str, object]:
+    """실 SITL 시그니처 EKF — 잔차는 낮지만 GPS 글리치 플래그(0x8000) 설정.
+
+    실 ArduPilot 은 일관된 GPS 글리치를 EKF 가 흡수해 PosHorizVariance 가 크게
+    튀지 않는 대신 플래그 비트로 글리치를 알린다(0x833F = 0x33F + 0x8000).
+    """
+    return {
+        "TimeGenerated": "2026-06-21T00:00:10Z",
+        "UAVId": uav_id,
+        "MsgType": "EKF_STATUS_REPORT",
+        "PosHorizVariance": 0.05,
+        "VelocityVariance": 0.04,
+        "CompassVariance": 0.11,
+        "EkfFlags": 33599,
     }
 
 
@@ -45,6 +63,7 @@ def spoof_ekf(uav_id: str = "MPD-001") -> dict[str, object]:
         "PosHorizVariance": 1.35,
         "VelocityVariance": 1.10,
         "CompassVariance": 0.12,
+        "EkfFlags": 831,
     }
 
 

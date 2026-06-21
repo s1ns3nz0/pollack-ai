@@ -56,13 +56,14 @@ class MavlinkActuator:
     """av-mpd(ArduPilot SITL)로 MAVLink RTB 명령을 송신하는 작동기.
 
     Args:
-        connection: MAVLink 접속 문자열(기본 av-mpd SITL 직접 포트).
+        connection: MAVLink 접속 문자열(기본 mavlink-router 외부 진입점 5790 —
+            5760 은 SITL 1차 포트로 라우터가 단독 점유).
         heartbeat_timeout: HEARTBEAT 대기 한도(초).
     """
 
     def __init__(
         self,
-        connection: str = "tcp:127.0.0.1:5760",
+        connection: str = "tcp:127.0.0.1:5790",
         heartbeat_timeout: float = 30.0,
     ) -> None:
         self._connection = connection

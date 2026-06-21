@@ -12,7 +12,7 @@ import time
 
 from pymavlink import mavutil
 
-CONN = "tcp:127.0.0.1:5760"  # av-mpd SITL 직접 포트
+CONN = "tcp:127.0.0.1:5790"  # mavlink-router 외부 진입점(5760은 라우터가 단독 점유)
 
 # (param, spoof값, 정상복구값) — ArduPilot 버전별 후보를 모두 시도(미지원은 무시됨)
 SPOOF = [
