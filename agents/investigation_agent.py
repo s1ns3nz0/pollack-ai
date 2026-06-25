@@ -14,6 +14,7 @@ from agents.base import BaseSOCAgent
 from core.exceptions import LLMError, SOCPlatformError
 from core.llm import LLMClient
 from core.models import (
+    Alert,
     InvestigationResult,
     RetrievedChunk,
     SOCState,
@@ -94,6 +95,33 @@ class InvestigationAgent(BaseSOCAgent):
             investigation 결과 + (미신뢰 컨텍스트 격리 시) 가드레일 플래그.
         """
         alert = state["alert"]
+        trusted, summary, dropped, rag_degraded = await self._rag_and_summarize(alert)
+        ti_findings = await self._lookup_ti(alert.iocs)
+        confidence = self._confidence_with_ti(trusted, rag_degraded, ti_findings)
+
+        self._logger.info(
+            "investigation: alert=%s trusted=%d degraded=%s ti=%d conf=%.2f",
+            alert.id,
+            len(trusted),
+            rag_degraded,
+            len(ti_findings),
+            confidence,
+        )
+
+        return self._assemble(
+            alert,
+            trusted,
+            summary,
+            confidence,
+            ti_findings,
+            rag_degraded,
+            dropped,
+        )
+
+    async def _retrieve_trusted(
+        self, alert: Alert
+    ) -> tuple[list[RetrievedChunk], int, bool]:
+        """RAG 검색 + 출처검증(kb/). 반환: (신뢰청크, 격리수, 강등여부)."""
         query = f"{alert.scenario_id} {alert.title} {' '.join(alert.signals)}"
 
         chunks: list[RetrievedChunk] = []
@@ -109,25 +137,39 @@ class InvestigationAgent(BaseSOCAgent):
                 )
 
         trusted = [c for c in chunks if c.source.startswith("kb/")]
-        dropped = len(chunks) - len(trusted)
-        summary = await self._summarize(alert.title, alert.signals, trusted)
-        confidence = _confidence(trusted, rag_degraded)
+        return trusted, len(chunks) - len(trusted), rag_degraded
 
-        # 외부 TI 보강: 경보 IOC 평판 조회(장애 시 빈 결과로 강등 — 대응 계속).
-        ti_findings = await self._lookup_ti(alert.iocs)
+    async def _rag_and_summarize(
+        self, alert: Alert
+    ) -> tuple[list[RetrievedChunk], str, int, bool]:
+        """RAG 검색 후 (의존) LLM 요약까지 — 직렬 사슬."""
+        trusted, dropped, rag_degraded = await self._retrieve_trusted(alert)
+        summary = await self._summarize(alert.title, alert.signals, trusted)
+        return trusted, summary, dropped, rag_degraded
+
+    def _confidence_with_ti(
+        self,
+        trusted: list[RetrievedChunk],
+        rag_degraded: bool,
+        ti_findings: list[ThreatIntelFinding],
+    ) -> float:
+        """신뢰도 산정 + 악성 IOC 가산."""
+        confidence = _confidence(trusted, rag_degraded)
         if any(f.verdict == TiVerdict.MALICIOUS for f in ti_findings):
             confidence = round(min(1.0, confidence + 0.2), 3)  # 악성 IOC = 강한 근거
+        return confidence
 
-        self._logger.info(
-            "investigation: alert=%s hits=%d trusted=%d degraded=%s ti=%d conf=%.2f",
-            alert.id,
-            len(chunks),
-            len(trusted),
-            rag_degraded,
-            len(ti_findings),
-            confidence,
-        )
-
+    def _assemble(
+        self,
+        alert: Alert,
+        trusted: list[RetrievedChunk],
+        summary: str,
+        confidence: float,
+        ti_findings: list[ThreatIntelFinding],
+        rag_degraded: bool,
+        dropped: int,
+    ) -> SOCState:
+        """investigation 산출물 + 가드레일 플래그 조립."""
         result: SOCState = {
             "investigation": InvestigationResult(
                 matched_signals=alert.signals,

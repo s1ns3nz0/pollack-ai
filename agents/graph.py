@@ -76,6 +76,8 @@ def build_soc_graph(
     ti: ThreatIntelTool | None = None,
     judge: Judge = default_judge,
     hitl: bool = False,
+    investigation: InvestigationAgent | None = None,
+    router: Callable[[SOCState], str] | None = None,
 ) -> CompiledStateGraph[SOCState]:
     """6-에이전트 SOC 파이프라인을 조립해 컴파일된 그래프를 반환한다.
 
@@ -88,6 +90,8 @@ def build_soc_graph(
         judge: Validation 판정기(기본은 결정론적 — 판정권을 LLM 에 주지 않음).
         hitl: True 면 고위험 정탐에 운용자 승인 대기(interrupt) 노드 삽입 +
             checkpointer 동반. 호출 시 `config={"configurable":{"thread_id":...}}` 필요.
+        investigation: 구조 실험용 InvestigationAgent 주입 훅(기본은 기존 에이전트).
+        router: 구조 실험용 triage 직후 분기 훅(기본은 기존 순차 엣지).
 
     Returns:
         컴파일된 LangGraph(`ainvoke({"alert": ...})` 로 실행).
@@ -96,7 +100,7 @@ def build_soc_graph(
     engine = engine or SeverityEngine()
 
     triage = TriageAgent(settings, engine)
-    investigation = InvestigationAgent(settings, retriever, llm, ti)
+    investigation = investigation or InvestigationAgent(settings, retriever, llm, ti)
     validation = ValidationAgent(settings, judge)
     response = ResponseAgent(settings, engine)
     rule_update = RuleUpdateAgent(settings)
@@ -117,7 +121,15 @@ def build_soc_graph(
         graph.add_node(_name, _timed(_name, _fn))  # type: ignore[call-overload]
 
     graph.set_entry_point("triage")
-    graph.add_edge("triage", "investigation")
+    if router is not None:
+        # Router: triage 직후 분기 — 명백 케이스는 investigation(RAG+LLM) 스킵.
+        graph.add_conditional_edges(
+            "triage",
+            router,
+            {"investigate": "investigation", "skip": "rule_update"},
+        )
+    else:
+        graph.add_edge("triage", "investigation")
     graph.add_edge("investigation", "validation")
     # HITL on: 정탐 → approval(고위험 시 운용자 승인 대기) → response
     tp_target = "approval" if hitl else "response"
