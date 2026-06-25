@@ -526,13 +526,16 @@ Expected: FAIL — `AttributeError: 'SimBridge' object has no attribute 'run_ale
 
 - [ ] **Step 3: 최소 구현** — `sim_bridge/bridge.py`의 `process` 를 아래처럼 교체(탐지/SOC 분리). 상단 임포트에 `Alert` 가 이미 있으니 확인만(`from core.models import Alert, SOCReport, SOCState`).
 
-기존:
+> 주의: 동시 peer 작업으로 `process()` 에 `alert = self._tracker.enrich(...)` 줄이 이미 커밋돼 있다. 그 줄은 **S1 경로에 그대로 보존**하고, 그래프 실행+BridgeEvent 조립만 `run_alert` 로 추출한다.
+
+기존(현재 커밋된 상태):
 ```python
     async def process(self, record: TelemetryRecord) -> BridgeEvent | None:
         """레코드 1건 처리. 탐지 시 SOC 실행 후 BridgeEvent, 아니면 None."""
         alert = self._detector.observe(record)
         if alert is None:
             return None
+        alert = self._tracker.enrich(alert, _parse_ts(record.time_generated))
         graph = build_soc_graph(retriever=self._retriever, llm=self._llm)
         state = cast(SOCState, await graph.ainvoke({"alert": alert}))
         inv = state["investigation"]
@@ -552,6 +555,7 @@ Expected: FAIL — `AttributeError: 'SimBridge' object has no attribute 'run_ale
         alert = self._detector.observe(record)
         if alert is None:
             return None
+        alert = self._tracker.enrich(alert, _parse_ts(record.time_generated))
         return await self.run_alert(alert)
 
     async def run_alert(self, alert: Alert) -> BridgeEvent:
