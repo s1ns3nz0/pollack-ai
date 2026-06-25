@@ -119,6 +119,7 @@ warn_return_any = true
 [[tool.mypy.overrides]]
 module = [
     "graphrag.*",
+    "pymavlink.*",
     "pyrit.*",
     "ragas.*",
     "yaml",
