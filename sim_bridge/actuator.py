@@ -52,6 +52,35 @@ class RtbActuator(Protocol):
         ...
 
 
+@runtime_checkable
+class OnboardActuator(Protocol):
+    """S8 폐루프 작동 인터페이스(자율교전 차단 + 복귀)."""
+
+    def send_loiter(self, uav_id: str) -> str:
+        """LOITER hold(자율교전 차단=표적 전진 정지) 명령을 송신한다."""
+        ...
+
+    def send_rtb(self, uav_id: str) -> str:
+        """RTB(자동 복귀) 명령을 송신한다."""
+        ...
+
+
+def hold_then_rtb(actuator: OnboardActuator, uav_id: str) -> list[str]:
+    """자율교전 차단(LOITER hold) 후 보수적 RTB 를 순서대로 작동한다.
+
+    Args:
+        actuator: LOITER/RTB 송신 작동기.
+        uav_id: 대상 기체 식별자.
+
+    Returns:
+        각 단계의 사람이 읽을 결과 문자열 2건([hold, rtb]).
+
+    Raises:
+        ActuatorError: 어느 단계든 MAVLink 송신 실패 시.
+    """
+    return [actuator.send_loiter(uav_id), actuator.send_rtb(uav_id)]
+
+
 class MavlinkActuator:
     """av-mpd(ArduPilot SITL)로 MAVLink RTB 명령을 송신하는 작동기.
 
@@ -115,3 +144,37 @@ class MavlinkActuator:
             )
         except OSError as e:
             raise ActuatorError(f"RTB 송신 실패({self._connection}): {e}") from e
+
+    def send_loiter(self, uav_id: str) -> str:
+        """기체를 LOITER 모드로 전환해 표적 접근을 멈춘다(자율교전 차단).
+
+        Args:
+            uav_id: 대상 기체 식별자(로깅용).
+
+        Returns:
+            송신 결과 요약 문자열(대시보드 출력용).
+
+        Raises:
+            ActuatorError: HEARTBEAT 수신 실패 또는 MAVLink 송신 오류 시.
+        """
+        from pymavlink import mavutil  # 지연 임포트(오프라인/테스트 시 불요)
+
+        try:
+            conn = mavutil.mavlink_connection(self._connection)
+            if conn.wait_heartbeat(timeout=self._heartbeat_timeout) is None:
+                raise ActuatorError(
+                    f"HEARTBEAT 수신 실패(타임아웃): {self._connection}"
+                )
+            conn.set_mode("LOITER")
+            self._logger.info(
+                "LOITER hold 송신: uav=%s via %s (sys=%s)",
+                uav_id,
+                self._connection,
+                conn.target_system,
+            )
+            return (
+                f"MAVLink LOITER(자율교전 차단) 송신 완료 "
+                f"(sys={conn.target_system}, via {self._connection})"
+            )
+        except OSError as e:
+            raise ActuatorError(f"LOITER 송신 실패({self._connection}): {e}") from e

@@ -20,7 +20,7 @@ EKF 신호와 GPS 신호는 **서로 다른 메시지 타입**(EKF_STATUS_REPORT
 from __future__ import annotations
 
 from core.models import Alert, Severity, Verdict
-from sim_bridge.models import TelemetryRecord
+from sim_bridge.models import PerceptionRecord, TelemetryRecord
 from utils.logging import get_logger
 
 # ArduPilot EKF_STATUS_REPORT.flags 확장 비트 — GPS 글리치 감지(표준 enum 외 추가 비트).
@@ -87,16 +87,19 @@ class GpsSpoofDetector:
         eph_jump_cm: int = 300,
         min_satellites: int = 7,
         corr_window: int = 40,
+        rearm_after: int = 30,
     ) -> None:
         self._pos_var_threshold = pos_var_threshold
         self._eph_jump_cm = eph_jump_cm
         self._min_satellites = min_satellites
         self._corr_window = corr_window
+        self._rearm_after = rearm_after
         self._last_eph: int | None = None
         self._ekf_signal: str | None = None
         self._ekf_ttl = 0
         self._gps_signals: list[str] = []
         self._fired = False
+        self._clean_streak = 0
         self._logger = get_logger("GpsSpoofDetector")
 
     def observe(self, record: TelemetryRecord) -> Alert | None:
@@ -120,6 +123,17 @@ class GpsSpoofDetector:
                 self._ekf_signal = None
 
         signals = ([self._ekf_signal] if self._ekf_signal else []) + self._gps_signals
+
+        # 자동 재무장: 텔레메트리가 일정 기간 정상으로 돌아오면 다음 사건을 다시 탐지.
+        # (사건 종료 후 재촬영/반복 시 브리지 재시작 없이 재사용 가능)
+        if not signals:
+            self._clean_streak += 1
+            if self._fired and self._clean_streak >= self._rearm_after:
+                self._fired = False
+                self._logger.info("정상 복귀 — 탐지기 재무장")
+        else:
+            self._clean_streak = 0
+
         if self._ekf_signal is not None and len(signals) >= 2:
             if self._fired:
                 return None  # 동일 사건 중복 발화 억제
@@ -169,3 +183,123 @@ class GpsSpoofDetector:
         self._ekf_signal = None
         self._ekf_ttl = 0
         self._gps_signals = []
+        self._clean_streak = 0
+
+
+# S8 시나리오 매핑(고정) — projects/dah2026/scenarios/S8-onboard-ai-evade.yaml
+_S8_PLAYBOOK: dict[str, object] = {
+    "id": "PB-ONBOARDAI-08",
+    "actions": [
+        "다중센서 융합 교차검증, 불일치 표적 보류",
+        "탐지 신뢰도 이상 시 자율교전 차단 + HITL 표적확인",
+        "적대적 견고화(robust) 모델/입력 정규화 런타임 방어",
+        "인식 신뢰 불가 시 보수적 RTB",
+    ],
+    "onboard_defense": [
+        "메타 AI 가 주 비전모델 출력 신뢰도·판단 패턴 상시 감시(AI 가 AI 를 감시)",
+        "적대 의심 시 경량 백업 비전모델 자동 전환 + 주 모델 격리",
+    ],
+    "failover": "인식 신뢰 불가 시 자율교전 금지, 보수적 RTB 후 운용자 수동 식별",
+    "hitl": "severity=m → 자율교전 차단 후 표적확인",
+}
+
+
+def _build_onboard_alert(uav_id: str, signals: list[str]) -> Alert:
+    return Alert(
+        id=f"SIM-{uav_id}-ONBOARDAI",
+        scenario_id="AI-ONBOARD-EVADE-008",
+        title="온보드 표적인식 AI 적대공격 의심 (시뮬 실시간 탐지)",
+        asset_id="PAYLOAD_EOIR",
+        asset_tier="T2-Important",
+        mission_phase="on-station",
+        severity_baseline=Severity.MEDIUM,
+        signals=signals,
+        mitre={"atlas": ["AML.T0015-EvadeMLModel", "AML.T0043-CraftAdversarialData"]},
+        expected_detection={"sigma_rule": "onboard_ai_adversarial_evade.yml"},
+        defense_playbook=_S8_PLAYBOOK,
+        ground_truth=Verdict.TRUE_POSITIVE,
+    )
+
+
+class OnboardAIDetector:
+    """다중센서(EO/IR) 표적 불일치 + 탐지 신뢰도 이상분포 결합 S8 탐지기.
+
+    yaml `expected_detection.logic`("센서간 표적 불일치 OR 탐지 신뢰도 이상분포 시
+    적대 공격 의심 → HITL 승급")을 런타임 근사한다. 단발 오탐을 막기 위해 신호가
+    `confirm` 레코드 연속 지속될 때만 발화하고, `_fired` 로 중복을 억제하며, 정상
+    복귀가 `rearm_after` 만큼 이어지면 자동 재무장한다(재촬영 대비 — GpsSpoofDetector
+    와 동일 패턴).
+
+    Args:
+        conf_gap_threshold: |EO신뢰도 − IR신뢰도| 이상분포 임계(FULL-EXPORT
+            MaxConfidenceGap_d=0.15).
+        confirm: 발화 전 신호가 연속 지속되어야 하는 레코드 수(트랜지언트 오탐 방지).
+        rearm_after: 정상 복귀가 이어지면 재무장할 정상 레코드 수.
+    """
+
+    def __init__(
+        self,
+        conf_gap_threshold: float = 0.15,
+        confirm: int = 2,
+        rearm_after: int = 10,
+    ) -> None:
+        self._conf_gap_threshold = conf_gap_threshold
+        self._confirm = confirm
+        self._rearm_after = rearm_after
+        self._signal_streak = 0
+        self._clean_streak = 0
+        self._fired = False
+        self._logger = get_logger("OnboardAIDetector")
+
+    def observe(self, record: PerceptionRecord) -> Alert | None:
+        """인식 레코드 한 건으로 상태를 갱신하고, 적대공격이 새로 확정되면 Alert 반환.
+
+        Args:
+            record: 온보드 EO/IR 인식 추론 레코드.
+
+        Returns:
+            새 탐지면 `Alert`, 아니면 None(중복/미확정 억제).
+        """
+        signals = self._evaluate(record)
+        if not signals:
+            self._signal_streak = 0
+            self._clean_streak += 1
+            if self._fired and self._clean_streak >= self._rearm_after:
+                self._fired = False
+                self._logger.info("정상 복귀 — 탐지기 재무장")
+            return None
+
+        self._clean_streak = 0
+        self._signal_streak += 1
+        if self._signal_streak < self._confirm:
+            return None
+        if self._fired:
+            return None  # 동일 사건 중복 발화 억제
+        self._fired = True
+        self._logger.info("온보드 인식 적대공격 탐지: %s | %s", record.uav_id, signals)
+        return _build_onboard_alert(record.uav_id, signals)
+
+    def _evaluate(self, record: PerceptionRecord) -> list[str]:
+        """레코드에서 S8 신호(센서 불일치 / 신뢰도 이상분포)를 추출."""
+        signals: list[str] = []
+        if (
+            record.eo_class is not None
+            and record.ir_class is not None
+            and record.eo_class != record.ir_class
+        ):
+            signals.append(
+                f"EO/IR 표적 불일치(EO={record.eo_class} vs IR={record.ir_class})"
+            )
+        if record.eo_conf is not None and record.ir_conf is not None:
+            gap = abs(record.eo_conf - record.ir_conf)
+            if gap >= self._conf_gap_threshold:
+                signals.append(
+                    f"탐지 신뢰도 이상분포(gap={gap:.2f}≥{self._conf_gap_threshold})"
+                )
+        return signals
+
+    def reset(self) -> None:
+        """사건 종료 후 재무장."""
+        self._signal_streak = 0
+        self._clean_streak = 0
+        self._fired = False

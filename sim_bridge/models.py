@@ -33,3 +33,29 @@ class TelemetryRecord(BaseModel):
     def from_ndjson(cls, data: dict[str, object]) -> TelemetryRecord:
         """NDJSON dict(원본 키) → TelemetryRecord."""
         return cls.model_validate(data)
+
+
+class PerceptionRecord(BaseModel):
+    """온보드 EO/IR 표적인식 추론 NDJSON 한 줄(S8 탐지 관련 필드).
+
+    SITL 엔 실제 인식 모델이 없어 합성 스트림으로 대체한다. 필드명은 perception-tap
+    NDJSON 스키마(가상)와 동일하게 별칭으로 매핑한다.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    time_generated: str = Field(default="", alias="TimeGenerated")
+    uav_id: str = Field(default="UNKNOWN", alias="UAVId")
+    msg_type: str = Field(default="", alias="MsgType")
+    target_id: str = Field(default="", alias="TargetId")
+
+    # 다중센서 융합 — EO(가시) vs IR(열) 표적 클래스/신뢰도
+    eo_class: str | None = Field(default=None, alias="EoClass")
+    ir_class: str | None = Field(default=None, alias="IrClass")
+    eo_conf: float | None = Field(default=None, alias="EoConfidence")
+    ir_conf: float | None = Field(default=None, alias="IrConfidence")
+
+    @classmethod
+    def from_ndjson(cls, data: dict[str, object]) -> PerceptionRecord:
+        """NDJSON dict(원본 키) → PerceptionRecord."""
+        return cls.model_validate(data)

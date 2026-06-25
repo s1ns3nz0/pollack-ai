@@ -63,6 +63,19 @@ class SimBridge:
         if alert is None:
             return None
         alert = self._tracker.enrich(alert, _parse_ts(record.time_generated))
+        return await self.run_alert(alert)
+
+    async def run_alert(self, alert: Alert) -> BridgeEvent:
+        """탐지된 Alert 를 6-에이전트 SOC 에 투입하고 BridgeEvent 로 조립한다.
+
+        탐지기 종류(GPS/온보드 인식)와 무관하게 SOC·RAG·LLM 경로를 공유 재사용한다.
+
+        Args:
+            alert: 탐지기가 생성한 경보.
+
+        Returns:
+            SOC 처리 결과를 담은 `BridgeEvent`.
+        """
         graph = build_soc_graph(retriever=self._retriever, llm=self._llm)
         state = cast(SOCState, await graph.ainvoke({"alert": alert}))
         inv = state["investigation"]
