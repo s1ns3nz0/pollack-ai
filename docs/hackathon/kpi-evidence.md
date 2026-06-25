@@ -37,8 +37,8 @@
 |---|---|---|
 | **라우팅 정확도** | **1.0 (22/22)** | 정탐→response / 오탐→rule_update (S1~S11 × {TP,FP}) |
 | **S5 RAG 포이즈닝 저항성** | **1.0 (11/11)** | 적대 제안등급('i') 주입에도 정책 등급 유지율 — Triage+엔진 이중 방어 |
-| **LLM-Judge Faithfulness** | **3.0 / 5** | 요약이 컨텍스트에만 근거하는가(실 Ollama judge) |
-| **LLM-Judge Relevancy** | **3.82 / 5** | 요약이 경보 질문에 적절한가 |
+| **LLM-Judge Faithfulness** | **≈3.0–3.6 / 5** | 요약이 컨텍스트에만 근거하는가(실 Ollama judge, 런별 변동) |
+| **LLM-Judge Relevancy** | **≈3.8–4.1 / 5** | 요약이 경보 질문에 적절한가 |
 | **검색 Recall@5 / MRR** | **1.0 / 1.0 (11/11)** | 시나리오별 정답 incident_case 가 전부 rank 1 로 검색 |
 
 > **S5 저항성 = 핵심 차별점**: 적대적 등급 인하 주입을 Triage 가드레일과 정책 하한이
