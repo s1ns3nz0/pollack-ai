@@ -145,7 +145,9 @@ async def main() -> None:
             f"  심각도    : {report.severity}  ({' '.join(event.severity_rationale)})"
         )
         print(f"  RAG 근거  : {len(event.similar_cases)}건")
-        print(f"  LLM 분석  : {event.summary[:160]}...")
+        for src in event.similar_cases[:5]:
+            print(f"            · {src}")
+        print(f"  LLM 분석  : {event.summary}")
         print(f"  판정/대응 : {report.verdict} → {report.action_taken}")
         print("  → 권고    : 센서융합 게이트 + 자율교전 차단 + 보수적 RTB")
         print("─" * 66)

@@ -140,7 +140,9 @@ async def main() -> None:
         print(f"  탐지 신호 : {', '.join(event.alert.signals)}")
         print(f"  심각도    : {r.severity}  ({' '.join(event.severity_rationale)})")
         print(f"  RAG 근거  : {len(event.similar_cases)}건")
-        print(f"  LLM 분석  : {event.summary[:160]}...")
+        for src in event.similar_cases[:5]:
+            print(f"            · {src}")
+        print(f"  LLM 분석  : {event.summary}")
         print(f"  판정/대응 : {r.verdict} → {r.action_taken}")
         print("  → 권고    : INS 페일오버 + 자동 RTB")
         print("─" * 66)
