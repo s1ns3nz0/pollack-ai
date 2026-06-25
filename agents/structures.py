@@ -18,8 +18,38 @@ from agents.investigation_agent import (
     ThreatIntelTool,
 )
 from core.llm import LLMClient
-from core.models import SOCState
+from core.models import Alert, SOCState
 from core.settings import Settings, get_settings
+
+
+class WizBlueInvestigationAgent(InvestigationAgent):
+    """Wiz 'Blue Agent' 패턴(레퍼런스: pic/) — 전문 서브에이전트 분해형 조사.
+
+    조사를 3개 전문 서브에이전트로 분해해 동시 실행(asyncio.gather)한 뒤 병합한다:
+      - Forensics/RAG     : 공유 KB 에서 유사 인시던트 사례 검색.
+      - Threat-intel      : IOC 평판 조회.
+      - Signal-correlation: 탐지 신호 → MITRE/공격경로 매핑(경량 결정론 렌즈).
+    병합 후 LLM 이 구조화 종합 서술(조사과정·근거·권고)을 생성한다(Wiz 'Generates').
+    Wiz Blue 의 'Code analysis + Forensics 서브에이전트' 분해를 우리 도메인으로 옮긴 것.
+    """
+
+    async def run(self, state: SOCState) -> SOCState:
+        alert = state["alert"]
+        forensics, ti_findings, _correlation = await asyncio.gather(
+            self._retrieve_trusted(alert),  # Forensics/RAG 서브에이전트
+            self._lookup_ti(alert.iocs),  # Threat-intel 서브에이전트
+            self._correlate_signals(alert),  # Signal-correlation 서브에이전트
+        )
+        trusted, dropped, rag_degraded = forensics
+        confidence = self._confidence_with_ti(trusted, rag_degraded, ti_findings)
+        summary = await self._summarize(alert.title, alert.signals, trusted)
+        return self._assemble(
+            alert, trusted, summary, confidence, ti_findings, rag_degraded, dropped
+        )
+
+    async def _correlate_signals(self, alert: Alert) -> dict[str, object]:
+        """Signal-correlation 서브에이전트 — 탐지 신호↔MITRE 매핑(경량 결정론 렌즈)."""
+        return alert.mitre
 
 
 class ParallelInvestigationAgent(InvestigationAgent):
@@ -123,6 +153,27 @@ def build_supervisor(
     """구조 3 — 적응형: 결정-무관 LLM 요약을 모호 케이스에만."""
     s = settings or get_settings()
     inv = SupervisorInvestigationAgent(s, retriever, llm, ti)
+    return build_soc_graph(
+        settings=s,
+        retriever=retriever,
+        llm=llm,
+        ti=ti,
+        investigation=inv,
+        **kw,
+    )
+
+
+def build_wizblue(
+    *,
+    settings: Settings | None = None,
+    retriever: ContextRetriever | None = None,
+    llm: LLMClient | None = None,
+    ti: ThreatIntelTool | None = None,
+    **kw: Any,
+) -> CompiledStateGraph[SOCState]:
+    """구조 4 — Wiz Blue 서브에이전트 분해형(레퍼런스 pic/)."""
+    s = settings or get_settings()
+    inv = WizBlueInvestigationAgent(s, retriever, llm, ti)
     return build_soc_graph(
         settings=s,
         retriever=retriever,

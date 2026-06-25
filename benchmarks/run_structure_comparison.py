@@ -26,6 +26,7 @@ from agents.structures import (  # noqa: E402
     build_parallel,
     build_router,
     build_supervisor,
+    build_wizblue,
 )
 from agents.validation_agent import signal_judge  # noqa: E402
 from benchmarks.run_kpi import _fp_alerts, _load_env, _timings, _tp_alerts  # noqa: E402
@@ -117,6 +118,7 @@ async def main() -> None:
         ("1_parallel", build_parallel),
         ("2_router", build_router),
         ("3_supervisor", build_supervisor),
+        ("4_wizblue", build_wizblue),
     ]
     rows = []
     for name, builder in structures:
