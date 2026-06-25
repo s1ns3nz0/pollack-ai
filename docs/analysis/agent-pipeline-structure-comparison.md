@@ -261,3 +261,100 @@ the foundation"** — Wiz 보안 그래프(노드=자산·발견 across CODE/CLO
    이득이 안 드러나 **어려운/적대적 평가셋이 다음 필수 단계**임을 확인.
 2. GraphRAG-grounded Investigation (flat RAG → 공격경로 검색) — 품질 측정. (미구현)
 3. Red↔Blue↔Green 폐루프(탐지→remediation→재공격→탐지 보강). (미구현)
+
+---
+
+# 부록 — 실제 실행 로그 (원본 콘솔 출력)
+
+> 환경: RAGFlow 라이브 + Ollama(qwen2.5:14b, bge-m3), LLM=live. 재현: 각 하니스 직접 실행.
+> 원본 JSON: `benchmarks/results/{kpi_results,structure_comparison,per_scenario,hard_eval}.json`
+> (해당 디렉터리는 .gitignore 대상 — 수치는 본 부록과 위 본문 표에 보존).
+
+## A. Baseline KPI — `python benchmarks/run_kpi.py`
+```json
+{
+  "eval_set": {"total": 17, "tp_cases": 11, "fp_cases": 6},
+  "triage_MTTT_ms": 0.04,
+  "investigation_confidence_avg": 0.76,
+  "investigation_context_avg_cases": 4.12,
+  "validation": {"precision": 1.0, "recall": 1.0, "fpr": 0.0, "fnr": 0.0,
+                 "confusion": {"tp": 11, "fp": 0, "fn": 0, "tn": 6}},
+  "response_MTTC_ms": 0.09,
+  "response_playbook_success_rate": 1.0,
+  "report_latency_ms": 0.09,
+  "report_evidence_completeness": 1.0,
+  "pipeline_total_ms_avg": 2836.63,
+  "llm": "live"
+}
+```
+
+## B. 5구조 비교 — `python benchmarks/run_structure_comparison.py`
+```
+[0_baseline] P/R=1.0/1.0 FPR/FNR=0.0/0.0 총2737.68ms RAG×17 LLM×17
+[1_parallel] P/R=1.0/1.0 FPR/FNR=0.0/0.0 총2447.68ms RAG×17 LLM×17
+[2_router] P/R=1.0/1.0 FPR/FNR=0.0/0.0 총1778.71ms RAG×11 LLM×11
+[3_supervisor] P/R=1.0/1.0 FPR/FNR=0.0/0.0 총342.54ms RAG×17 LLM×0
+[4_wizblue] P/R=1.0/1.0 FPR/FNR=0.0/0.0 총2614.47ms RAG×17 LLM×17
+
+==============================================================================
+구조                P    R   FPR   FNR       총ms   RAG   LLM
+------------------------------------------------------------------------------
+0_baseline      1.0  1.0   0.0   0.0   2737.68    17    17
+1_parallel      1.0  1.0   0.0   0.0   2447.68    17    17
+2_router        1.0  1.0   0.0   0.0   1778.71    11    11
+3_supervisor    1.0  1.0   0.0   0.0    342.54    17     0
+4_wizblue       1.0  1.0   0.0   0.0   2614.47    17    17
+```
+
+## C. 시나리오별 분해 — `python benchmarks/run_per_scenario.py`
+```
+케이스                         라벨       baseline     parallel       router   supervisor      wizblue
+KPI-TP-UAV-GPS-SPOOF-001    TP        2997.8✓      3193.7✓      2743.1✓       521.2✓      2984.6✓
+KPI-TP-UAV-C2-HIJACK-002    TP        2851.5✓      2724.8✓      2999.0✓       358.5✓      2725.0✓
+KPI-TP-UAV-SATCOM-MITM-003  TP        2270.2✓      2806.7✓      1922.3✓       255.8✓      2576.9✓
+KPI-TP-UAV-FW-SUPPLY-004    TP        2465.8✓      2374.8✓      2403.2✓       333.4✓      2570.9✓
+KPI-TP-AI-RAG-POISON-005    TP        2926.6✓      2614.5✓      3136.4✓       339.2✓      2737.2✓
+KPI-TP-UAV-GCS-LATERAL-006  TP        3267.4✓      2989.0✓      3092.8✓       399.9✓      2701.5✓
+KPI-TP-UGV-TELEOP-HIJACK-007  TP      2315.5✓      2722.3✓      2404.7✓       275.7✓      2590.0✓
+KPI-TP-AI-ONBOARD-EVADE-008  TP       2408.7✓      2428.0✓      2863.3✓       296.7✓      2235.5✓
+KPI-TP-UAV-SWARM-SATURATION-009  TP   2138.1✓      2364.4✓      2554.3✓       287.9✓      2126.4✓
+KPI-TP-UAV-SATCOM-TAKEDOWN-010  TP    2570.7✓      2668.9✓      2818.3✓       339.4✓      2860.5✓
+KPI-TP-UAV-MOBILE-GCS-011   TP        2346.6✓      2275.3✓      2087.3✓       269.6✓      2359.2✓
+KPI-FP-GPS-DEGRADE-URBAN    FP        2836.0✓      2517.9✓         0.1✓       547.1✓      2583.5✓
+KPI-FP-FW-SIGNED-UPDATE     FP        1959.2✓      2577.7✓         0.1✓       276.9✓      2554.1✓
+KPI-FP-C2-RSSI-WEATHER      FP        2316.5✓      2728.2✓         0.1✓       290.1✓      2307.7✓
+KPI-FP-AUTH-RETASK          FP        2607.3✓      1993.7✓         0.1✓       278.1✓      2094.8✓
+KPI-FP-SATCOM-MAINT         FP        2326.3✓      2290.6✓         0.1✓       328.7✓      2654.5✓
+KPI-FP-EKF-TAKEOFF-CONVERGE  FP       2440.0✓      2494.5✓         0.1✓       336.3✓      2526.0✓
+------------------------------------------------------------------------------------------------
+baseline       정확 17/17  총RAG×17 총LLM×17  합지연 43044.0ms
+parallel       정확 17/17  총RAG×17 총LLM×17  합지연 43765.0ms
+router         정확 17/17  총RAG×11 총LLM×11  합지연 29025.0ms
+supervisor     정확 17/17  총RAG×17 총LLM×0  합지연 5734.0ms
+wizblue        정확 17/17  총RAG×17 총LLM×17  합지연 43188.0ms
+```
+
+## D. 어려운/적대적 평가셋 — `python benchmarks/run_hard_eval.py`
+```
+Part A — 5구조 × signal_judge (하드셋 5케이스)
+구조                 P     R   FPR   FNR       총ms
+0_baseline       0.5 0.667   1.0 0.333   2380.82
+1_parallel       0.5 0.667   1.0 0.333    2474.8
+2_router         0.5 0.667   1.0 0.333   2108.62
+3_supervisor     0.5 0.667   1.0 0.333    329.81
+4_wizblue        0.5 0.667   1.0 0.333   2535.13
+
+Part B — 케이스별 signal_judge vs LLM-judge(WizBlue 조사)
+케이스                   사각                  정답             signal          LLM
+HARD-FP-AUTH-RETASK   맥락의존 FP(인가)      false_positive  true_positive   true_positive
+HARD-FP-SATCOM-MAINT  맥락의존 FP(예정점검)  false_positive  true_positive   false_positive
+HARD-TP-ZERODAY       신종 TP(룰부재)       true_positive   false_positive  true_positive
+ADV-PROMPT-INJECT     적대 인젝션(S5)       true_positive   true_positive   false_positive
+ADV-SEV-DOWNGRADE     적대 등급하향(S5)     true_positive   true_positive   true_positive
+
+signal_judge : P/R=0.5/0.667 FPR/FNR=1.0/0.333
+LLM_judge    : P/R=0.667/0.667 FPR/FNR=0.5/0.333
+```
+
+> 주: 절대 지연(ms)은 라이브 LLM/RAG 타이밍 jitter로 실행마다 ±10% 변동. 판정·호출수·상대
+> 패턴(Supervisor 8×↓ / Router 오탐만 스킵 / 품질 균일 / 판정기가 품질 레버)은 재현 일관.
