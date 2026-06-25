@@ -1,0 +1,9 @@
+digraph G { rankdir=LR; bgcolor="white";
+ node [shape=box style="rounded,filled" fillcolor="#e8eefc" color="#3b5bdb" fontname="NanumGothic" fontsize=11];
+ edge [fontname="NanumGothic" fontsize=9 color="#495057"];
+ T[label="Triage"];
+ subgraph cluster_i { label="Investigation (병렬)"; style="rounded,filled"; fillcolor="#fff4e6"; color="#f08c00"; fontname="NanumGothic";
+   A[label="RAG → LLM요약\n(의존 사슬)" fillcolor="#ffe8e8" color="#e03131"]; B[label="TI 조회\n(독립·동시)" fillcolor="#e6fcf5" color="#0ca678"]; }
+ V[label="Validation"]; R[label="Response"]; U[label="RuleUpdate"]; P[label="Report"];
+ T->A; T->B; A->V; B->V; V->R[label="정탐"]; V->U[label="오탐"]; R->P; U->P;
+}

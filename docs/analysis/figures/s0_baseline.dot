@@ -1,0 +1,7 @@
+digraph G { rankdir=LR; bgcolor="white";
+ node [shape=box style="rounded,filled" fillcolor="#e8eefc" color="#3b5bdb" fontname="NanumGothic" fontsize=11];
+ edge [fontname="NanumGothic" fontsize=9 color="#495057"];
+ T[label="Triage\n심각도 규칙"]; I[label="Investigation\nRAG → TI → LLM요약" fillcolor="#ffe8e8" color="#e03131"];
+ V[label="Validation\nsignal_judge"]; R[label="Response\n플레이북"]; U[label="RuleUpdate"]; P[label="Report\nOSCAL"];
+ T->I->V; V->R[label="정탐"]; V->U[label="오탐"]; R->P; U->P;
+}

@@ -1,0 +1,10 @@
+digraph G { rankdir=LR; bgcolor="white";
+ node [shape=box style="rounded,filled" fillcolor="#e8eefc" color="#3b5bdb" fontname="NanumGothic" fontsize=11];
+ edge [fontname="NanumGothic" fontsize=9 color="#495057"];
+ T[label="Triage"];
+ subgraph cluster_i { label="Wiz-Blue (서브에이전트 분해)"; style="rounded,filled"; fillcolor="#e7f5ff"; color="#1971c2"; fontname="NanumGothic";
+   F[label="Forensics/RAG" fillcolor="#d0ebff" color="#1971c2"]; Ti[label="Threat-intel" fillcolor="#d0ebff" color="#1971c2"]; C[label="Signal-correlation" fillcolor="#d0ebff" color="#1971c2"];
+   M[label="병합 + LLM 종합\n(verdict·근거·권고)" fillcolor="#a5d8ff" color="#1864ab"]; }
+ V[label="Validation"]; R[label="Response"]; U[label="RuleUpdate"]; P[label="Report"];
+ T->F; T->Ti; T->C; F->M; Ti->M; C->M; M->V; V->R[label="정탐"]; V->U[label="오탐"]; R->P; U->P;
+}

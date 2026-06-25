@@ -1,0 +1,7 @@
+digraph G { rankdir=LR; bgcolor="white";
+ node [shape=box style="rounded,filled" fillcolor="#e8eefc" color="#3b5bdb" fontname="NanumGothic" fontsize=11];
+ edge [fontname="NanumGothic" fontsize=9 color="#495057"];
+ T[label="Triage"]; Rt[label="Router\n룰 유무 판정" shape=diamond fillcolor="#fff3bf" color="#f59f00"];
+ I[label="Investigation\nRAG+LLM" fillcolor="#ffe8e8" color="#e03131"]; V[label="Validation"]; R[label="Response"]; U[label="RuleUpdate"]; P[label="Report"];
+ T->Rt; Rt->I[label="룰 있음"]; Rt->U[label="룰 없음(스킵)" color="#e03131" fontcolor="#e03131"]; I->V; V->R[label="정탐"]; V->U[label="오탐"]; R->P; U->P;
+}
