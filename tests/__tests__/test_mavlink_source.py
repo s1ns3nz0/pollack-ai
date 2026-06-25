@@ -22,6 +22,27 @@ class TestMavToRecord:
         assert r.ekf_flags == 33599
         assert r.pos_horiz_variance == 4.7
 
+    def test_px4_estimator_status_mapping(self) -> None:
+        """PX4 ESTIMATOR_STATUS → 잔차/글리치비트 정규화(0x8000)."""
+        r = mav_to_record(
+            "ESTIMATOR_STATUS",
+            {
+                "flags": 1024,
+                "pos_horiz_ratio": 1.3,
+                "vel_ratio": 0.9,
+            },  # 1024=GPS_GLITCH
+        )
+        assert r.msg_type == "EKF_STATUS_REPORT"  # 통일
+        assert r.pos_horiz_variance == 1.3
+        assert (
+            r.ekf_flags is not None and r.ekf_flags & 0x8000
+        )  # 정규 글리치 비트로 변환
+
+    def test_px4_no_glitch_clean(self) -> None:
+        """PX4 글리치 없음 → 정규 비트 미설정."""
+        r = mav_to_record("ESTIMATOR_STATUS", {"flags": 0, "pos_horiz_ratio": 0.2})
+        assert r.ekf_flags is not None and not (r.ekf_flags & 0x8000)
+
     def test_gps_raw_mapping(self) -> None:
         """GPS_RAW_INT 의 fix/eph/위성수가 매핑된다."""
         r = mav_to_record(

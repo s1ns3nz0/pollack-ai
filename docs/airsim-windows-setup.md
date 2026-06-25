@@ -72,6 +72,18 @@ python scripts/sim_inject_gps_spoof.py --conn udpout:127.0.0.1:14550
 - 글리치 강도↑(`sim_inject_gps_spoof.py` 의 `SIM_GPS*_GLITCH_*`)로 이탈을 크게.
 - A/B: `--no-rtb`(방어OFF, 이탈해 사라짐) vs `--auto`(방어ON, 복귀) 나란히.
 
+## 경로 B — Cosys-AirSim 가 ArduPilot 미지원이면 PX4 로
+Cosys-AirSim README 는 **PX4** 만 명시(ArduPilot 미확인). STEP 1 에서 ArduCopter 연결이
+안 되면 PX4 로 전환:
+- AirSim `settings.json` 의 `VehicleType` 을 `"PX4Multirotor"` 로, PX4 SITL 기동.
+- **우리 SOC 는 그대로 동작**: MAVLink 어댑터가 PX4 `ESTIMATOR_STATUS`(pos_horiz_ratio·
+  GPS 글리치 플래그)를 ArduPilot `EKF_STATUS_REPORT` 로 자동 정규화한다
+  (`sim_bridge/mavlink_source.py`). 탐지기·SOC 변경 불요.
+- ⚠️ **공격 벡터만 다름**: `sim_inject_gps_spoof.py`(ArduPilot SIM_GPS)는 PX4 엔 안 통함.
+  → 대안: **S8 온보드 인식 공격**(`sim_live_bridge_onboard.py`, FC 무관·합성 perception)
+  또는 PX4용 GPS 스푸핑(시뮬레이터 GPS 노이즈 주입) — 현장 확인.
+- ⚠️ PX4 잔차는 정규화된 ratio(정상≪1·이상≳1)라 탐지 임계는 현장 튜닝 권장.
+
 ## 알려진 변수 (막히면 여기부터)
 - **AirSim↔ArduPilot 포트/IP**: 같은 머신이면 127.0.0.1, WSL이면 호스트IP. settings.json 과
   `--sim-address` 가 서로 가리켜야 함.
