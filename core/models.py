@@ -73,12 +73,18 @@ class Alert(BaseModel):
 
 
 class InvestigationResult(BaseModel):
-    """Investigation 산출물(유사사례 + 신호 상관)."""
+    """Investigation 산출물(유사사례 + 신호 상관).
+
+    Attributes:
+        confidence: 분석 결론 신뢰도(0.0~1.0). 신뢰 컨텍스트 수·검색 점수 기반의
+            결정론적 산정(LLM 자체평가 아님 — KPI 검증 가능성 확보).
+    """
 
     matched_signals: list[str] = Field(default_factory=list)
     mitre: dict[str, object] = Field(default_factory=dict)
     similar_cases: list[RetrievedChunk] = Field(default_factory=list)
     summary: str = ""
+    confidence: float = 0.0
 
 
 class ResponseResult(BaseModel):
@@ -141,7 +147,9 @@ class OscalEvidence(BaseModel):
 class SOCState(TypedDict, total=False):
     """LangGraph 파이프라인 상태. 단계별로 누적된다.
 
-    `trace`/`guardrail_flags` 는 리듀서(`operator.add`)로 노드마다 append 된다.
+    `trace`/`guardrail_flags`/`node_timings` 는 리듀서(`operator.add`)로 노드마다
+    append 된다. `node_timings` 는 노드별 소요시간(ms)으로 KPI(MTTT·MTTC·Report
+    Latency) 산출의 원천이다.
     """
 
     alert: Alert
@@ -157,3 +165,4 @@ class SOCState(TypedDict, total=False):
     oscal_evidence: OscalEvidence
     trace: Annotated[list[str], operator.add]
     guardrail_flags: Annotated[list[str], operator.add]
+    node_timings: Annotated[list[dict[str, object]], operator.add]

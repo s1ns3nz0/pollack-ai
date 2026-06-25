@@ -23,6 +23,28 @@ _SUMMARY_SYSTEM = (
 )
 
 
+def _confidence(trusted: list[RetrievedChunk], rag_degraded: bool) -> float:
+    """분석 신뢰도(0.0~1.0)를 결정론적으로 산정한다.
+
+    신뢰 컨텍스트(`kb/`)의 검색 점수 상위 3건 평균과 커버리지(건수)를 결합한다.
+    LLM 자체평가가 아니라 검색 근거에서 도출하므로 KPI 검증(레드팀 라벨 대조)이
+    가능하다.
+
+    Args:
+        trusted: 출처 검증을 통과한 신뢰 컨텍스트 청크.
+        rag_degraded: RAG 검색이 강등(빈 컨텍스트)됐는지 여부.
+
+    Returns:
+        0.0~1.0 신뢰도. 근거 없으면 낮게(강등 0.2 / 미히트 0.3) 보수 산정.
+    """
+    if not trusted:
+        return 0.2 if rag_degraded else 0.3
+    top = sorted((c.score for c in trusted), reverse=True)[:3]
+    mean_score = sum(top) / len(top)
+    coverage = min(len(trusted), 3) / 3.0
+    return round(min(1.0, 0.4 + 0.4 * mean_score + 0.2 * coverage), 3)
+
+
 @runtime_checkable
 class ContextRetriever(Protocol):
     """Investigation 이 의존하는 RAG 리트리버 계약."""
@@ -72,12 +94,14 @@ class InvestigationAgent(BaseSOCAgent):
         trusted = [c for c in chunks if c.source.startswith("kb/")]
         dropped = len(chunks) - len(trusted)
         summary = await self._summarize(alert.title, alert.signals, trusted)
+        confidence = _confidence(trusted, rag_degraded)
         self._logger.info(
-            "investigation: alert=%s hits=%d trusted=%d degraded=%s",
+            "investigation: alert=%s hits=%d trusted=%d degraded=%s conf=%.2f",
             alert.id,
             len(chunks),
             len(trusted),
             rag_degraded,
+            confidence,
         )
 
         result: SOCState = {
@@ -86,6 +110,7 @@ class InvestigationAgent(BaseSOCAgent):
                 mitre=alert.mitre,
                 similar_cases=trusted,
                 summary=summary,
+                confidence=confidence,
             ),
             "trace": ["investigation"],
         }

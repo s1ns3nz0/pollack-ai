@@ -9,6 +9,10 @@ Response/Report 의 HITL·자동대응·OSCAL 수준을 좌우한다.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Coroutine
+from time import perf_counter
+from typing import Any, cast
+
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -29,6 +33,34 @@ from core.llm import LLMClient
 from core.models import SOCState
 from core.settings import Settings, get_settings
 from core.severity import SeverityEngine
+
+# LangGraph 노드 시그니처(에이전트 .run 과 동일: 비동기 SOCState→SOCState).
+_NodeFn = Callable[[SOCState], Coroutine[Any, Any, SOCState]]
+
+
+def _timed(name: str, fn: _NodeFn) -> _NodeFn:
+    """노드 실행 시간을 측정해 `node_timings` 에 기록하는 래퍼.
+
+    KPI(MTTT=triage, MTTC=response, Report Latency=report) 산출의 원천 데이터를
+    파이프라인 변경 없이 노드 경계에서 수집한다.
+
+    Args:
+        name: 노드 이름(타이밍 라벨).
+        fn: 감쌀 에이전트 노드 실행 함수.
+
+    Returns:
+        실행 후 `node_timings`(노드명·소요 ms)를 부분 상태에 더해 반환하는 함수.
+    """
+
+    async def wrapper(state: SOCState) -> SOCState:
+        start = perf_counter()
+        result = dict(await fn(state))
+        result["node_timings"] = [
+            {"node": name, "elapsed_ms": round((perf_counter() - start) * 1000, 2)}
+        ]
+        return cast(SOCState, result)
+
+    return wrapper
 
 
 def build_soc_graph(
@@ -65,12 +97,18 @@ def build_soc_graph(
     report = ReportAgent(settings, engine)
 
     graph: StateGraph[SOCState] = StateGraph(SOCState)
-    graph.add_node("triage", triage.run)
-    graph.add_node("investigation", investigation.run)
-    graph.add_node("validation", validation.run)
-    graph.add_node("response", response.run)
-    graph.add_node("rule_update", rule_update.run)
-    graph.add_node("report", report.run)
+    # 노드는 KPI 타이밍 래퍼(_timed)로 감싸 등록. add_node 오버로드는 바운드 메서드는
+    # 받지만 동일 시그니처의 Callable 별칭은 거부하므로 arg-type 만 무시(런타임 동일).
+    nodes: list[tuple[str, _NodeFn]] = [
+        ("triage", triage.run),
+        ("investigation", investigation.run),
+        ("validation", validation.run),
+        ("response", response.run),
+        ("rule_update", rule_update.run),
+        ("report", report.run),
+    ]
+    for _name, _fn in nodes:
+        graph.add_node(_name, _timed(_name, _fn))  # type: ignore[call-overload]
 
     graph.set_entry_point("triage")
     graph.add_edge("triage", "investigation")
@@ -78,7 +116,10 @@ def build_soc_graph(
     # HITL on: 정탐 → approval(고위험 시 운용자 승인 대기) → response
     tp_target = "approval" if hitl else "response"
     if hitl:
-        graph.add_node("approval", ApprovalAgent(settings).run)
+        graph.add_node(
+            "approval",
+            _timed("approval", ApprovalAgent(settings).run),  # type: ignore[call-overload]
+        )
         graph.add_edge("approval", "response")
     graph.add_conditional_edges(
         "validation",

@@ -11,6 +11,7 @@ import pytest
 from agents.graph import build_soc_graph
 from agents.investigation_agent import InvestigationAgent
 from agents.triage_agent import TriageAgent
+from agents.validation_agent import signal_judge
 from core.models import (
     Alert,
     InvestigationResult,
@@ -108,6 +109,41 @@ class TestInvestigationAgent:
         out = await agent.run({"alert": _alert()})
         assert out["investigation"].similar_cases == []
 
+    @pytest.mark.asyncio
+    async def test_confidence_reflects_evidence(self) -> None:
+        """신뢰 사례가 있으면 confidence 상승, 없으면 보수적으로 낮게."""
+        with_ctx = await InvestigationAgent(_settings(), _StubRetriever()).run(
+            {"alert": _alert()}
+        )
+        without_ctx = await InvestigationAgent(_settings(), None).run(
+            {"alert": _alert()}
+        )
+        assert with_ctx["investigation"].confidence >= 0.5
+        assert without_ctx["investigation"].confidence < 0.5
+
+
+class TestSignalJudge:
+    """근거 기반 판정(FPR/FNR 측정용) 검증."""
+
+    def test_attack_with_evidence_is_true_positive(self) -> None:
+        """신호+룰+근거 → 정탐."""
+        state: SOCState = {
+            "alert": _alert(),
+            "investigation": InvestigationResult(
+                similar_cases=[RetrievedChunk(text="x", source="kb/c.md", score=0.8)],
+                confidence=0.8,
+            ),
+        }
+        assert signal_judge(state) == Verdict.TRUE_POSITIVE
+
+    def test_benign_without_rule_is_false_positive(self) -> None:
+        """매칭 탐지룰 없는 양성 노이즈 → 오탐(라벨 비참조)."""
+        state: SOCState = {
+            "alert": _alert(expected_detection={}, signals=["위성수 경미 감소"]),
+            "investigation": InvestigationResult(confidence=0.3),
+        }
+        assert signal_judge(state) == Verdict.FALSE_POSITIVE
+
 
 class TestSocGraph:
     """6-에이전트 end-to-end 그래프."""
@@ -128,6 +164,22 @@ class TestSocGraph:
         assert isinstance(report, SOCReport)
         assert report.action_taken == "response"
         assert report.severity == Severity.HIGH
+
+    @pytest.mark.asyncio
+    async def test_node_timings_recorded(self) -> None:
+        """KPI 산출용 노드별 타이밍이 기록된다(MTTT/MTTC/Report Latency 원천)."""
+        graph = build_soc_graph(retriever=_StubRetriever())
+        result = cast(SOCState, await graph.ainvoke({"alert": _alert()}))
+        timings = result.get("node_timings", [])
+        recorded = {str(t["node"]) for t in timings}
+        assert {
+            "triage",
+            "investigation",
+            "validation",
+            "response",
+            "report",
+        } <= recorded
+        assert all(isinstance(t["elapsed_ms"], (int, float)) for t in timings)
 
     @pytest.mark.asyncio
     async def test_false_positive_routes_to_rule_update(self) -> None:
