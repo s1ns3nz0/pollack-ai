@@ -2,10 +2,13 @@
 
 > 회사 PC에서 Notion 접근이 막혀 있어서, Notion "황준식 과업" 페이지 내용을 이 파일로 미러링합니다.
 > **앞으로는 이 파일을 최신화**합니다. (Notion 원본과 동일 내용)
-> 최종 상태: **RAG·방어 6-에이전트 실제 구현 완료** (RAGFlow + 실 LangGraph, 팀 CI 통과). 프로토타입 45 tests passed.
+> 최종 상태: **RAG 풀세팅 + 실 LLM + 6-에이전트 SOC + 에이전트 KPI 계측 + 심각도
+> dynamics + 다중경보 상관 + 외부 TI + 실 SITL 폐루프(S1) 완료.** 계획 P1~P6 전 항목
+> 완주. pytest 74 passed.
 > 상세 핸드오프/이관 가이드는 프로토타입의 `HANDOFF.md`, `WORK-HISTORY.md`, `RAG_DEFENSE_STATUS.md` 참고.
+> KPI·근거 수치는 `docs/hackathon/kpi-evidence.md`, 실 시뮬 검증은 `docs/sim-validation-findings.md`.
 
-마지막 갱신: 2026-06-17
+마지막 갱신: 2026-06-25
 
 ---
 
@@ -21,10 +24,17 @@
 | UAV/UGV 공격 시나리오 | 됨 (S1~S11) | `scenarios/` |
 | 레드팀 매핑(PyRIT/Garak) | 매핑 됨 / 실행은 다른 PC | `redteam/` · `scenarios/*.yaml` |
 | MITRE/ATLAS/EMB3D 추적 | 됨 | `tracking/coverage-matrix.md` |
-| RAG 검색(RAGFlow) | ✅ 실제 구현 — KB 126 docs | `tools/ragflow_tool.py` |
+| RAG 검색(RAGFlow) | ✅ 풀세팅 — KB 126 docs, Recall@5/MRR **1.0** | `tools/ragflow_tool.py` |
 | 방어 6-에이전트 SOC | ✅ 실 LangGraph·async, CI 통과 | `agents/` |
-| 에이전트 LLM 추론 | mock — Azure OpenAI 교체 예정(별도 lane) | — |
-| OSCAL 통제 매핑 | 협업 대기 | `core/oscal.py` (stub) |
+| 에이전트 LLM 추론 | ✅ **실연동**(Ollama qwen2.5:14b, GPU) — Azure 교체는 옵션 | `core/llm.py` · `.env` |
+| **에이전트 KPI 계측** | ✅ MTTT/MTTC/Confidence/FPR·FNR/Latency, Precision/Recall **1.0** | `benchmarks/run_kpi.py` · `agents/graph.py` |
+| **심각도 dynamics 실공급** | ✅ 체류시간·횡적상관 파이프라인 공급 | `core/dynamics.py` |
+| **다중경보 상관(S9)** | ✅ 경보 폭주·다축 집약 | `core/correlation.py` |
+| **외부 위협인텔(TI)** | ✅ IOC 보강(Stub→실 VT 교체가능) | `tools/ti_tool.py` |
+| **S5 포이즈닝 저항성** | ✅ 하향공격 차단율 **1.0**(제안등급·오염컨텍스트) | `benchmarks/run_redteam_skeleton.py` |
+| **실 SITL 폐루프(S1)** | ✅ telemetry→탐지→SOC→RTB→복귀(QGC) | `sim_bridge/` · `scripts/sim_*` |
+| 레드팀 PyRIT/Garak 실행 | 스켈레톤(통합지점) — 실행은 김동언 lane | `benchmarks/run_redteam_skeleton.py` |
+| OSCAL 통제 매핑 | 협업 대기(진수) | `core/oscal.py` (stub) |
 
 ---
 
@@ -70,11 +80,21 @@
 
 ---
 
+## 최근 완료(2026-06-25 — 계획 P1~P6)
+
+- **P1 에이전트 KPI 계측**: 노드 타이밍(MTTT/MTTC/Report Latency) + Confidence + `signal_judge`(근거기반) → `run_kpi.py`. 라벨셋(정탐11+오탐6)에서 Precision/Recall 1.0, FPR/FNR 0.0.
+- **P2 심각도 dynamics 실공급**: `DynamicsTracker`(체류시간·횡적상관)를 SimBridge 에 배선 — 동적조정 실제 발동.
+- **P3 다중경보 상관(S9)**: `AlertCorrelator` — 경보 폭주·다축 동시침해 집약(SOC 과부하 완화).
+- **P4 RAG 평가**: KB 메타 태깅 → Recall@5/MRR 1.0, LLM-Judge F≈3.6/R≈4.1, 라우팅 100%, S5 저항 100%. 근거: `docs/hackathon/kpi-evidence.md`(NIST AI RMF 매핑).
+- **P5 포이즈닝 저항 + 레드팀 스켈레톤**: 하향공격 차단율 1.0(제안등급·오염컨텍스트) + PyRIT/Garak 통합지점(`RedTeamTarget`)·외부실행 스텁.
+- **P6 외부 TI 연동**: `tools/ti_tool.py`(Stub→실 VT 교체가능) + Investigation IOC 보강.
+- **실 LLM 연동**: Ollama qwen2.5:14b(로컬 A100 GPU). 06-17 "mock" 표기는 **stale**, 현재 실연동.
+- **실 SITL 폐루프(S1)**: uav-sim-env(ArduPilot) 연동 — telemetry→탐지(실신호 튜닝)→SOC→RTB→QGC 복귀. `docs/sim-validation-findings.md`.
+
 ## 아직 남은 것
 
-- RAG flow는 RAGFlow(로컬 ollama: bge-m3 임베딩 / qwen2.5:14b)로 **실제 구현 완료** — `tools/ragflow_tool.py`. 에이전트 LLM 추론만 아직 mock → Azure OpenAI 교체 예정(별도 lane)
 - S1·S4·S7·S8·S10의 EMB3D는 카테고리명으로 적어뒀고, 제출 전 emb3d.mitre.org에서 실제 TID만 채우면 돼요
-- dynamics 신호(체류시간·횡적상관)는 탐지 파이프라인이 실제로 채워줘야 합니다
-- OSCAL 통제 ID 매핑은 인프라·컴플라이언스 담당과 같이 해야 해요
-- Sigma 룰 11개 실제 구현은 김수지님 핸드오프로 넘어갑니다
-- 러우전쟁 등 실전 참고문헌은 `docs/hackathon/references.md`로 정리해뒀어요 (검증 플래그 포함 — Spiderweb·적대적패치·DJI는 "보도/잠재"로, KA-SAT·Infamous Chisel은 안전 인용)
+- OSCAL 통제 ID 매핑은 인프라·컴플라이언스 담당(진수)과 같이 해야 해요
+- Sentinel 분석룰(KQL) 실제 구현·배포는 김수지님 lane(`dah-sentinel-content`). 우리 sim_bridge 탐지기는 그 런타임 근사판
+- 레드팀 PyRIT/Garak **실행**은 김동언님 lane(우리는 통합지점·스켈레톤 제공)
+- 러우전쟁 등 실전 참고문헌은 `docs/hackathon/references.md`로 정리해뒀어요 (검증 플래그 포함)
