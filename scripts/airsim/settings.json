@@ -1,0 +1,16 @@
+{
+  "_comment": "AirSim ↔ ArduPilot 연결용. 위치: Windows 사용자 폴더 Documents/AirSim/settings.json",
+  "SettingsVersion": 1.2,
+  "SimMode": "Multirotor",
+  "ClockType": "SteppableClock",
+  "Vehicles": {
+    "Copter": {
+      "VehicleType": "ArduCopter",
+      "UseSerial": false,
+      "LocalHostIp": "127.0.0.1",
+      "UdpIp": "127.0.0.1",
+      "UdpPort": 9003,
+      "ControlPort": 9002
+    }
+  }
+}

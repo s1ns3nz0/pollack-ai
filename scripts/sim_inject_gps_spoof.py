@@ -5,7 +5,7 @@ av-mpd(ArduPilot SITL)에 MAVLink PARAM_SET 으로 GPS 위치 글리치 + 위성
 정확도 저하를 주입한다 → EKF 잔차(PosHorizVariance) 급증 + Eph 급증 + 위성 급감
 → telemetry-tap NDJSON → SOC 브리지가 탐지.
 
-사전: uav-sim-env 기동. 실행: python scripts/sim_inject_gps_spoof.py [--clear]
+사전: uav-sim-env 기동. 실행: python scripts/sim_inject_gps_spoof.py [--clear] [--conn tcp:HOST:PORT]
 """
 import sys
 import time
@@ -29,8 +29,9 @@ SPOOF = [
 
 def main() -> None:
     clear = "--clear" in sys.argv
-    m = mavutil.mavlink_connection(CONN)
-    print(f"[연결] {CONN} 대기...")
+    conn = sys.argv[sys.argv.index("--conn") + 1] if "--conn" in sys.argv else CONN
+    m = mavutil.mavlink_connection(conn)
+    print(f"[연결] {conn} 대기...")
     m.wait_heartbeat(timeout=30)
     print(f"[연결] HEARTBEAT (sys={m.target_system})")
     for name, spoof_v, normal_v in SPOOF:
