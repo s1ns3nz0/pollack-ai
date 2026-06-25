@@ -124,6 +124,26 @@ class TestInvestigationAgent:
         assert out["investigation"].similar_cases == []
 
     @pytest.mark.asyncio
+    async def test_ti_malicious_ioc_enriches_and_boosts(self) -> None:
+        """악성 IOC TI 보강 → ti_findings 채워지고 신뢰도 상승."""
+        from tools.ti_tool import StubThreatIntel
+
+        ti = StubThreatIntel(malicious=frozenset({"bad-hash"}))
+        agent = InvestigationAgent(_settings(), None, ti=ti)
+        out = await agent.run({"alert": _alert(iocs=["bad-hash"])})
+        inv = out["investigation"]
+        assert any(f.verdict.value == "malicious" for f in inv.ti_findings)
+        # RAG 없음(conf 0.3) + 악성 IOC 부스트(+0.2) = 0.5
+        assert inv.confidence >= 0.5
+
+    @pytest.mark.asyncio
+    async def test_no_ti_no_findings(self) -> None:
+        """TI 미주입 시 ti_findings 비어있고 정상 동작."""
+        agent = InvestigationAgent(_settings(), None)
+        out = await agent.run({"alert": _alert(iocs=["x"])})
+        assert out["investigation"].ti_findings == []
+
+    @pytest.mark.asyncio
     async def test_confidence_reflects_evidence(self) -> None:
         """신뢰 사례가 있으면 confidence 상승, 없으면 보수적으로 낮게."""
         with_ctx = await InvestigationAgent(_settings(), _StubRetriever()).run(

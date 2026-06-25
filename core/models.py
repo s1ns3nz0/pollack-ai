@@ -29,6 +29,31 @@ class RetrievedChunk(BaseModel):
     score: float = Field(..., description="질의-청크 유사도 점수.")
 
 
+class TiVerdict(StrEnum):
+    """위협 인텔리전스 IOC 평판 판정."""
+
+    MALICIOUS = "malicious"
+    SUSPICIOUS = "suspicious"
+    CLEAN = "clean"
+    UNKNOWN = "unknown"
+
+
+class ThreatIntelFinding(BaseModel):
+    """외부 위협 인텔(TI) IOC 조회 결과 한 건.
+
+    Attributes:
+        indicator: 조회한 IOC(해시/IP/도메인 등).
+        verdict: 평판 판정.
+        source: TI 출처(예: VirusTotal, stub).
+        detail: 사람이 읽을 부가 설명.
+    """
+
+    indicator: str
+    verdict: TiVerdict
+    source: str = ""
+    detail: str = ""
+
+
 class Severity(StrEnum):
     """심각도 등급(정책 엔진 산정값)."""
 
@@ -62,6 +87,7 @@ class Alert(BaseModel):
     severity_baseline: Severity
     mitre: dict[str, object] = Field(default_factory=dict)
     signals: list[str] = Field(default_factory=list)
+    iocs: list[str] = Field(default_factory=list)  # 외부 TI 조회용 지표(해시/IP/도메인)
     expected_detection: dict[str, object] = Field(default_factory=dict)
     defense_playbook: dict[str, object] = Field(default_factory=dict)
     ground_truth: Verdict = Verdict.TRUE_POSITIVE
@@ -85,6 +111,7 @@ class InvestigationResult(BaseModel):
     similar_cases: list[RetrievedChunk] = Field(default_factory=list)
     summary: str = ""
     confidence: float = 0.0
+    ti_findings: list[ThreatIntelFinding] = Field(default_factory=list)
 
 
 class ResponseResult(BaseModel):

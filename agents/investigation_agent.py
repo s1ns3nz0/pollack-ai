@@ -13,7 +13,13 @@ from typing import Protocol, runtime_checkable
 from agents.base import BaseSOCAgent
 from core.exceptions import LLMError, SOCPlatformError
 from core.llm import LLMClient
-from core.models import InvestigationResult, RetrievedChunk, SOCState
+from core.models import (
+    InvestigationResult,
+    RetrievedChunk,
+    SOCState,
+    ThreatIntelFinding,
+    TiVerdict,
+)
 from core.settings import Settings
 
 _SUMMARY_SYSTEM = (
@@ -54,18 +60,29 @@ class ContextRetriever(Protocol):
         ...
 
 
+@runtime_checkable
+class ThreatIntelTool(Protocol):
+    """Investigation 이 의존하는 외부 위협 인텔(TI) 조회 계약."""
+
+    async def alookup(self, indicators: list[str]) -> list[ThreatIntelFinding]:
+        """IOC 목록의 평판을 조회해 반환한다."""
+        ...
+
+
 class InvestigationAgent(BaseSOCAgent):
-    """RAG 유사사례 + 신호 상관 분석 Agent."""
+    """RAG 유사사례 + 외부 TI + 신호 상관 분석 Agent."""
 
     def __init__(
         self,
         settings: Settings,
         retriever: ContextRetriever | None,
         llm: LLMClient | None = None,
+        ti: ThreatIntelTool | None = None,
     ) -> None:
         super().__init__(settings)
         self._retriever = retriever
         self._llm = llm
+        self._ti = ti
 
     async def run(self, state: SOCState) -> SOCState:
         """유사사례 검색 + 출처 검증 + (LLM) 상관분석 요약.
@@ -95,12 +112,19 @@ class InvestigationAgent(BaseSOCAgent):
         dropped = len(chunks) - len(trusted)
         summary = await self._summarize(alert.title, alert.signals, trusted)
         confidence = _confidence(trusted, rag_degraded)
+
+        # 외부 TI 보강: 경보 IOC 평판 조회(장애 시 빈 결과로 강등 — 대응 계속).
+        ti_findings = await self._lookup_ti(alert.iocs)
+        if any(f.verdict == TiVerdict.MALICIOUS for f in ti_findings):
+            confidence = round(min(1.0, confidence + 0.2), 3)  # 악성 IOC = 강한 근거
+
         self._logger.info(
-            "investigation: alert=%s hits=%d trusted=%d degraded=%s conf=%.2f",
+            "investigation: alert=%s hits=%d trusted=%d degraded=%s ti=%d conf=%.2f",
             alert.id,
             len(chunks),
             len(trusted),
             rag_degraded,
+            len(ti_findings),
             confidence,
         )
 
@@ -111,6 +135,7 @@ class InvestigationAgent(BaseSOCAgent):
                 similar_cases=trusted,
                 summary=summary,
                 confidence=confidence,
+                ti_findings=ti_findings,
             ),
             "trace": ["investigation"],
         }
@@ -122,6 +147,16 @@ class InvestigationAgent(BaseSOCAgent):
         if flags:
             result["guardrail_flags"] = flags
         return result
+
+    async def _lookup_ti(self, iocs: list[str]) -> list[ThreatIntelFinding]:
+        """경보 IOC 를 외부 TI 로 조회. 미주입/IOC 없음/장애 시 빈 결과(대응 계속)."""
+        if self._ti is None or not iocs:
+            return []
+        try:
+            return await self._ti.alookup(iocs)
+        except SOCPlatformError as exc:
+            self._logger.warning("investigation TI 조회 실패, 무시하고 계속: %s", exc)
+            return []
 
     async def _summarize(
         self, title: str, signals: list[str], trusted: list[RetrievedChunk]

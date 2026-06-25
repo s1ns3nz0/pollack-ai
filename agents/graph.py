@@ -18,7 +18,11 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from agents.approval_agent import ApprovalAgent
-from agents.investigation_agent import ContextRetriever, InvestigationAgent
+from agents.investigation_agent import (
+    ContextRetriever,
+    InvestigationAgent,
+    ThreatIntelTool,
+)
 from agents.report_agent import ReportAgent
 from agents.response_agent import ResponseAgent
 from agents.rule_update_agent import RuleUpdateAgent
@@ -69,6 +73,7 @@ def build_soc_graph(
     engine: SeverityEngine | None = None,
     retriever: ContextRetriever | None = None,
     llm: LLMClient | None = None,
+    ti: ThreatIntelTool | None = None,
     judge: Judge = default_judge,
     hitl: bool = False,
 ) -> CompiledStateGraph[SOCState]:
@@ -79,6 +84,7 @@ def build_soc_graph(
         engine: 심각도 엔진(미지정 시 정책 파일에서 생성).
         retriever: RAG 리트리버(미지정 시 Investigation 은 빈 컨텍스트).
         llm: 요약용 LLM(미지정 시 Investigation 요약은 결정론적 폴백).
+        ti: 외부 위협 인텔 도구(미지정 시 IOC 보강 생략).
         judge: Validation 판정기(기본은 결정론적 — 판정권을 LLM 에 주지 않음).
         hitl: True 면 고위험 정탐에 운용자 승인 대기(interrupt) 노드 삽입 +
             checkpointer 동반. 호출 시 `config={"configurable":{"thread_id":...}}` 필요.
@@ -90,7 +96,7 @@ def build_soc_graph(
     engine = engine or SeverityEngine()
 
     triage = TriageAgent(settings, engine)
-    investigation = InvestigationAgent(settings, retriever, llm)
+    investigation = InvestigationAgent(settings, retriever, llm, ti)
     validation = ValidationAgent(settings, judge)
     response = ResponseAgent(settings, engine)
     rule_update = RuleUpdateAgent(settings)
