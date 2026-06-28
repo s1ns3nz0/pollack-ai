@@ -7,7 +7,6 @@
 
 from __future__ import annotations
 
-import json
 from threading import Thread
 
 _OK = "ok"
@@ -15,6 +14,8 @@ _OK = "ok"
 
 def route(path: str, ready: bool = True) -> tuple[int, str]:
     """경로를 (HTTP 상태, 본문)으로 매핑한다(순수 — 테스트 가능).
+
+    `/metrics` 는 Prometheus 텍스트(런타임 카운터 + 커버리지 KPI)를 반환한다.
 
     Args:
         path: 요청 경로.
@@ -28,18 +29,19 @@ def route(path: str, ready: bool = True) -> tuple[int, str]:
     if path.startswith("/readyz"):
         return (200, _OK) if ready else (503, "not ready")
     if path.startswith("/metrics"):
-        return (200, _coverage_snapshot())
+        from app.metrics import render_text
+
+        return (200, render_text())
     return (404, "not found")
 
 
-def _coverage_snapshot() -> str:
-    """커버리지 KPI 스냅샷(JSON). 데이터 없으면 빈 객체."""
-    try:
-        from tools.coverage import CoverageMatrix
+def content_type_for(path: str) -> str:
+    """경로별 응답 Content-Type(메트릭은 Prometheus 형식)."""
+    if path.startswith("/metrics"):
+        from app.metrics import content_type
 
-        return CoverageMatrix.from_yaml().report().model_dump_json()
-    except Exception:  # noqa: BLE001 - 메트릭 조회 실패는 헬스에 영향 없음
-        return json.dumps({})
+        return content_type()
+    return "text/plain; charset=utf-8"
 
 
 def serve_in_background(port: int = 8080) -> Thread:
@@ -51,7 +53,7 @@ def serve_in_background(port: int = 8080) -> Thread:
             status, body = route(self.path)
             payload = body.encode("utf-8")
             self.send_response(status)
-            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Type", content_type_for(self.path))
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
             self.wfile.write(payload)

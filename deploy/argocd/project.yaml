@@ -8,11 +8,14 @@ spec:
   description: "UAV AI SOC 워크로드(핫패스/학습/RAGFlow)"
   sourceRepos:
     - https://github.com/s1ns3nz0/pollack-ai.git
+    - https://prometheus-community.github.io/helm-charts # 모니터링 스택(helm)
   destinations:
     - server: https://kubernetes.default.svc
       namespace: dah-soc
     - server: https://kubernetes.default.svc
       namespace: argocd
+    - server: https://kubernetes.default.svc
+      namespace: monitoring
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace

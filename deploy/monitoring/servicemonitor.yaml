@@ -1,0 +1,20 @@
+# Prometheus Operator ServiceMonitor — soc-hotpath/learning 의 /metrics 스크레이프.
+# kube-prometheus-stack(CRD) 설치 후 적용된다(ArgoCD sync-wave 로 순서 보장).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: soc-metrics
+  namespace: dah-soc
+  labels:
+    release: kube-prometheus-stack # Prometheus 가 이 라벨로 ServiceMonitor 선택
+spec:
+  namespaceSelector:
+    matchNames: [dah-soc]
+  selector:
+    matchLabels:
+      monitoring: enabled
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s

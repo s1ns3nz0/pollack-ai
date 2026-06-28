@@ -23,11 +23,14 @@ class TestArgoManifests:
         assert "AppProject" in kinds
         assert kinds.count("Application") >= 2  # root + soc
 
-    def test_all_reference_same_repo(self) -> None:
+    def test_git_apps_reference_same_repo(self) -> None:
         for d in _docs():
             if d.get("kind") != "Application":
                 continue
-            assert d["spec"]["source"]["repoURL"] == _REPO
+            src = d["spec"]["source"]
+            if "path" not in src:  # helm 차트 앱은 외부 repo → 제외
+                continue
+            assert src["repoURL"] == _REPO
 
     def test_workloads_app_syncs_k8s_path(self) -> None:
         app = next(

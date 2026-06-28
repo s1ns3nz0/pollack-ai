@@ -56,6 +56,9 @@ kind: Service
 metadata:
   name: soc-hotpath
   namespace: dah-soc
+  labels:
+    app: soc-hotpath
+    monitoring: enabled # ServiceMonitor 선택 라벨
 spec:
   selector:
     app: soc-hotpath
