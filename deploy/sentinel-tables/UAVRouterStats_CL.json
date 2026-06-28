@@ -1,0 +1,64 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Log Analytics 워크스페이스 이름(dah-data-law)"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/tables",
+      "apiVersion": "2022-10-01",
+      "name": "[concat(parameters('workspaceName'), '/UAVRouterStats_CL')]",
+      "properties": {
+        "schema": {
+          "name": "UAVRouterStats_CL",
+          "columns": [
+            {
+              "name": "TimeGenerated",
+              "type": "datetime"
+            },
+            {
+              "name": "EndpointName",
+              "type": "string"
+            },
+            {
+              "name": "PeerIp",
+              "type": "string"
+            },
+            {
+              "name": "PeerPort",
+              "type": "int"
+            },
+            {
+              "name": "Protocol",
+              "type": "string"
+            },
+            {
+              "name": "MsgTx",
+              "type": "long"
+            },
+            {
+              "name": "MsgRx",
+              "type": "long"
+            },
+            {
+              "name": "CrcErrors",
+              "type": "long"
+            },
+            {
+              "name": "DropCount",
+              "type": "long"
+            }
+          ]
+        },
+        "retentionInDays": 30,
+        "totalRetentionInDays": 90
+      }
+    }
+  ]
+}
