@@ -40,6 +40,7 @@ from core.llm import LLMClient
 from core.models import SOCState
 from core.settings import Settings, get_settings
 from core.severity import SeverityEngine
+from tools.rule_publisher import RulePublisher
 
 # LangGraph 노드 시그니처(에이전트 .run 과 동일: 비동기 SOCState→SOCState).
 _NodeFn = Callable[[SOCState], Coroutine[Any, Any, SOCState]]
@@ -80,6 +81,7 @@ def build_soc_graph(
     experience: MemoryReadGate | None = None,
     sandbox: SandboxDetonator | None = None,
     vuln: VulnContext | None = None,
+    rule_publisher: RulePublisher | None = None,
     judge: Judge = default_judge,
     hitl: bool = False,
 ) -> CompiledStateGraph[SOCState]:
@@ -94,6 +96,7 @@ def build_soc_graph(
         experience: 경험메모리 읽기 게이트(미지정 시 exp/ 자문 생략).
         sandbox: 샌드박스 디토네이터(미지정 시 해시 IOC 분석 생략).
         vuln: 취약점 컨텍스트(미지정 시 CVE 보강 생략).
+        rule_publisher: Watch List PR 발행기(미지정 시 RuleUpdate 는 proposed 만 산출).
         judge: Validation 판정기(기본은 결정론적 — 판정권을 LLM 에 주지 않음).
         hitl: True 면 고위험 정탐에 운용자 승인 대기(interrupt) 노드 삽입 +
             checkpointer 동반. 호출 시 `config={"configurable":{"thread_id":...}}` 필요.
@@ -110,7 +113,7 @@ def build_soc_graph(
     )
     validation = ValidationAgent(settings, judge)
     response = ResponseAgent(settings, engine)
-    rule_update = RuleUpdateAgent(settings)
+    rule_update = RuleUpdateAgent(settings, rule_publisher)
     report = ReportAgent(settings, engine)
 
     graph: StateGraph[SOCState] = StateGraph(SOCState)

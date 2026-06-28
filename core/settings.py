@@ -156,6 +156,33 @@ class Settings(BaseSettings):
         description="취약점 조회 요청 타임아웃(초).",
     )
 
+    # ── 탐지룰 저장소 (Watch List 자동 갱신) ──────────────
+    sentinel_content_repo: str = Field(
+        default="s1ns3nz0/dah-sentinel-content",
+        description="Watch List/룰 콘텐츠 저장소(owner/name).",
+    )
+    github_token: SecretStr = Field(
+        default=SecretStr(""),
+        description="GitHub PAT(Watch List PR 생성용). 비면 publisher 비활성.",
+    )
+    github_base_url: str = Field(
+        default="https://api.github.com",
+        description="GitHub API 베이스 URL.",
+    )
+    rule_branch_prefix: str = Field(
+        default="feat/watchlist",
+        description="Watch List PR 브랜치 접두.",
+    )
+    rule_base_branch: str = Field(
+        default="main",
+        description="Watch List PR 의 베이스 브랜치(머지 대상).",
+    )
+    github_timeout_seconds: float = Field(
+        default=20.0,
+        gt=0.0,
+        description="GitHub API 요청 타임아웃(초).",
+    )
+
     @property
     def ragflow_retrieval_url(self) -> str:
         """RAGFlow 검색 엔드포인트 전체 URL."""

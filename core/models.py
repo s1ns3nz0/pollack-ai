@@ -280,13 +280,68 @@ class ApprovalResult(BaseModel):
     note: str = ""
 
 
+class WatchlistUpdate(BaseModel):
+    """탐지룰(KQL) 대신 Watch List 만 변경하는 오탐 개선 제안.
+
+    원칙: KQL 은 절대 건드리지 않는다. KQL 이 읽는 Watch List 값만 추가/수정한다.
+
+    Attributes:
+        watchlist: 대상 Watch List 이름(예: GNSS_Exception_List).
+        search_key: Watch List 의 SearchKey 컬럼(예: ZoneId).
+        update_type: 유형 — "A"(화이트리스트) | "B"(예외) | "C"(임계값).
+        action: "add"(신규 행 추가) | "modify"(기존 값 수정).
+        entry: 추가/수정할 행(컬럼명→값).
+        reason: 사람이 읽을 변경 근거.
+    """
+
+    watchlist: str
+    search_key: str
+    update_type: str
+    action: str
+    entry: dict[str, str] = Field(default_factory=dict)
+    reason: str = ""
+
+
+class RulePullRequest(BaseModel):
+    """Watch List 변경을 외부 룰 저장소에 올리는 GitHub PR 페이로드.
+
+    Attributes:
+        repo: 대상 저장소(owner/name — 예: s1ns3nz0/dah-sentinel-content).
+        branch: 작업 브랜치.
+        path: 변경할 Watch List 파일 경로.
+        title: PR 제목.
+        body: PR 본문.
+        base_branch: PR 의 베이스 브랜치(머지 대상).
+        watchlist_update: 발행기가 CSV 에 적용할 Watch List 변경 내용.
+        status: proposed | opened | failed.
+        url: 생성된 PR URL(미생성 시 빈 문자열).
+    """
+
+    repo: str
+    branch: str
+    path: str
+    title: str
+    body: str = ""
+    base_branch: str = "main"
+    watchlist_update: WatchlistUpdate | None = None
+    status: str = "proposed"
+    url: str = ""
+
+
 class RuleUpdateResult(BaseModel):
-    """Rule Update 산출물(오탐 경로 — 탐지룰 수정 제안 stub)."""
+    """Rule Update 산출물(오탐 경로 — Watch List 전용 수정 제안).
+
+    Attributes:
+        watchlist_update: Watch List 변경 제안(remediation 정보 없으면 None).
+        pull_request: 외부 룰 저장소 PR 페이로드(변경 없으면 None).
+    """
 
     target_rule: str
     proposal: str
     pr_status: str
     reason: str
+    watchlist_update: WatchlistUpdate | None = None
+    pull_request: RulePullRequest | None = None
 
 
 class SOCReport(BaseModel):
