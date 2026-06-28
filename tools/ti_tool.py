@@ -318,3 +318,276 @@ def _extract_stats(body: object) -> dict[str, int] | None:
     if not all(isinstance(v, int) for v in stats.values()):
         return None
     return {str(k): int(v) for k, v in stats.items()}
+
+
+def _is_ip(indicator: str) -> bool:
+    """IP(v4/v6) 여부."""
+    try:
+        ipaddress.ip_address(indicator)
+        return True
+    except ValueError:
+        return False
+
+
+def _ip_only_finding(indicator: str, source: str) -> ThreatIntelFinding:
+    """IP 전용 소스에 IP 가 아닌 IOC 가 들어온 경우의 UNKNOWN 결과."""
+    return ThreatIntelFinding(
+        indicator=indicator,
+        verdict=TiVerdict.UNKNOWN,
+        source=source,
+        detail="IP 전용 소스",
+    )
+
+
+class GreyNoiseTool:
+    """GreyNoise Community 어댑터 — *배경 스캔 노이즈 vs 표적 악성* 판별(IP 전용).
+
+    FP 감축 특화: classification=malicious → MALICIOUS, benign → CLEAN, 그 외
+    noise=True(인터넷 전체를 훑는 스캐너) → SUSPICIOUS(소음). 미등록은 UNKNOWN.
+
+    Args:
+        settings: 전역 설정(미지정 시 환경 로드). `greynoise_api_key` 필요.
+        client_factory: 비동기 HTTP 클라이언트 팩토리(테스트 주입용).
+    """
+
+    def __init__(
+        self, settings: Settings | None = None, client_factory: object | None = None
+    ) -> None:
+        self._settings = settings or get_settings()
+        self._client_factory = client_factory
+
+    def _make_client(self) -> httpx.AsyncClient:
+        if self._client_factory is not None:
+            return self._client_factory()  # type: ignore[operator,no-any-return]
+        return httpx.AsyncClient(timeout=self._settings.ti_timeout_seconds)
+
+    async def alookup(self, indicators: list[str]) -> list[ThreatIntelFinding]:
+        """IP 평판/노이즈 분류를 조회한다.
+
+        Raises:
+            ThreatIntelError: API 키 미설정 시(컴포지트가 건너뜀).
+        """
+        key = self._settings.greynoise_api_key.get_secret_value()
+        if not key:
+            raise ThreatIntelError("GreyNoise API 키 미설정.")
+        headers = {"key": key, "Accept": "application/json"}
+        base = self._settings.greynoise_base_url.rstrip("/")
+        findings: list[ThreatIntelFinding] = []
+        async with self._make_client() as client:
+            for indicator in indicators:
+                if not _is_ip(indicator):
+                    findings.append(_ip_only_finding(indicator, "greynoise"))
+                    continue
+                findings.append(await self._lookup_ip(client, base, indicator, headers))
+        return findings
+
+    async def _lookup_ip(
+        self,
+        client: httpx.AsyncClient,
+        base: str,
+        indicator: str,
+        headers: dict[str, str],
+    ) -> ThreatIntelFinding:
+        try:
+            resp = await client.get(f"{base}/{quote(indicator)}", headers=headers)
+            if resp.status_code == 404:
+                return ThreatIntelFinding(
+                    indicator=indicator,
+                    verdict=TiVerdict.UNKNOWN,
+                    source="greynoise",
+                    detail="GreyNoise 미관측",
+                )
+            resp.raise_for_status()
+            body = resp.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            _logger.warning("GreyNoise 조회 실패(%s): %s", indicator, exc)
+            return ThreatIntelFinding(
+                indicator=indicator,
+                verdict=TiVerdict.UNKNOWN,
+                source="greynoise",
+                detail="조회 실패",
+            )
+        return self.parse(indicator, body)
+
+    @staticmethod
+    def parse(indicator: str, body: object) -> ThreatIntelFinding:
+        """GreyNoise 응답(classification/noise)을 판정한다."""
+        if not isinstance(body, dict):
+            verdict, detail = TiVerdict.UNKNOWN, "응답 형식 검증 실패"
+        else:
+            classification = body.get("classification")
+            if classification == "malicious":
+                verdict, detail = TiVerdict.MALICIOUS, "표적/악성 스캐너"
+            elif classification == "benign":
+                verdict, detail = TiVerdict.CLEAN, "양성(known good)"
+            elif body.get("noise") is True:
+                verdict, detail = TiVerdict.SUSPICIOUS, "인터넷 배경 스캔 노이즈"
+            else:
+                verdict, detail = TiVerdict.UNKNOWN, "미분류"
+        return ThreatIntelFinding(
+            indicator=indicator, verdict=verdict, source="greynoise", detail=detail
+        )
+
+
+class AbuseIpdbTool:
+    """AbuseIPDB 어댑터 — IP 악용 신고 신뢰도(0~100) 기반 판정(IP 전용).
+
+    Args:
+        settings: 전역 설정(미지정 시 환경 로드). `abuseipdb_api_key` 필요.
+        client_factory: 비동기 HTTP 클라이언트 팩토리(테스트 주입용).
+    """
+
+    def __init__(
+        self, settings: Settings | None = None, client_factory: object | None = None
+    ) -> None:
+        self._settings = settings or get_settings()
+        self._client_factory = client_factory
+
+    def _make_client(self) -> httpx.AsyncClient:
+        if self._client_factory is not None:
+            return self._client_factory()  # type: ignore[operator,no-any-return]
+        return httpx.AsyncClient(timeout=self._settings.ti_timeout_seconds)
+
+    async def alookup(self, indicators: list[str]) -> list[ThreatIntelFinding]:
+        """IP 악용 신뢰도를 조회한다.
+
+        Raises:
+            ThreatIntelError: API 키 미설정 시(컴포지트가 건너뜀).
+        """
+        key = self._settings.abuseipdb_api_key.get_secret_value()
+        if not key:
+            raise ThreatIntelError("AbuseIPDB API 키 미설정.")
+        headers = {"Key": key, "Accept": "application/json"}
+        url = f"{self._settings.abuseipdb_base_url.rstrip('/')}/check"
+        findings: list[ThreatIntelFinding] = []
+        async with self._make_client() as client:
+            for indicator in indicators:
+                if not _is_ip(indicator):
+                    findings.append(_ip_only_finding(indicator, "abuseipdb"))
+                    continue
+                findings.append(await self._lookup_ip(client, url, indicator, headers))
+        return findings
+
+    async def _lookup_ip(
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        indicator: str,
+        headers: dict[str, str],
+    ) -> ThreatIntelFinding:
+        params = {"ipAddress": indicator, "maxAgeInDays": "90"}
+        try:
+            resp = await client.get(url, params=params, headers=headers)
+            resp.raise_for_status()
+            body = resp.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            _logger.warning("AbuseIPDB 조회 실패(%s): %s", indicator, exc)
+            return ThreatIntelFinding(
+                indicator=indicator,
+                verdict=TiVerdict.UNKNOWN,
+                source="abuseipdb",
+                detail="조회 실패",
+            )
+        return self.parse(indicator, body)
+
+    @staticmethod
+    def parse(indicator: str, body: object) -> ThreatIntelFinding:
+        """AbuseIPDB 응답(abuseConfidenceScore)을 판정한다."""
+        score: int | None = None
+        if isinstance(body, dict):
+            data = body.get("data")
+            if isinstance(data, dict):
+                raw = data.get("abuseConfidenceScore")
+                if isinstance(raw, int):
+                    score = raw
+        if score is None:
+            verdict, detail = TiVerdict.UNKNOWN, "응답 형식 검증 실패"
+        elif score >= 75:
+            verdict, detail = TiVerdict.MALICIOUS, f"신뢰도 {score}"
+        elif score >= 25:
+            verdict, detail = TiVerdict.SUSPICIOUS, f"신뢰도 {score}"
+        else:
+            verdict, detail = TiVerdict.CLEAN, f"신뢰도 {score}"
+        return ThreatIntelFinding(
+            indicator=indicator, verdict=verdict, source="abuseipdb", detail=detail
+        )
+
+
+class ThreatFoxTool:
+    """ThreatFox(abuse.ch) 어댑터 — 악성 IOC DB 검색(해시/IP/도메인/URL).
+
+    Args:
+        settings: 전역 설정(미지정 시 환경 로드). `threatfox_api_key`(Auth-Key) 필요.
+        client_factory: 비동기 HTTP 클라이언트 팩토리(테스트 주입용).
+    """
+
+    def __init__(
+        self, settings: Settings | None = None, client_factory: object | None = None
+    ) -> None:
+        self._settings = settings or get_settings()
+        self._client_factory = client_factory
+
+    def _make_client(self) -> httpx.AsyncClient:
+        if self._client_factory is not None:
+            return self._client_factory()  # type: ignore[operator,no-any-return]
+        return httpx.AsyncClient(timeout=self._settings.ti_timeout_seconds)
+
+    async def alookup(self, indicators: list[str]) -> list[ThreatIntelFinding]:
+        """IOC 를 ThreatFox 악성 DB 에서 검색한다.
+
+        Raises:
+            ThreatIntelError: API 키 미설정 시(컴포지트가 건너뜀).
+        """
+        key = self._settings.threatfox_api_key.get_secret_value()
+        if not key:
+            raise ThreatIntelError("ThreatFox Auth-Key 미설정.")
+        headers = {"Auth-Key": key}
+        url = self._settings.threatfox_base_url.rstrip("/")
+        findings: list[ThreatIntelFinding] = []
+        async with self._make_client() as client:
+            for indicator in indicators:
+                findings.append(await self._lookup_one(client, url, indicator, headers))
+        return findings
+
+    async def _lookup_one(
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        indicator: str,
+        headers: dict[str, str],
+    ) -> ThreatIntelFinding:
+        payload = {"query": "search_ioc", "search_term": indicator}
+        try:
+            resp = await client.post(url, json=payload, headers=headers)
+            resp.raise_for_status()
+            body = resp.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            _logger.warning("ThreatFox 조회 실패(%s): %s", indicator, exc)
+            return ThreatIntelFinding(
+                indicator=indicator,
+                verdict=TiVerdict.UNKNOWN,
+                source="threatfox",
+                detail="조회 실패",
+            )
+        return self.parse(indicator, body)
+
+    @staticmethod
+    def parse(indicator: str, body: object) -> ThreatIntelFinding:
+        """ThreatFox 응답(query_status/confidence_level)을 판정한다."""
+        verdict, detail = TiVerdict.UNKNOWN, "미등록"
+        if isinstance(body, dict):
+            status = body.get("query_status")
+            data = body.get("data")
+            if status == "ok" and isinstance(data, list) and data:
+                first = data[0] if isinstance(data[0], dict) else {}
+                confidence = first.get("confidence_level")
+                conf = confidence if isinstance(confidence, int) else 0
+                if conf >= 75:
+                    verdict, detail = TiVerdict.MALICIOUS, f"ThreatFox conf={conf}"
+                else:
+                    verdict, detail = TiVerdict.SUSPICIOUS, f"ThreatFox conf={conf}"
+            elif status == "no_result":
+                verdict, detail = TiVerdict.UNKNOWN, "ThreatFox 미등록"
+        return ThreatIntelFinding(
+            indicator=indicator, verdict=verdict, source="threatfox", detail=detail
+        )

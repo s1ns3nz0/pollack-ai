@@ -80,7 +80,7 @@ class Settings(BaseSettings):
         description="LLM 요청 타임아웃(초).",
     )
 
-    # ── 외부 위협 인텔(TI) — VirusTotal 등 어댑터 ──────────────
+    # ── 외부 위협 인텔(TI) — 멀티소스 어댑터 ──────────────
     virustotal_api_key: SecretStr = Field(
         default=SecretStr(""),
         description="VirusTotal API 키(x-apikey). 비면 VT 어댑터 비활성.",
@@ -88,6 +88,30 @@ class Settings(BaseSettings):
     virustotal_base_url: str = Field(
         default="https://www.virustotal.com/api/v3",
         description="VirusTotal v3 API 베이스 URL.",
+    )
+    greynoise_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        description="GreyNoise Community API 키. 비면 어댑터 비활성.",
+    )
+    greynoise_base_url: str = Field(
+        default="https://api.greynoise.io/v3/community",
+        description="GreyNoise Community API 베이스 URL.",
+    )
+    abuseipdb_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        description="AbuseIPDB API 키(Key 헤더). 비면 어댑터 비활성.",
+    )
+    abuseipdb_base_url: str = Field(
+        default="https://api.abuseipdb.com/api/v2",
+        description="AbuseIPDB v2 API 베이스 URL.",
+    )
+    threatfox_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        description="ThreatFox(abuse.ch) Auth-Key. 비면 어댑터 비활성.",
+    )
+    threatfox_base_url: str = Field(
+        default="https://threatfox-api.abuse.ch/api/v1",
+        description="ThreatFox API 베이스 URL.",
     )
     ti_timeout_seconds: float = Field(
         default=20.0,
