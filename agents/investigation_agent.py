@@ -15,6 +15,7 @@ from core.exceptions import LLMError, SOCPlatformError
 from core.experience import MemoryReadGate, RecallPurpose
 from core.llm import LLMClient
 from core.models import (
+    Alert,
     InvestigationResult,
     RetrievedChunk,
     SOCState,
@@ -127,15 +128,19 @@ class InvestigationAgent(BaseSOCAgent):
         if exp_corroboration:
             confidence = round(min(1.0, confidence + 0.2), 3)  # 과거 정탐 = 보강 근거
 
+        # 맥락 FP 억제 자문(위험 방향): 신뢰 과거 오탐 중 *동일 신호패턴*만 집계.
+        suppression = await self._recall_suppression(alert)
+
         self._logger.info(
             "investigation: alert=%s hits=%d trusted=%d degraded=%s ti=%d exp=%d "
-            "conf=%.2f",
+            "sup=%d conf=%.2f",
             alert.id,
             len(chunks),
             len(trusted),
             rag_degraded,
             len(ti_findings),
             exp_corroboration,
+            suppression,
             confidence,
         )
 
@@ -148,6 +153,7 @@ class InvestigationAgent(BaseSOCAgent):
                 confidence=confidence,
                 ti_findings=ti_findings,
                 experience_corroboration=exp_corroboration,
+                suppression_corroboration=suppression,
             ),
             "trace": ["investigation"],
         }
@@ -180,6 +186,32 @@ class InvestigationAgent(BaseSOCAgent):
             self._logger.warning("investigation 경험 회상 실패, 무시하고 계속: %s", exc)
             return 0
         return len(hits)
+
+    async def _recall_suppression(self, alert: Alert) -> int:
+        """동일 신호패턴의 신뢰 과거 오탐(맥락 FP)을 회상해 억제 근거 수를 반환.
+
+        위험 방향(TP→FP 억제)이므로 *좁게* 집계한다: 신뢰 출처(ReadGate 가
+        env_verified/redgt_offline 만 회상)이면서, 과거 오탐의 신호 집합이 현재 경보
+        신호의 *부분집합*인 경우만 센다 → 시나리오 전체가 아니라 동일 패턴만 억제,
+        진짜 공격(다른 신호)은 묻히지 않는다. 미주입/장애 시 0(억제 안 함).
+
+        Args:
+            alert: 현재 경보(시나리오·신호 비교 대상).
+
+        Returns:
+            동일 패턴 신뢰 과거 오탐 수.
+        """
+        if self._experience is None:
+            return 0
+        try:
+            hits = await self._experience.recall(
+                alert.scenario_id, RecallPurpose.SUPPRESSION
+            )
+        except SOCPlatformError as exc:
+            self._logger.warning("investigation 억제 회상 실패, 무시하고 계속: %s", exc)
+            return 0
+        current = set(alert.signals)
+        return sum(1 for h in hits if h.signals and set(h.signals) <= current)
 
     async def _lookup_ti(self, iocs: list[str]) -> list[ThreatIntelFinding]:
         """경보 IOC 를 외부 TI 로 조회. 미주입/IOC 없음/장애 시 빈 결과(대응 계속)."""

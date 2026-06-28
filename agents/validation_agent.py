@@ -55,11 +55,21 @@ def signal_judge(state: SOCState) -> Verdict:
         or inv.confidence >= 0.5
         or inv.experience_corroboration > 0  # exp/ 과거 정탐 자문(하한 불변)
     )
-    return (
+    verdict = (
         Verdict.TRUE_POSITIVE
         if (has_signal and has_rule and corroborated)
         else Verdict.FALSE_POSITIVE
     )
+    # 맥락 FP 억제(위험 방향): 신뢰 출처·동일 신호패턴 과거 오탐이 있을 때만 TP→FP.
+    # Investigation 이 ReadGate(신뢰 출처 한정) + 부분집합 매칭으로 좁게 산정하므로
+    # 진짜 공격(다른 신호)이나 미신뢰 출처로는 억제되지 않는다.
+    if (
+        verdict == Verdict.TRUE_POSITIVE
+        and inv is not None
+        and inv.suppression_corroboration > 0
+    ):
+        return Verdict.FALSE_POSITIVE
+    return verdict
 
 
 def route_after_validation(state: SOCState) -> str:

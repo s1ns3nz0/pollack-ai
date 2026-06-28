@@ -142,6 +142,13 @@ class InvestigationResult(BaseModel):
         default=0,
         description="exp/ 에서 회상된 신뢰 과거 정탐 수(judge 자문 — 하한 불변).",
     )
+    suppression_corroboration: int = Field(
+        default=0,
+        description=(
+            "exp/ 에서 회상된 *동일 신호패턴* 신뢰 과거 오탐 수(맥락 FP 억제 자문). "
+            "신뢰 출처(env_verified/redgt_offline)만, 좁은 시그니처 매칭만 집계."
+        ),
+    )
 
 
 class JudgeFeatures(BaseModel):
