@@ -7,7 +7,12 @@ import pytest
 from core.exceptions import ThreatIntelError
 from core.models import TiVerdict
 from core.settings import Settings
-from tools.ti_tool import AbuseIpdbTool, GreyNoiseTool, ThreatFoxTool
+from tools.ti_tool import (
+    AbuseIpdbTool,
+    GreyNoiseTool,
+    HoneypotFeedTool,
+    ThreatFoxTool,
+)
 
 _IP = "203.0.113.7"
 _HASH = "a" * 64
@@ -122,3 +127,33 @@ class TestThreatFox:
     async def test_missing_key_raises(self) -> None:
         with pytest.raises(ThreatIntelError):
             await ThreatFoxTool(settings=Settings()).alookup([_HASH])
+
+
+class TestHoneypotFeed:
+    """내부 데코이 피드 — 접촉 IOC = 고신뢰 악성(FP≈0)."""
+
+    @pytest.mark.asyncio
+    async def test_static_hit_is_malicious(self) -> None:
+        feed = HoneypotFeedTool(hits={_IP})
+        out = {f.indicator: f.verdict for f in await feed.alookup([_IP, "8.8.8.8"])}
+        assert out[_IP] == TiVerdict.MALICIOUS
+        assert out["8.8.8.8"] == TiVerdict.UNKNOWN  # 미접촉
+
+    @pytest.mark.asyncio
+    async def test_provider_merges_hits(self) -> None:
+        async def provider() -> set[str]:
+            return {_HASH}
+
+        feed = HoneypotFeedTool(hits={_IP}, provider=provider)
+        out = {f.indicator: f.verdict for f in await feed.alookup([_IP, _HASH])}
+        assert out[_IP] == TiVerdict.MALICIOUS
+        assert out[_HASH] == TiVerdict.MALICIOUS  # provider 로 합쳐짐
+
+    @pytest.mark.asyncio
+    async def test_provider_failure_degrades_to_static(self) -> None:
+        async def failing() -> set[str]:
+            raise ThreatIntelError("honeypot store down")
+
+        feed = HoneypotFeedTool(hits={_IP}, provider=failing)
+        out = await feed.alookup([_IP])
+        assert out[0].verdict == TiVerdict.MALICIOUS  # 정적 집합으로 강등

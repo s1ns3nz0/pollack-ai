@@ -13,7 +13,7 @@ Investigation 이 경보의 IOC(해시/IP/도메인 등)를 외부 TI 로 보강
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 import ipaddress
 import re
 from typing import Protocol, runtime_checkable
@@ -591,3 +591,65 @@ class ThreatFoxTool:
         return ThreatIntelFinding(
             indicator=indicator, verdict=verdict, source="threatfox", detail=detail
         )
+
+
+class HoneypotFeedTool:
+    """내부 허니팟/데코이 피드 — 데코이를 건드린 IOC 는 고신뢰 악성(FP≈0).
+
+    정상 사용자는 데코이(가짜 GCS/C2 엔드포인트, canary token, ICS 허니팟 Conpot
+    등)를 건드리지 않는다. 따라서 hit = 거의 확정 악성이며, 외부 피드보다 신뢰도
+    높은 *내부* TI 소스다. `provider` 로 실시간 hit 집합(허니팟 DB/스토어)을 주입하며,
+    조회 실패 시 정적 집합으로 강등한다(가용성).
+
+    이 피드의 hit 은 자가발전 경험메모리의 *신뢰 양성 라벨* 원천으로도 쓸 수 있다
+    (별도 쓰기 배선 — 향후).
+
+    Args:
+        hits: 데코이 접촉으로 확인된 IOC 정적 집합(IP/도메인/해시).
+        provider: 실시간 hit 집합을 반환하는 비동기 공급자(허니팟 스토어 연동용).
+    """
+
+    def __init__(
+        self,
+        hits: set[str] | None = None,
+        provider: Callable[[], Awaitable[set[str]]] | None = None,
+    ) -> None:
+        self._static = set(hits or ())
+        self._provider = provider
+
+    async def alookup(self, indicators: list[str]) -> list[ThreatIntelFinding]:
+        """데코이 접촉 IOC 를 고신뢰 악성으로 표시한다(미접촉은 UNKNOWN).
+
+        Args:
+            indicators: 조회할 IOC 목록.
+
+        Returns:
+            접촉분은 MALICIOUS, 그 외 UNKNOWN.
+        """
+        hits = set(self._static)
+        if self._provider is not None:
+            try:
+                hits |= await self._provider()
+            except ThreatIntelError as exc:
+                _logger.warning("허니팟 피드 갱신 실패, 정적 집합으로 강등: %s", exc)
+        findings: list[ThreatIntelFinding] = []
+        for indicator in indicators:
+            if indicator in hits:
+                findings.append(
+                    ThreatIntelFinding(
+                        indicator=indicator,
+                        verdict=TiVerdict.MALICIOUS,
+                        source="honeypot",
+                        detail="허니팟 데코이 접촉(고신뢰)",
+                    )
+                )
+            else:
+                findings.append(
+                    ThreatIntelFinding(
+                        indicator=indicator,
+                        verdict=TiVerdict.UNKNOWN,
+                        source="honeypot",
+                        detail="허니팟 미접촉",
+                    )
+                )
+        return findings
