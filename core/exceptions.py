@@ -32,3 +32,7 @@ class ThreatIntelError(SOCPlatformError):
 
 class SandboxError(SOCPlatformError):
     """샌드박스 디토네이션/분석 오류(연동/응답 검증 실패)."""
+
+
+class VulnLookupError(SOCPlatformError):
+    """취약점(CVE) 컨텍스트 조회 오류(연동/응답 검증 실패)."""

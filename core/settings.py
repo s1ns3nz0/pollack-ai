@@ -134,6 +134,28 @@ class Settings(BaseSettings):
         description="샌드박스 조회 요청 타임아웃(초).",
     )
 
+    # ── 취약점 컨텍스트 (CISA KEV / NVD) ──────────────
+    cisa_kev_url: str = Field(
+        default=(
+            "https://www.cisa.gov/sites/default/files/feeds/"
+            "known_exploited_vulnerabilities.json"
+        ),
+        description="CISA KEV 카탈로그 JSON 피드 URL(공개, 키 불요).",
+    )
+    nvd_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        description="NVD API 키(선택 — 없으면 낮은 레이트리밋).",
+    )
+    nvd_base_url: str = Field(
+        default="https://services.nvd.nist.gov/rest/json/cves/2.0",
+        description="NVD CVE API v2.0 베이스 URL.",
+    )
+    vuln_timeout_seconds: float = Field(
+        default=20.0,
+        gt=0.0,
+        description="취약점 조회 요청 타임아웃(초).",
+    )
+
     @property
     def ragflow_retrieval_url(self) -> str:
         """RAGFlow 검색 엔드포인트 전체 URL."""

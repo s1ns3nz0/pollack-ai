@@ -76,6 +76,24 @@ class SandboxReport(BaseModel):
     source: str = ""
 
 
+class VulnFinding(BaseModel):
+    """취약점(CVE) 컨텍스트 한 건(악용 여부 + 심각도).
+
+    Attributes:
+        cve: CVE 식별자(예: CVE-2024-1234).
+        known_exploited: CISA KEV 등재 여부(실제 악용 중 = 최우선).
+        cvss_score: CVSS 기반 점수(0.0~10.0).
+        severity: 심각도 등급(NVD: CRITICAL/HIGH/MEDIUM/LOW).
+        source: 출처(예: cisa-kev, nvd).
+    """
+
+    cve: str
+    known_exploited: bool = False
+    cvss_score: float = 0.0
+    severity: str = ""
+    source: str = ""
+
+
 class Severity(StrEnum):
     """심각도 등급(정책 엔진 산정값)."""
 
