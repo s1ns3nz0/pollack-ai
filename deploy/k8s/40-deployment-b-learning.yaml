@@ -1,0 +1,64 @@
+# Deployment B — 경험/학습(버스티, 비동기). 독립 스케일 → HPA 대상.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: soc-learning
+  namespace: dah-soc
+  labels:
+    app: soc-learning
+    soc.role: learning
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: soc-learning
+  template:
+    metadata:
+      labels:
+        app: soc-learning
+    spec:
+      containers:
+        - name: learning
+          image: ghcr.io/s1ns3nz0/uav-ai-soc:latest
+          command: ["python", "-m", "app.learning"]
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: soc-config
+            - secretRef:
+                name: soc-secrets
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: soc-learning
+  namespace: dah-soc
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: soc-learning
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 # `pip install -e .` 가 동작한다(미지정 시 hatchling 이 패키지를 못 찾고 빌드 실패).
 # 새 최상위 패키지(agents/ 등)를 추가하면 여기에도 함께 등록할 것.
 [tool.hatch.build.targets.wheel]
-packages = ["core", "tools", "utils"]
+packages = ["core", "tools", "utils", "agents", "app"]
 
 # ─────────────────────────────────────────
 # 프로젝트 메타데이터

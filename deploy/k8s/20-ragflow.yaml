@@ -1,0 +1,56 @@
+# 공유 상태 — exp/ 경험메모리 + KB(ADR 0002 D6: RAGFlow + PVC StatefulSet).
+# ⚠️ 단일 노드 dev 스텁이다. 운영 RAGFlow 는 공식 멀티서비스 배포(ES/MySQL/MinIO/
+# Redis)를 helm/compose 로 올리고, 여기 Service 이름만 맞춰 연결한다.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ragflow
+  namespace: dah-soc
+spec:
+  serviceName: ragflow
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ragflow
+  template:
+    metadata:
+      labels:
+        app: ragflow
+    spec:
+      containers:
+        - name: ragflow
+          image: infiniflow/ragflow:v0.13.0 # 운영 버전 핀 고정
+          ports:
+            - name: http
+              containerPort: 9380
+          volumeMounts:
+            - name: exp-store
+              mountPath: /ragflow/data
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "2Gi"
+            limits:
+              cpu: "2"
+              memory: "6Gi"
+  volumeClaimTemplates:
+    - metadata:
+        name: exp-store
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ragflow
+  namespace: dah-soc
+spec:
+  selector:
+    app: ragflow
+  ports:
+    - name: http
+      port: 9380
+      targetPort: 9380

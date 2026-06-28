@@ -1,0 +1,23 @@
+# 비밀이 아닌 설정. 시크릿(토큰/키)은 15-secret.example.yaml 참조.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: soc-config
+  namespace: dah-soc
+data:
+  # RAGFlow(지식베이스 + 경험메모리)
+  RAGFLOW_BASE_URL: "http://ragflow.dah-soc.svc.cluster.local:9380"
+  RAGFLOW_DATASET_ID: "kb-uav-security"
+  RAGFLOW_EXP_DATASET_ID: "exp-uav-soc"
+  # GraphRAG
+  GRAPH_RAG_ENABLED: "true"
+  # 탐지룰 저장소(Watch List 자동 PR)
+  SENTINEL_CONTENT_REPO: "s1ns3nz0/dah-sentinel-content"
+  GITHUB_BASE_URL: "https://api.github.com"
+  RULE_BRANCH_PREFIX: "fix/watchlist"
+  RULE_BASE_BRANCH: "main"
+  # LLM(구현단계=Ollama)
+  LLM_PROVIDER: "ollama"
+  OLLAMA_BASE_URL: "http://ollama.dah-soc.svc.cluster.local:11434"
+  OLLAMA_CHAT_MODEL: "qwen2.5:14b"
+  LOG_LEVEL: "INFO"
