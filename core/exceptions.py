@@ -20,3 +20,7 @@ class PolicyError(SOCPlatformError):
 
 class LLMError(SOCPlatformError):
     """LLM(요약/판정) 호출 오류."""
+
+
+class ExperienceStoreError(SOCPlatformError):
+    """경험메모리(`exp/`) 저장소 읽기/쓰기 오류."""

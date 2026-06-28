@@ -126,6 +126,13 @@ module = [
 ]
 ignore_missing_imports = true
 
+# numpy(전이 의존) 스텁이 3.12 전용 `type` 문법을 써서 python_version="3.11"
+# 파싱과 충돌 → 추적 생략(코드에서 numpy 직접 사용 없음). 3.11 계약 유지.
+# 대안: [tool.mypy] python_version 을 "3.12" 로 상향.
+[[tool.mypy.overrides]]
+module = "numpy.*"
+follow_imports = "skip"
+
 # ─────────────────────────────────────────
 # pytest
 # ─────────────────────────────────────────

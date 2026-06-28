@@ -8,6 +8,8 @@ pydantic 모델로 둔다.
 from __future__ import annotations
 
 from enum import StrEnum
+import hashlib
+import json
 import operator
 from typing import Annotated, TypedDict
 
@@ -70,6 +72,30 @@ class Verdict(StrEnum):
     FALSE_POSITIVE = "false_positive"
 
 
+class Provenance(StrEnum):
+    """경험메모리(`exp/`) 레코드의 출처 신뢰 등급.
+
+    신뢰 순위: `ENV_VERIFIED` > `REDGT_OFFLINE` > `AUTO`. 억제/완화 학습은 상위
+    등급(`ENV_VERIFIED`/`REDGT_OFFLINE`)만 채택한다(포이즈닝 방어).
+    """
+
+    ENV_VERIFIED = "env_verified"  # 시뮬 환경 관측으로 검증(풀자동 최상위 신뢰)
+    REDGT_OFFLINE = "redgt_offline"  # 예선·개발 단계 자체 Red(PyRIT) 정답
+    AUTO = "auto"  # 시스템 추론(최저 신뢰 — 탐지부스트에만 사용)
+
+
+class EnvVerdict(StrEnum):
+    """시뮬 환경 관측으로 확정된 결과 라벨.
+
+    억제(suppression) 학습은 `CONFIRMED_FP` 만 근거로 삼고, `INCONCLUSIVE` 는
+    메모리에 적립하지 않는다(적이 노리는 회색지대 배제).
+    """
+
+    CONFIRMED_TP = "confirmed_tp"  # 물리 효과 관측 → 정탐 확정(탐지 학습, 안전)
+    CONFIRMED_FP = "confirmed_fp"  # 충분한 윈도우 내 무효과 → 오탐 확정(억제 학습)
+    INCONCLUSIVE = "inconclusive"  # 애매(짧은 윈도우/단발 트랜지언트) → 적립 보류
+
+
 class Alert(BaseModel):
     """SOC 파이프라인 입력 경보(시나리오에서 파생).
 
@@ -112,6 +138,70 @@ class InvestigationResult(BaseModel):
     summary: str = ""
     confidence: float = 0.0
     ti_findings: list[ThreatIntelFinding] = Field(default_factory=list)
+
+
+class JudgeFeatures(BaseModel):
+    """`signal_judge` 결정론 피처 스냅샷(경험메모리 적립용).
+
+    LLM 산문 대신 판정에 실제로 쓰인 결정론 신호만 보존한다 → 검색 시 재오염
+    (프롬프트 인젝션) 표면을 제거한다(S5 방어 확장).
+    """
+
+    has_signal: bool
+    has_rule: bool
+    corroborated: bool
+    confidence: float
+
+
+class ExperienceRecord(BaseModel):
+    """경험메모리(`exp/`) 레코드 한 건.
+
+    확정된 운영 경험만 적립한다(원시 LLM 텍스트 금지). 모든 레코드는 출처
+    등급(`provenance`)과 환경검증 결과(`env_verdict`)를 보유하며, `fingerprint()`
+    로 의미 동일 레코드를 중복 제거한다.
+
+    Attributes:
+        provenance: 출처 신뢰 등급(env_verified > redgt_offline > auto).
+        env_verdict: 시뮬 환경 관측으로 확정된 결과(억제 학습은 confirmed_fp 만).
+        content_hash: `fingerprint()` 결과 캐시(쓰기 게이트가 중복제거에 사용).
+        signature: 쓰기 게이트가 부여하는 변조탐지 서명(읽기 측 신뢰 검증용).
+    """
+
+    scenario_id: str
+    signals: list[str] = Field(default_factory=list)
+    asset_id: str = ""
+    asset_tier: str = ""
+    verdict: Verdict
+    severity: Severity
+    judge_features: JudgeFeatures
+    playbook_id: str | None = None
+    env_verdict: EnvVerdict
+    provenance: Provenance
+    ts: str = ""
+    content_hash: str = ""
+    signature: str = ""
+
+    def fingerprint(self) -> str:
+        """의미 동일성 해시(ts/provenance/해시 제외)를 SHA-256 으로 산정한다.
+
+        중복 제거 키로 쓴다. 타임스탬프·출처등급·해시 자체는 제외해, 동일한 경험이
+        시점/출처만 달리 재관측돼도 같은 지문을 갖게 한다.
+
+        Returns:
+            정규화된 핵심 내용의 16진 SHA-256 다이제스트.
+        """
+        payload = {
+            "scenario_id": self.scenario_id,
+            "signals": sorted(self.signals),
+            "asset_id": self.asset_id,
+            "asset_tier": self.asset_tier,
+            "verdict": self.verdict.value,
+            "severity": self.severity.value,
+            "env_verdict": self.env_verdict.value,
+            "judge_features": self.judge_features.model_dump(),
+        }
+        canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 class ResponseResult(BaseModel):
