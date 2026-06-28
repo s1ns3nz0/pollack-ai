@@ -1,13 +1,40 @@
 """외부 위협 인텔리전스(TI) IOC 조회 도구.
 
-Investigation 이 경보의 IOC(해시/IP/도메인 등)를 외부 TI 로 보강한다. 오프라인
-데모용 `StubThreatIntel`(결정론 — 알려진 악성/의심 IOC 집합 기반)을 제공하며,
-동일 `alookup` 시그니처로 실 VirusTotal/OTX 클라이언트를 교체할 수 있다(Protocol 주입).
+Investigation 이 경보의 IOC(해시/IP/도메인 등)를 외부 TI 로 보강한다. 모든 어댑터는
+동일 `alookup(indicators) -> list[ThreatIntelFinding]` 계약을 따른다(Protocol 주입):
+
+- `StubThreatIntel`  : 오프라인 결정론(데모/테스트).
+- `VirusTotalTool`   : 실 VirusTotal v3 어댑터(httpx). 응답을 검증 후 채택.
+- `CompositeThreatIntel`: 여러 소스(VT/OTX/AbuseIPDB/MISP/내부피드…)를 하나의
+  `alookup` 뒤에 묶는 aggregator. 동시 조회 + 지표별 최악 판정 병합 + 소스별
+  graceful degrade. Investigation 은 이 컴포지트 하나만 주입받으면 된다.
 """
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Sequence
+import ipaddress
+import re
+from typing import Protocol, runtime_checkable
+from urllib.parse import quote
+
+import httpx
+
+from core.exceptions import ThreatIntelError
 from core.models import ThreatIntelFinding, TiVerdict
+from core.settings import Settings, get_settings
+from utils.logging import get_logger
+
+_logger = get_logger("ti_tool")
+
+# 지표별 병합 시 우선순위(악성이 가장 강함). 여러 소스 중 최악 판정을 채택.
+_VERDICT_RANK: dict[TiVerdict, int] = {
+    TiVerdict.MALICIOUS: 3,
+    TiVerdict.SUSPICIOUS: 2,
+    TiVerdict.CLEAN: 1,
+    TiVerdict.UNKNOWN: 0,
+}
 
 # 데모용 알려진 악성/의심 IOC(실 배포 시 외부 TI API 응답으로 대체).
 _DEFAULT_MALICIOUS = frozenset(
@@ -66,3 +93,228 @@ class StubThreatIntel:
                 )
             )
         return findings
+
+
+@runtime_checkable
+class ThreatIntelSource(Protocol):
+    """TI 어댑터 계약(컴포지트가 묶는 단위)."""
+
+    async def alookup(self, indicators: list[str]) -> list[ThreatIntelFinding]:
+        """IOC 목록의 평판을 조회해 반환한다."""
+        ...
+
+
+class CompositeThreatIntel:
+    """여러 TI 소스를 하나의 `alookup` 뒤에 묶는 aggregator.
+
+    각 소스를 동시(`asyncio.gather`)에 조회하고, 지표별로 *가장 위협적인* 판정을
+    채택해 병합한다. 한 소스가 실패해도(예외) 그 소스만 건너뛰고 나머지로 계속한다
+    (가용성 — Investigation 의 graceful degrade 와 정합). 새 TI(OTX/AbuseIPDB/MISP
+    /내부피드)는 동일 계약 어댑터를 만들어 `sources` 에 추가하기만 하면 된다.
+
+    Args:
+        sources: 묶을 TI 어댑터들(순서 무관).
+    """
+
+    def __init__(self, sources: Sequence[ThreatIntelSource]) -> None:
+        self._sources = list(sources)
+
+    async def alookup(self, indicators: list[str]) -> list[ThreatIntelFinding]:
+        """모든 소스를 동시 조회 후 지표별 최악 판정으로 병합한다.
+
+        Args:
+            indicators: 조회할 IOC 목록.
+
+        Returns:
+            지표별 1건으로 병합된 `ThreatIntelFinding` 목록(빈 입력/소스면 빈 목록).
+        """
+        if not indicators or not self._sources:
+            return []
+        per_source = await asyncio.gather(
+            *(self._safe_lookup(s, indicators) for s in self._sources)
+        )
+        flat = [finding for result in per_source for finding in result]
+        return self._merge(flat)
+
+    async def _safe_lookup(
+        self, source: ThreatIntelSource, indicators: list[str]
+    ) -> list[ThreatIntelFinding]:
+        """한 소스 조회. 실패 시 빈 목록으로 강등(다른 소스는 계속)."""
+        try:
+            return await source.alookup(indicators)
+        except ThreatIntelError as exc:
+            _logger.warning(
+                "TI 소스 조회 실패, 건너뜀: %s (%s)",
+                type(source).__name__,
+                exc,
+            )
+            return []
+
+    @staticmethod
+    def _merge(findings: list[ThreatIntelFinding]) -> list[ThreatIntelFinding]:
+        """지표별로 최악(rank 최대) 판정을 채택하고 출처를 합친다."""
+        best: dict[str, ThreatIntelFinding] = {}
+        sources: dict[str, set[str]] = {}
+        for finding in findings:
+            sources.setdefault(finding.indicator, set()).add(finding.source)
+            current = best.get(finding.indicator)
+            if current is None or (
+                _VERDICT_RANK[finding.verdict] > _VERDICT_RANK[current.verdict]
+            ):
+                best[finding.indicator] = finding
+        merged: list[ThreatIntelFinding] = []
+        for indicator, finding in best.items():
+            merged.append(
+                finding.model_copy(
+                    update={"source": ",".join(sorted(sources[indicator]))}
+                )
+            )
+        return merged
+
+
+class VirusTotalTool:
+    """VirusTotal v3 IOC 평판 어댑터(httpx). 응답을 검증 후 채택.
+
+    Args:
+        settings: 전역 설정(미지정 시 환경 로드). `virustotal_api_key` 필요.
+        client_factory: 비동기 HTTP 클라이언트 팩토리(테스트 주입용).
+    """
+
+    def __init__(
+        self,
+        settings: Settings | None = None,
+        client_factory: object | None = None,
+    ) -> None:
+        self._settings = settings or get_settings()
+        self._client_factory = client_factory
+
+    def _make_client(self) -> httpx.AsyncClient:
+        """HTTP 클라이언트 생성(테스트에서 client_factory 로 치환)."""
+        if self._client_factory is not None:
+            return self._client_factory()  # type: ignore[operator,no-any-return]
+        return httpx.AsyncClient(timeout=self._settings.ti_timeout_seconds)
+
+    async def alookup(self, indicators: list[str]) -> list[ThreatIntelFinding]:
+        """IOC 목록을 VirusTotal 로 조회한다.
+
+        Args:
+            indicators: 조회할 IOC(해시/IP/도메인).
+
+        Returns:
+            지표별 `ThreatIntelFinding`. 지원하지 않는 유형/미등록은 UNKNOWN.
+
+        Raises:
+            ThreatIntelError: API 키 미설정 시(컴포지트가 이 소스를 건너뛴다).
+        """
+        key = self._settings.virustotal_api_key.get_secret_value()
+        if not key:
+            raise ThreatIntelError("VirusTotal API 키 미설정(virustotal_api_key).")
+        headers = {"x-apikey": key}
+        findings: list[ThreatIntelFinding] = []
+        async with self._make_client() as client:
+            for indicator in indicators:
+                findings.append(await self._lookup_one(client, indicator, headers))
+        return findings
+
+    async def _lookup_one(
+        self, client: httpx.AsyncClient, indicator: str, headers: dict[str, str]
+    ) -> ThreatIntelFinding:
+        """단일 IOC 조회. 전송/검증 실패는 UNKNOWN 으로 강등(다른 IOC 계속)."""
+        path = self._classify(indicator)
+        if path is None:
+            return ThreatIntelFinding(
+                indicator=indicator,
+                verdict=TiVerdict.UNKNOWN,
+                source="virustotal",
+                detail="지원하지 않는 IOC 유형",
+            )
+        base = self._settings.virustotal_base_url.rstrip("/")
+        url = f"{base}/{path}/{quote(indicator)}"
+        try:
+            resp = await client.get(url, headers=headers)
+            if resp.status_code == 404:
+                return ThreatIntelFinding(
+                    indicator=indicator,
+                    verdict=TiVerdict.UNKNOWN,
+                    source="virustotal",
+                    detail="VT 미등록(404)",
+                )
+            resp.raise_for_status()
+            body = resp.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            _logger.warning("VT 조회 실패(%s), UNKNOWN 강등: %s", indicator, exc)
+            return ThreatIntelFinding(
+                indicator=indicator,
+                verdict=TiVerdict.UNKNOWN,
+                source="virustotal",
+                detail="조회 실패",
+            )
+        return self.parse(indicator, body)
+
+    @staticmethod
+    def _classify(indicator: str) -> str | None:
+        """IOC 유형 → VT v3 엔드포인트 경로. 미지원이면 None."""
+        if re.fullmatch(r"[A-Fa-f0-9]{32}|[A-Fa-f0-9]{40}|[A-Fa-f0-9]{64}", indicator):
+            return "files"
+        try:
+            ipaddress.ip_address(indicator)
+            return "ip_addresses"
+        except ValueError:
+            pass
+        if "." in indicator and any(c.isalpha() for c in indicator):
+            return "domains"
+        return None
+
+    @staticmethod
+    def parse(indicator: str, body: object) -> ThreatIntelFinding:
+        """VT v3 응답(`last_analysis_stats`)을 검증·판정한다(미검증 입력 가드).
+
+        Args:
+            indicator: 조회 IOC.
+            body: VT 응답 JSON(신뢰 불가 외부 입력).
+
+        Returns:
+            검증 통과 시 통계 기반 판정, 형식 불일치면 UNKNOWN.
+        """
+        stats = _extract_stats(body)
+        if stats is None:
+            return ThreatIntelFinding(
+                indicator=indicator,
+                verdict=TiVerdict.UNKNOWN,
+                source="virustotal",
+                detail="응답 형식 검증 실패",
+            )
+        malicious = stats.get("malicious", 0)
+        suspicious = stats.get("suspicious", 0)
+        if malicious > 0:
+            verdict = TiVerdict.MALICIOUS
+        elif suspicious > 0:
+            verdict = TiVerdict.SUSPICIOUS
+        elif (stats.get("harmless", 0) + stats.get("undetected", 0)) > 0:
+            verdict = TiVerdict.CLEAN
+        else:
+            verdict = TiVerdict.UNKNOWN
+        return ThreatIntelFinding(
+            indicator=indicator,
+            verdict=verdict,
+            source="virustotal",
+            detail=f"VT mal={malicious} susp={suspicious}",
+        )
+
+
+def _extract_stats(body: object) -> dict[str, int] | None:
+    """VT 응답에서 `data.attributes.last_analysis_stats`(정수 dict)를 안전 추출."""
+    if not isinstance(body, dict):
+        return None
+    data = body.get("data")
+    if not isinstance(data, dict):
+        return None
+    attributes = data.get("attributes")
+    if not isinstance(attributes, dict):
+        return None
+    stats = attributes.get("last_analysis_stats")
+    if not isinstance(stats, dict):
+        return None
+    if not all(isinstance(v, int) for v in stats.values()):
+        return None
+    return {str(k): int(v) for k, v in stats.items()}

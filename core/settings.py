@@ -80,6 +80,21 @@ class Settings(BaseSettings):
         description="LLM 요청 타임아웃(초).",
     )
 
+    # ── 외부 위협 인텔(TI) — VirusTotal 등 어댑터 ──────────────
+    virustotal_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        description="VirusTotal API 키(x-apikey). 비면 VT 어댑터 비활성.",
+    )
+    virustotal_base_url: str = Field(
+        default="https://www.virustotal.com/api/v3",
+        description="VirusTotal v3 API 베이스 URL.",
+    )
+    ti_timeout_seconds: float = Field(
+        default=20.0,
+        gt=0.0,
+        description="TI 조회 요청 타임아웃(초).",
+    )
+
     @property
     def ragflow_retrieval_url(self) -> str:
         """RAGFlow 검색 엔드포인트 전체 URL."""

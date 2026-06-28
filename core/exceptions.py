@@ -24,3 +24,7 @@ class LLMError(SOCPlatformError):
 
 class ExperienceStoreError(SOCPlatformError):
     """경험메모리(`exp/`) 저장소 읽기/쓰기 오류."""
+
+
+class ThreatIntelError(SOCPlatformError):
+    """외부 위협 인텔(TI) 조회 오류(연동/응답 검증 실패)."""
