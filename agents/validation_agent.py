@@ -51,7 +51,9 @@ def signal_judge(state: SOCState) -> Verdict:
         or alert.expected_detection.get("sentinel_rule")
     )
     corroborated = inv is not None and (
-        bool(inv.similar_cases) or inv.confidence >= 0.5
+        bool(inv.similar_cases)
+        or inv.confidence >= 0.5
+        or inv.experience_corroboration > 0  # exp/ 과거 정탐 자문(하한 불변)
     )
     return (
         Verdict.TRUE_POSITIVE

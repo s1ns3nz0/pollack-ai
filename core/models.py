@@ -138,6 +138,10 @@ class InvestigationResult(BaseModel):
     summary: str = ""
     confidence: float = 0.0
     ti_findings: list[ThreatIntelFinding] = Field(default_factory=list)
+    experience_corroboration: int = Field(
+        default=0,
+        description="exp/ 에서 회상된 신뢰 과거 정탐 수(judge 자문 — 하한 불변).",
+    )
 
 
 class JudgeFeatures(BaseModel):

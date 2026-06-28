@@ -3,6 +3,8 @@
 RAG/LLM 없이(None) 결정론적으로 검증한다.
 """
 
+from typing import cast
+
 import pytest
 
 from core.models import Severity, Verdict
@@ -66,13 +68,17 @@ class TestPerceptionSynth:
         """정상: EO/IR 클래스 일치 + 신뢰도 gap 작음(<0.15)."""
         b = benign_perception()
         assert b["EoClass"] == b["IrClass"]
-        assert abs(float(b["EoConfidence"]) - float(b["IrConfidence"])) < 0.15
+        eo = cast(float, b["EoConfidence"])
+        ir = cast(float, b["IrConfidence"])
+        assert abs(eo - ir) < 0.15
 
     def test_adversarial_mismatch_and_large_gap(self) -> None:
         """적대: EO/IR 클래스 불일치 + 신뢰도 gap≥0.15."""
         a = adversarial_perception()
         assert a["EoClass"] != a["IrClass"]
-        assert abs(float(a["EoConfidence"]) - float(a["IrConfidence"])) >= 0.15
+        eo = cast(float, a["EoConfidence"])
+        ir = cast(float, a["IrConfidence"])
+        assert abs(eo - ir) >= 0.15
 
     def test_synth_records_benign_then_adversarial(self) -> None:
         """정상 N건 → 적대 2건(확정 스트릭) 순서."""

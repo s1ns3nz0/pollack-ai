@@ -47,10 +47,17 @@ dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
     "pre-commit>=3.7.0",
+    # sim 작동기(MAVLink) 테스트까지 돌리려면 sim extra 동반 설치.
+    "pollack-ai[sim]",
 ]
 eval = [
     "ragas>=0.1.0",
     "pyrit>=0.4.0",
+]
+# 시뮬 작동기(MAVLink RTB 폐루프) — core 는 lazy-import 라 미설치도 동작.
+# 라이브 작동기/관련 테스트 실행 시에만 필요.
+sim = [
+    "pymavlink>=2.4.0",
 ]
 
 # ─────────────────────────────────────────
@@ -101,7 +108,9 @@ force-sort-within-sections = true
 # mypy — 타입 검사
 # ─────────────────────────────────────────
 [tool.mypy]
-python_version = "3.11"
+# 실제 런타임(3.12.x)에 맞춤. numpy 등 전이 의존 스텁이 3.12 전용 `type` 문법을
+# 쓰므로 3.11 타깃이면 파싱 충돌. requires-python 은 런타임 호환을 위해 >=3.11 유지.
+python_version = "3.12"
 strict = true                    # 모든 strict 옵션 활성화
 exclude = "^(projects|benchmarks|scripts)/"           # 별도 관리되는 관련 프로젝트 모음 제외
 
@@ -125,13 +134,6 @@ module = [
     "yaml",
 ]
 ignore_missing_imports = true
-
-# numpy(전이 의존) 스텁이 3.12 전용 `type` 문법을 써서 python_version="3.11"
-# 파싱과 충돌 → 추적 생략(코드에서 numpy 직접 사용 없음). 3.11 계약 유지.
-# 대안: [tool.mypy] python_version 을 "3.12" 로 상향.
-[[tool.mypy.overrides]]
-module = "numpy.*"
-follow_imports = "skip"
 
 # ─────────────────────────────────────────
 # pytest

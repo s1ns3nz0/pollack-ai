@@ -12,6 +12,7 @@ from typing import Protocol, runtime_checkable
 
 from agents.base import BaseSOCAgent
 from core.exceptions import LLMError, SOCPlatformError
+from core.experience import MemoryReadGate, RecallPurpose
 from core.llm import LLMClient
 from core.models import (
     InvestigationResult,
@@ -78,11 +79,13 @@ class InvestigationAgent(BaseSOCAgent):
         retriever: ContextRetriever | None,
         llm: LLMClient | None = None,
         ti: ThreatIntelTool | None = None,
+        experience: MemoryReadGate | None = None,
     ) -> None:
         super().__init__(settings)
         self._retriever = retriever
         self._llm = llm
         self._ti = ti
+        self._experience = experience
 
     async def run(self, state: SOCState) -> SOCState:
         """유사사례 검색 + 출처 검증 + (LLM) 상관분석 요약.
@@ -118,13 +121,21 @@ class InvestigationAgent(BaseSOCAgent):
         if any(f.verdict == TiVerdict.MALICIOUS for f in ti_findings):
             confidence = round(min(1.0, confidence + 0.2), 3)  # 악성 IOC = 강한 근거
 
+        # 경험메모리(exp/) 자문: 과거 정탐 회상으로 탐지 강화(안전 방향).
+        # 신종(룰부재 X·근거부족) TP 를 1회 학습 후 잡게 하는 자가발전 레버.
+        exp_corroboration = await self._recall_experience(alert.scenario_id)
+        if exp_corroboration:
+            confidence = round(min(1.0, confidence + 0.2), 3)  # 과거 정탐 = 보강 근거
+
         self._logger.info(
-            "investigation: alert=%s hits=%d trusted=%d degraded=%s ti=%d conf=%.2f",
+            "investigation: alert=%s hits=%d trusted=%d degraded=%s ti=%d exp=%d "
+            "conf=%.2f",
             alert.id,
             len(chunks),
             len(trusted),
             rag_degraded,
             len(ti_findings),
+            exp_corroboration,
             confidence,
         )
 
@@ -136,6 +147,7 @@ class InvestigationAgent(BaseSOCAgent):
                 summary=summary,
                 confidence=confidence,
                 ti_findings=ti_findings,
+                experience_corroboration=exp_corroboration,
             ),
             "trace": ["investigation"],
         }
@@ -147,6 +159,27 @@ class InvestigationAgent(BaseSOCAgent):
         if flags:
             result["guardrail_flags"] = flags
         return result
+
+    async def _recall_experience(self, scenario_id: str) -> int:
+        """exp/ 에서 과거 정탐을 회상해 보강 근거 수를 반환(자문).
+
+        미주입/장애 시 0 으로 강등한다(메모리 없이도 대응 계속 — 핫패스 안전).
+        탐지 강화(DETECTION) 방향만 사용하므로 오염돼도 억제(FN)로 이어지지 않는다.
+
+        Args:
+            scenario_id: 회상 대상 시나리오 식별자.
+
+        Returns:
+            서명·신뢰 검증을 통과한 과거 정탐 레코드 수.
+        """
+        if self._experience is None:
+            return 0
+        try:
+            hits = await self._experience.recall(scenario_id, RecallPurpose.DETECTION)
+        except SOCPlatformError as exc:
+            self._logger.warning("investigation 경험 회상 실패, 무시하고 계속: %s", exc)
+            return 0
+        return len(hits)
 
     async def _lookup_ti(self, iocs: list[str]) -> list[ThreatIntelFinding]:
         """경보 IOC 를 외부 TI 로 조회. 미주입/IOC 없음/장애 시 빈 결과(대응 계속)."""
