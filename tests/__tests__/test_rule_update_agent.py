@@ -42,6 +42,7 @@ class TestTypeBException:
 
     @pytest.mark.asyncio
     async def test_builds_watchlist_exception_and_pr(self) -> None:
+        # repo 의 GNSS 워치리스트는 ZoneId(지리 구역) 기준. 위경도 박스를 columns 로.
         agent = RuleUpdateAgent(_settings(), StubRulePublisher())
         out = await agent.run(
             {
@@ -50,7 +51,13 @@ class TestTypeBException:
                         "watchlist": "GNSS_Exception_List",
                         "search_key": "ZoneId",
                         "type": "B",
-                        "value": "ZONE-ANHEUNG-RF-02",
+                        "value": "gnss-ex-003",
+                        "columns": {
+                            "MinLat": "36.70",
+                            "MaxLat": "36.71",
+                            "MinLon": "126.12",
+                            "MaxLon": "126.13",
+                        },
                     }
                 )
             }
@@ -61,13 +68,16 @@ class TestTypeBException:
         assert wl.watchlist == "GNSS_Exception_List"
         assert wl.update_type == "B"
         assert wl.action == "add"
-        assert wl.entry["ZoneId"] == "ZONE-ANHEUNG-RF-02"
+        assert wl.entry["ZoneId"] == "gnss-ex-003"
+        # 위경도 박스가 함께 기록돼 예외가 구역으로 한정됨(전체 화이트리스트 아님).
+        assert wl.entry["MinLat"] == "36.70"
+        assert wl.entry["MaxLon"] == "126.13"
         assert wl.entry["source_alert"] == "FP-1"
         pr = ru.pull_request
         assert pr is not None
         assert pr.repo == "s1ns3nz0/dah-sentinel-content"
-        assert pr.path == "Watchlists/GNSS_Exception_List.csv"
-        assert "GNSS_Exception_List".lower() in pr.branch
+        assert pr.path == "Watchlists/GNSS_Exception_List.json"
+        assert "gnss_exception_list" in pr.branch
         assert ru.pr_status == "proposed"
         assert pr.url  # Stub 가 URL 채움
 

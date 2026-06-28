@@ -170,8 +170,8 @@ class Settings(BaseSettings):
         description="GitHub API 베이스 URL.",
     )
     rule_branch_prefix: str = Field(
-        default="feat/watchlist",
-        description="Watch List PR 브랜치 접두.",
+        default="fix/watchlist",
+        description="Watch List PR 브랜치 접두(저장소 컨벤션: FP 개선=fix).",
     )
     rule_base_branch: str = Field(
         default="main",

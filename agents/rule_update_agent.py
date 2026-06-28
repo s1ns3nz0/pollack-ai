@@ -133,17 +133,23 @@ class RuleUpdateAgent(BaseSOCAgent):
 
         value = opt_str(remediation.get("value")) or alert.asset_id or alert.asset_tier
         kind = "화이트리스트 정상항목" if update_type == "A" else "예외"
+        entry: dict[str, str] = {
+            search_key: value,
+            "added_by": "rule_update_agent",
+            "reason": alert.title,
+            "source_alert": alert.id,
+        }
+        # 추가 데이터 컬럼(예: GNSS 잔차 임계) — 예외 한정(전체 화이트리스트 방지).
+        extra = remediation.get("columns")
+        if isinstance(extra, dict):
+            for col, col_val in extra.items():
+                entry[str(col)] = str(col_val)
         return WatchlistUpdate(
             watchlist=watchlist,
             search_key=search_key,
             update_type=update_type,
             action="add",
-            entry={
-                search_key: value,
-                "added_by": "rule_update_agent",
-                "reason": alert.title,
-                "source_alert": alert.id,
-            },
+            entry=entry,
             reason=f"{kind} 추가 — {search_key}={value} (FP {alert.id})",
         )
 
@@ -154,8 +160,8 @@ class RuleUpdateAgent(BaseSOCAgent):
         wl = watchlist_update
         prefix = self._settings.rule_branch_prefix
         branch = f"{prefix}/{wl.watchlist}-{alert.id}".lower()
-        path = f"Watchlists/{wl.watchlist}.csv"
-        title = f"chore(watchlist): {wl.watchlist} {wl.action} (FP {alert.id})"
+        path = f"Watchlists/{wl.watchlist}.json"
+        title = f"fix(watchlist): {wl.watchlist} {wl.action} (FP {alert.id})"
         body = (
             "오탐(FP) 자동 개선 — **Watch List 전용 변경(KQL 불변)**.\n\n"
             f"- Watch List: `{wl.watchlist}` (Type {wl.update_type})\n"
