@@ -169,6 +169,10 @@ class InvestigationResult(BaseModel):
             "신뢰 출처(env_verified/redgt_offline)만, 좁은 시그니처 매칭만 집계."
         ),
     )
+    sandbox_reports: list[SandboxReport] = Field(
+        default_factory=list,
+        description="해시 IOC 디토네이션 결과(악성 시 confidence 보강·IOC 추출).",
+    )
 
 
 class JudgeFeatures(BaseModel):

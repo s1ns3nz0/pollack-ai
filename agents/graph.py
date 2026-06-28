@@ -21,6 +21,7 @@ from agents.approval_agent import ApprovalAgent
 from agents.investigation_agent import (
     ContextRetriever,
     InvestigationAgent,
+    SandboxDetonator,
     ThreatIntelTool,
 )
 from agents.report_agent import ReportAgent
@@ -76,6 +77,7 @@ def build_soc_graph(
     llm: LLMClient | None = None,
     ti: ThreatIntelTool | None = None,
     experience: MemoryReadGate | None = None,
+    sandbox: SandboxDetonator | None = None,
     judge: Judge = default_judge,
     hitl: bool = False,
 ) -> CompiledStateGraph[SOCState]:
@@ -88,6 +90,7 @@ def build_soc_graph(
         llm: 요약용 LLM(미지정 시 Investigation 요약은 결정론적 폴백).
         ti: 외부 위협 인텔 도구(미지정 시 IOC 보강 생략).
         experience: 경험메모리 읽기 게이트(미지정 시 exp/ 자문 생략).
+        sandbox: 샌드박스 디토네이터(미지정 시 해시 IOC 분석 생략).
         judge: Validation 판정기(기본은 결정론적 — 판정권을 LLM 에 주지 않음).
         hitl: True 면 고위험 정탐에 운용자 승인 대기(interrupt) 노드 삽입 +
             checkpointer 동반. 호출 시 `config={"configurable":{"thread_id":...}}` 필요.
@@ -99,7 +102,9 @@ def build_soc_graph(
     engine = engine or SeverityEngine()
 
     triage = TriageAgent(settings, engine)
-    investigation = InvestigationAgent(settings, retriever, llm, ti, experience)
+    investigation = InvestigationAgent(
+        settings, retriever, llm, ti, experience, sandbox
+    )
     validation = ValidationAgent(settings, judge)
     response = ResponseAgent(settings, engine)
     rule_update = RuleUpdateAgent(settings)
