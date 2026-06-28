@@ -119,6 +119,21 @@ class Settings(BaseSettings):
         description="TI 조회 요청 타임아웃(초).",
     )
 
+    # ── 샌드박스 디토네이션 ──────────────
+    hybridanalysis_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        description="Hybrid Analysis(Falcon Sandbox) API 키. 비면 어댑터 비활성.",
+    )
+    hybridanalysis_base_url: str = Field(
+        default="https://www.hybrid-analysis.com/api/v2",
+        description="Hybrid Analysis v2 API 베이스 URL.",
+    )
+    sandbox_timeout_seconds: float = Field(
+        default=30.0,
+        gt=0.0,
+        description="샌드박스 조회 요청 타임아웃(초).",
+    )
+
     @property
     def ragflow_retrieval_url(self) -> str:
         """RAGFlow 검색 엔드포인트 전체 URL."""

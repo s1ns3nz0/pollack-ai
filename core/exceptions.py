@@ -28,3 +28,7 @@ class ExperienceStoreError(SOCPlatformError):
 
 class ThreatIntelError(SOCPlatformError):
     """외부 위협 인텔(TI) 조회 오류(연동/응답 검증 실패)."""
+
+
+class SandboxError(SOCPlatformError):
+    """샌드박스 디토네이션/분석 오류(연동/응답 검증 실패)."""

@@ -56,6 +56,26 @@ class ThreatIntelFinding(BaseModel):
     detail: str = ""
 
 
+class SandboxReport(BaseModel):
+    """샌드박스 디토네이션/분석 결과 한 건(파일·펌웨어 행위 분석).
+
+    Attributes:
+        artifact: 분석 대상 식별자(해시 또는 샘플 ID).
+        verdict: 행위 기반 판정(TI 와 동일 척도 재사용).
+        score: 위협 점수(0~100).
+        signatures: 관측된 악성 행위 시그니처 이름.
+        extracted_iocs: 분석에서 추출된 IOC(C2 IP/도메인 등 — TI 로 되먹임 가능).
+        source: 분석 출처(예: hybrid-analysis, stub).
+    """
+
+    artifact: str
+    verdict: TiVerdict
+    score: int = 0
+    signatures: list[str] = Field(default_factory=list)
+    extracted_iocs: list[str] = Field(default_factory=list)
+    source: str = ""
+
+
 class Severity(StrEnum):
     """심각도 등급(정책 엔진 산정값)."""
 
