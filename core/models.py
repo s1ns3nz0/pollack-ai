@@ -152,6 +152,7 @@ class Alert(BaseModel):
     mitre: dict[str, object] = Field(default_factory=dict)
     signals: list[str] = Field(default_factory=list)
     iocs: list[str] = Field(default_factory=list)  # 외부 TI 조회용 지표(해시/IP/도메인)
+    cves: list[str] = Field(default_factory=list)  # 취약점 컨텍스트 조회용 CVE 식별자
     expected_detection: dict[str, object] = Field(default_factory=dict)
     defense_playbook: dict[str, object] = Field(default_factory=dict)
     ground_truth: Verdict = Verdict.TRUE_POSITIVE
@@ -190,6 +191,10 @@ class InvestigationResult(BaseModel):
     sandbox_reports: list[SandboxReport] = Field(
         default_factory=list,
         description="해시 IOC 디토네이션 결과(악성 시 confidence 보강·IOC 추출).",
+    )
+    vuln_findings: list[VulnFinding] = Field(
+        default_factory=list,
+        description="경보 CVE 취약점 컨텍스트(KEV 악용 시 confidence 보강).",
     )
 
 

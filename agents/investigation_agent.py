@@ -23,6 +23,7 @@ from core.models import (
     SOCState,
     ThreatIntelFinding,
     TiVerdict,
+    VulnFinding,
 )
 from core.settings import Settings
 
@@ -84,6 +85,15 @@ class SandboxDetonator(Protocol):
         ...
 
 
+@runtime_checkable
+class VulnContext(Protocol):
+    """Investigation 이 의존하는 취약점(CVE) 컨텍스트 계약."""
+
+    async def aenrich(self, cves: list[str]) -> list[VulnFinding]:
+        """CVE 목록의 악용여부/심각도를 보강해 반환한다."""
+        ...
+
+
 class InvestigationAgent(BaseSOCAgent):
     """RAG 유사사례 + 외부 TI + 신호 상관 분석 Agent."""
 
@@ -95,6 +105,7 @@ class InvestigationAgent(BaseSOCAgent):
         ti: ThreatIntelTool | None = None,
         experience: MemoryReadGate | None = None,
         sandbox: SandboxDetonator | None = None,
+        vuln: VulnContext | None = None,
     ) -> None:
         super().__init__(settings)
         self._retriever = retriever
@@ -102,6 +113,7 @@ class InvestigationAgent(BaseSOCAgent):
         self._ti = ti
         self._experience = experience
         self._sandbox = sandbox
+        self._vuln = vuln
 
     async def run(self, state: SOCState) -> SOCState:
         """유사사례 검색 + 출처 검증 + (LLM) 상관분석 요약.
@@ -151,6 +163,11 @@ class InvestigationAgent(BaseSOCAgent):
         if any(f.verdict == TiVerdict.MALICIOUS for f in ti_findings):
             confidence = round(min(1.0, confidence + 0.2), 3)  # 악성 IOC = 강한 근거
 
+        # 취약점 컨텍스트: 경보 CVE 의 악용여부(KEV)·심각도 보강.
+        vuln_findings = await self._enrich_vuln(alert.cves)
+        if any(v.known_exploited for v in vuln_findings):
+            confidence = round(min(1.0, confidence + 0.2), 3)  # KEV 능동악용 = 강근거
+
         # 경험메모리(exp/) 자문: 과거 정탐 회상으로 탐지 강화(안전 방향).
         # 신종(룰부재 X·근거부족) TP 를 1회 학습 후 잡게 하는 자가발전 레버.
         exp_corroboration = await self._recall_experience(alert.scenario_id)
@@ -162,13 +179,14 @@ class InvestigationAgent(BaseSOCAgent):
 
         self._logger.info(
             "investigation: alert=%s hits=%d trusted=%d degraded=%s ti=%d sb=%d "
-            "exp=%d sup=%d conf=%.2f",
+            "vuln=%d exp=%d sup=%d conf=%.2f",
             alert.id,
             len(chunks),
             len(trusted),
             rag_degraded,
             len(ti_findings),
             len(sandbox_reports),
+            len(vuln_findings),
             exp_corroboration,
             suppression,
             confidence,
@@ -185,6 +203,7 @@ class InvestigationAgent(BaseSOCAgent):
                 experience_corroboration=exp_corroboration,
                 suppression_corroboration=suppression,
                 sandbox_reports=sandbox_reports,
+                vuln_findings=vuln_findings,
             ),
             "trace": ["investigation"],
         }
@@ -268,6 +287,25 @@ class InvestigationAgent(BaseSOCAgent):
                     "investigation 샌드박스 분석 실패, 무시하고 계속: %s", exc
                 )
         return reports
+
+    async def _enrich_vuln(self, cves: list[str]) -> list[VulnFinding]:
+        """경보 CVE 의 취약점 컨텍스트를 보강. 미주입/CVE 없음/장애 시 빈 결과.
+
+        Args:
+            cves: 경보가 참조하는 CVE 식별자 목록.
+
+        Returns:
+            악용여부·심각도가 채워진 취약점 결과(장애 시 빈 목록 — 핫패스 계속).
+        """
+        if self._vuln is None or not cves:
+            return []
+        try:
+            return await self._vuln.aenrich(cves)
+        except SOCPlatformError as exc:
+            self._logger.warning(
+                "investigation 취약점 보강 실패, 무시하고 계속: %s", exc
+            )
+            return []
 
     async def _lookup_ti(self, iocs: list[str]) -> list[ThreatIntelFinding]:
         """경보 IOC 를 외부 TI 로 조회. 미주입/IOC 없음/장애 시 빈 결과(대응 계속)."""
