@@ -42,6 +42,10 @@ class Settings(BaseSettings):
         default="",
         description="검색 대상 지식베이스(dataset) ID.",
     )
+    ragflow_exp_dataset_id: str = Field(
+        default="",
+        description="경험메모리(exp/) 적립·회상 대상 dataset ID. 비면 영속화 비활성.",
+    )
     ragflow_similarity_threshold: float = Field(
         default=0.2,
         ge=0.0,
@@ -55,6 +59,10 @@ class Settings(BaseSettings):
         description="벡터 유사도 가중치(나머지는 BM25).",
     )
     ragflow_top_k: int = Field(default=1024, gt=0, description="벡터 후보 풀 크기.")
+    graph_rag_enabled: bool = Field(
+        default=False,
+        description="True 면 GraphRAG(TTP 그래프) 검색기를 기본 배선에 합성.",
+    )
     ragflow_timeout_seconds: float = Field(
         default=60.0,
         gt=0.0,

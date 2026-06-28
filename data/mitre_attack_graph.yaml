@@ -1,0 +1,112 @@
+# MITRE TTP 지식그래프 씨앗 — GraphRAG 결정론 검색용.
+#
+# 출처: docs/hackathon/README.md 팀 시나리오↔MITRE 매핑(S1~S6) + repo AnalyticsRules.
+# 이 표는 본질적으로 그래프다: 시나리오 -uses-> 기법 -under-> 전술,
+# 기법 -detected_by-> 룰, 시나리오 -mitigated_by-> 플레이북, 시나리오 -targets-> 자산.
+# LLM 추출 없이 큐레이션된 그래프를 그대로 검색한다(결정론·무환각).
+
+techniques:
+  T0830: { name: "Adversary-in-the-Middle", framework: "ATT&CK ICS" }
+  T0856: { name: "Spoof Reporting Message", framework: "ATT&CK ICS" }
+  T0831: { name: "Manipulation of Control", framework: "ATT&CK ICS" }
+  T0815: { name: "Denial of View", framework: "ATT&CK ICS" }
+  T0814: { name: "Denial of Service", framework: "ATT&CK ICS" }
+  T0855: { name: "Unauthorized Command Message", framework: "ATT&CK ICS" }
+  T0813: { name: "Denial of Control", framework: "ATT&CK ICS" }
+  T0832: { name: "Manipulation of View", framework: "ATT&CK ICS" }
+  T0862: { name: "Supply Chain Compromise", framework: "ATT&CK ICS" }
+  T0857: { name: "System Firmware", framework: "ATT&CK ICS" }
+  T0843: { name: "Program Download", framework: "ATT&CK ICS" }
+  T0889: { name: "Modify Program", framework: "ATT&CK ICS" }
+  T0822: { name: "External Remote Services", framework: "ATT&CK ICS" }
+  T0859: { name: "Valid Accounts", framework: "ATT&CK ICS" }
+  T0866: { name: "Exploitation of Remote Services", framework: "ATT&CK ICS" }
+  T0867: { name: "Lateral Tool Transfer", framework: "ATT&CK ICS" }
+  AML.T0051: { name: "LLM Prompt Injection", framework: "ATLAS" }
+  AML.T0020: { name: "Poison Training Data", framework: "ATLAS" }
+  AML.T0054: { name: "LLM Jailbreak", framework: "ATLAS" }
+
+scenarios:
+  - id: S1
+    name: "GNSS 스푸핑"
+    asset: GNSS
+    tier: T1
+    severity: high
+    kill_chain: "정찰 → EW 위치선점 → 위조 GNSS 신호 주입 → 위치 drift → 항로 이탈"
+    techniques: [T0830, T0856, T0831, T0815]
+    tactics: [Collection, ImpairProcessControl, InhibitResponseFunction]
+    signals: ["GNSS-INS 잔차 급증", "C/N0 비정상 상승"]
+    detection_rule: S1_GNSS_Spoofing
+    sigma: uav_gps_spoof_residual.yml
+    watchlist: GNSS_Exception_List
+    playbook: PB-NAV-RTB-01
+
+  - id: S2
+    name: "C2 재밍·하이재킹"
+    asset: C2_LINK
+    tier: T1
+    severity: high
+    kill_chain: "정찰 → C2 재밍 → 세션 하이재킹 → 위조 명령 주입 → 통제권 탈취"
+    techniques: [T0814, T0855, T0831, T0813]
+    tactics: [InhibitResponseFunction, Execution, ImpairProcessControl]
+    signals: ["지상국 미발신 명령 수신", "명령 시퀀스 불연속"]
+    detection_rule: S2_C2_Hijacking
+    sigma: uav_c2_unauthorized_cmd.yml
+    watchlist: C2_Whitelisted_GCS_List
+    playbook: PB-C2-FAILSAFE-02
+
+  - id: S3
+    name: "SATCOM MITM"
+    asset: SATCOM
+    tier: T2
+    severity: medium
+    kill_chain: "정찰 → SATCOM 가로채기 → MITM 위치선점 → 데이터 변조·유출"
+    techniques: [T0830, T0856, T0832]
+    tactics: [Collection, ImpairProcessControl]
+    signals: ["MAC 검증 실패율 상승", "페이로드 체크섬 불일치"]
+    detection_rule: null
+    sigma: uav_satcom_integrity_fail.yml
+    watchlist: null
+    playbook: PB-LINK-INTEG-03
+
+  - id: S4
+    name: "펌웨어·공급망 변조"
+    asset: AUTOPILOT
+    tier: T1
+    severity: high
+    kill_chain: "공급망 임플란트 → 펌웨어 변조 → 배포 → 트리거 → 제어로직 변조"
+    techniques: [T0862, T0857, T0843, T0889]
+    tactics: [InitialAccess, Persistence, Execution]
+    signals: ["서명·해시 불일치", "SBOM 미등록 컴포넌트"]
+    detection_rule: S4_Firmware_Tampering
+    sigma: uav_fw_signature_mismatch.yml
+    watchlist: Approved_Firmware_Hash_List
+    playbook: PB-FW-INTEG-04
+
+  - id: S5
+    name: "RAG 포이즈닝"
+    asset: AI_SOC
+    tier: T0
+    severity: high
+    kill_chain: "KB 접근 → 오염 문서 주입 → 검색 트리거 → 심각도 오판 → 대응 무력화"
+    techniques: [AML.T0051, AML.T0020, AML.T0054]
+    tactics: [MLAttackStaging, Impact]
+    signals: ["정책 기대등급 vs 에이전트 판정 괴리", "미서명 컨텍스트 검색"]
+    detection_rule: S5_Parameter_Tampering
+    sigma: aisoc_severity_anomaly.yml
+    watchlist: Trusted_TI_Source_List
+    playbook: PB-AISOC-GUARD-05
+
+  - id: S6
+    name: "GCS 침해·횡적확산"
+    asset: GCS
+    tier: T1
+    severity: high
+    kill_chain: "초기침투 → 유효계정 탈취 → GCS 장악 → 다수기체 재지정 → 횡적확산"
+    techniques: [T0822, T0859, T0855, T0866, T0867]
+    tactics: [InitialAccess, LateralMovement, Execution]
+    signals: ["비정상 로그인", "단시간 다수기체 재지정", "내부망 횡적연결"]
+    detection_rule: S6_Operator_BruteForce
+    sigma: gcs_mass_retasking.yml
+    watchlist: Approved_Operators_List
+    playbook: PB-GCS-CONTAIN-06

@@ -40,3 +40,11 @@ class VulnLookupError(SOCPlatformError):
 
 class RulePublishError(SOCPlatformError):
     """탐지룰 저장소(Watch List PR) 발행 오류(연동/응답 검증 실패)."""
+
+
+class GraphRetrievalError(SOCPlatformError):
+    """지식그래프(GraphRAG) 로드/검색 오류."""
+
+
+class CoverageDataError(SOCPlatformError):
+    """ATT&CK 커버리지 매트릭스 로드/검증 오류."""
