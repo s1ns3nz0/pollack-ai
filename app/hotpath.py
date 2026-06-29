@@ -25,7 +25,14 @@ _logger = get_logger("hotpath")
 
 
 async def _run_alert(payload: dict[str, object]) -> dict[str, object]:
-    """경보 1건을 파이프라인에 태워 판정 요약을 반환한다(+ 메트릭 계측)."""
+    """경보 1건을 파이프라인에 태워 판정 요약을 반환한다(+ 메트릭 계측).
+
+    spec #2 신뢰 경계: inbound payload 의 `actor_id` 는 외부 위장 가능 — 항상
+    strip 한다. actor_id 는 sim_bridge / 운영자 / 신뢰 inbound webhook 만 채울 수
+    있는 의미라, hotpath HTTP 입력은 None 으로 강제(가드).
+    """
+    if isinstance(payload, dict):
+        payload.pop("actor_id", None)
     alert = Alert.model_validate(payload)
     graph = build_soc_graph(settings=get_settings())
     state = await graph.ainvoke({"alert": alert})

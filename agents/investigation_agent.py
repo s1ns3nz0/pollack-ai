@@ -13,10 +13,13 @@ import re
 from typing import Protocol, runtime_checkable
 
 from agents.base import BaseSOCAgent
+from core.actor_fingerprint import resolve_actor_id
+from core.actors import ActorReadGate
 from core.exceptions import LLMError, SOCPlatformError
 from core.experience import MemoryReadGate, RecallPurpose
 from core.llm import LLMClient
 from core.models import (
+    ActorProfile,
     AirspaceFinding,
     Alert,
     GnssJamFinding,
@@ -168,6 +171,7 @@ class InvestigationAgent(BaseSOCAgent):
         vuln: VulnContext | None = None,
         gnss_jam: GnssJamProvider | None = None,
         airspace: AirspaceProvider | None = None,
+        actor_read: ActorReadGate | None = None,
     ) -> None:
         super().__init__(settings)
         self._retriever = retriever
@@ -178,6 +182,7 @@ class InvestigationAgent(BaseSOCAgent):
         self._vuln = vuln
         self._gnss_jam = gnss_jam
         self._airspace = airspace
+        self._actor_read = actor_read
         self._asset_coords = _load_asset_coords()
 
     async def run(self, state: SOCState) -> SOCState:
@@ -263,6 +268,21 @@ class InvestigationAgent(BaseSOCAgent):
             if gnss_jam_findings or airspace_findings:
                 flags.append("외부 jam/airspace 컨텍스트 사용")
 
+        # spec #2: actor 회상 후 TTP 매치 시 confidence +0.2 (한 번).
+        profile = await self._recall_actor(alert)
+        if profile is not None:
+            techs_raw = alert.mitre.get("techniques", [])
+            current = (
+                {str(t) for t in techs_raw} if isinstance(techs_raw, list) else set()
+            )
+            top_techs = {
+                s.technique
+                for s in sorted(profile.ttp_stats, key=lambda x: -x.count)[:3]
+            }
+            if current & top_techs:
+                confidence = round(min(1.0, confidence + 0.2), 3)
+                flags.append(f"actor[{profile.actor_id}] TTP 매치 → conf +0.2")
+
         self._logger.info(
             "investigation: alert=%s hits=%d trusted=%d degraded=%s ti=%d sb=%d "
             "vuln=%d exp=%d sup=%d jam=%d air=%d conf=%.2f",
@@ -315,6 +335,13 @@ class InvestigationAgent(BaseSOCAgent):
         if alert.lat is not None and alert.lon is not None:
             return (alert.lat, alert.lon)
         return self._asset_coords.get(alert.asset_id)
+
+    async def _recall_actor(self, alert: Alert) -> ActorProfile | None:
+        """actors/ 회상(spec #2). 미주입 시 None."""
+        if self._actor_read is None:
+            return None
+        actor_id, _ = resolve_actor_id(alert)
+        return await self._actor_read.recall(actor_id)
 
     async def _lookup_gnss_jam(self, lat: float, lon: float) -> list[GnssJamFinding]:
         """GPSJam 회상. 미주입/장애 시 빈 결과."""

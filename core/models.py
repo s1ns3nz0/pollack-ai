@@ -204,6 +204,9 @@ class Alert(BaseModel):
     # 지리 컨텍스트(외부 GNSS/Airspace 도구 조회용; 없으면 asset-tiers.yaml fallback)
     lat: float | None = None
     lon: float | None = None
+    # 공격자 식별 — 신뢰 주입 경계(sim_bridge/운영진/신뢰 inbound webhook 만 채움).
+    # 외부 입력(Sentinel alert 본문, RAG, LLM)에서 들어온 값은 hotpath 진입 시 strip.
+    actor_id: str | None = None
 
 
 class InvestigationResult(BaseModel):
@@ -308,6 +311,76 @@ class ExperienceRecord(BaseModel):
             "severity": self.severity.value,
             "env_verdict": self.env_verdict.value,
             "judge_features": self.judge_features.model_dump(),
+        }
+        canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+class ActorTtpStat(BaseModel):
+    """ActorProfile 의 TTP 빈도 통계 한 건(spec #2)."""
+
+    tactic: str
+    technique: str
+    count: int = Field(ge=0)
+    last_seen: str
+
+
+class ActorIocPattern(BaseModel):
+    """ActorProfile 의 IOC 패턴 한 건(spec #2)."""
+
+    kind: str  # "ip_24" | "asn" | "domain" | "user_agent" | "session_pattern"
+    value: str
+    count: int = Field(ge=0)
+    last_seen: str
+
+
+class ActorKillChainStep(BaseModel):
+    """ActorProfile.kill_chain 의 시간순 단계 한 건(spec #2)."""
+
+    ts: str
+    alert_id: str
+    scenario_id: str
+    technique: str
+
+
+class ActorProfile(BaseModel):
+    """공격자 동적 프로필(spec #2).
+
+    `actors/` 데이터셋 단위 레코드. explicit (운영자/시스템 부여) vs auto
+    (fingerprint 클러스터) 출처에 따라 priority 가중 적용 여부가 갈린다.
+
+    Attributes:
+        is_explicit: True = explicit actor_id, False = fingerprint 기반.
+        content_hash: `fingerprint()` 결과(서명 기준).
+        signature: 변조 탐지 서명(읽기 게이트가 검증).
+    """
+
+    actor_id: str  # explicit 또는 `fp:<sha256-16>`
+    is_explicit: bool = False
+    first_seen: str = ""
+    last_seen: str = ""
+    alert_count: int = Field(default=0, ge=0)
+    ttp_stats: list[ActorTtpStat] = Field(default_factory=list)
+    ioc_patterns: list[ActorIocPattern] = Field(default_factory=list)
+    kill_chain: list[ActorKillChainStep] = Field(default_factory=list)
+    content_hash: str = ""
+    signature: str = ""
+
+    def fingerprint(self) -> str:
+        """정규화된 핵심 내용의 SHA-256 — 서명·검증 기준."""
+        payload = {
+            "actor_id": self.actor_id,
+            "is_explicit": self.is_explicit,
+            "alert_count": self.alert_count,
+            "ttp": sorted(
+                [s.model_dump() for s in self.ttp_stats],
+                key=lambda d: (d["tactic"], d["technique"]),
+            ),
+            "ioc": sorted(
+                [p.model_dump() for p in self.ioc_patterns],
+                key=lambda d: (d["kind"], d["value"]),
+            ),
+            "chain": [s.model_dump() for s in self.kill_chain],
         }
         canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

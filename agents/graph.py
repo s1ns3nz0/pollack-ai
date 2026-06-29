@@ -38,6 +38,7 @@ from agents.validation_agent import (
     default_judge,
     route_after_validation,
 )
+from core.actors import ActorReadGate, ActorWriteGate, InMemoryActorStore
 from core.experience import MemoryReadGate
 from core.llm import LLMClient
 from core.models import SOCState
@@ -145,6 +146,8 @@ def build_soc_graph(
     rule_publisher: RulePublisher | None = None,
     gnss_jam: GnssJamProvider | None = None,
     airspace: AirspaceProvider | None = None,
+    actor_read: ActorReadGate | None = None,
+    actor_write: ActorWriteGate | None = None,
     judge: Judge = default_judge,
     hitl: bool = False,
 ) -> CompiledStateGraph[SOCState]:
@@ -179,7 +182,12 @@ def build_soc_graph(
     if airspace is None:
         airspace = _default_airspace(settings)
 
-    triage = TriageAgent(settings, engine)
+    # actor write/read 미주입 시 한 쌍 인메모리 생성(테스트/로컬 데모).
+    if actor_read is None and actor_write is None:
+        _store = InMemoryActorStore()
+        actor_read = ActorReadGate(_store)
+        actor_write = ActorWriteGate(_store)
+    triage = TriageAgent(settings, engine, actor_read=actor_read)
     investigation = InvestigationAgent(
         settings,
         retriever,
@@ -190,6 +198,7 @@ def build_soc_graph(
         vuln,
         gnss_jam=gnss_jam,
         airspace=airspace,
+        actor_read=actor_read,
     )
     validation = ValidationAgent(settings, judge)
     response = ResponseAgent(settings, engine)
