@@ -191,6 +191,39 @@ class Settings(BaseSettings):
         description="GitHub API 요청 타임아웃(초).",
     )
 
+    # ── 외부 공역/GNSS 컨텍스트 (Airspace & GNSS spec #1) ──────────
+    gpsjam_endpoint: str = Field(
+        default="https://gpsjam.org/api/",
+        description="GPSJam 공개 REST 엔드포인트. 비면 어댑터 비활성.",
+    )
+    gpsjam_timeout_seconds: float = Field(
+        default=15.0, gt=0.0, description="GPSJam 호출 타임아웃(초)."
+    )
+    opensky_base_url: str = Field(
+        default="https://opensky-network.org/api",
+        description="OpenSky Network REST 베이스 URL.",
+    )
+    opensky_username: SecretStr = Field(
+        default=SecretStr(""),
+        description="OpenSky 사용자명(익명 = 400req/day).",
+    )
+    opensky_password: SecretStr = Field(
+        default=SecretStr(""),
+        description="OpenSky 비밀번호.",
+    )
+    opensky_timeout_seconds: float = Field(
+        default=15.0, gt=0.0, description="OpenSky 호출 타임아웃(초)."
+    )
+    airspace_known_friends: list[str] = Field(
+        default_factory=list,
+        description="콜사인 화이트리스트 — 등록 자산(외 → hostile).",
+    )
+    airspace_bbox_deg: float = Field(
+        default=0.1,
+        gt=0.0,
+        description="OpenSky BBox 반경(deg). 0.1 ≒ ±11km.",
+    )
+
     @property
     def ragflow_retrieval_url(self) -> str:
         """RAGFlow 검색 엔드포인트 전체 URL."""

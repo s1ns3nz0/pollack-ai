@@ -20,7 +20,9 @@ from langgraph.graph.state import CompiledStateGraph
 
 from agents.approval_agent import ApprovalAgent
 from agents.investigation_agent import (
+    AirspaceProvider,
     ContextRetriever,
+    GnssJamProvider,
     InvestigationAgent,
     SandboxDetonator,
     ThreatIntelTool,
@@ -112,6 +114,24 @@ def _default_experience(settings: Settings) -> MemoryReadGate | None:
     return MemoryReadGate(RagflowExperienceStore(settings))
 
 
+def _default_gnss_jam(settings: Settings) -> GnssJamProvider | None:
+    """GPSJam 어댑터를 구성한다(엔드포인트 없으면 None)."""
+    if not settings.gpsjam_endpoint:
+        return None
+    from tools.gnss_jam_tool import GpsJamRetriever
+
+    return GpsJamRetriever(settings)
+
+
+def _default_airspace(settings: Settings) -> AirspaceProvider | None:
+    """OpenSky 어댑터를 구성한다(베이스 URL 없으면 None)."""
+    if not settings.opensky_base_url:
+        return None
+    from tools.airspace_tool import OpenSkyRetriever
+
+    return OpenSkyRetriever(settings)
+
+
 def build_soc_graph(
     *,
     settings: Settings | None = None,
@@ -123,6 +143,8 @@ def build_soc_graph(
     sandbox: SandboxDetonator | None = None,
     vuln: VulnContext | None = None,
     rule_publisher: RulePublisher | None = None,
+    gnss_jam: GnssJamProvider | None = None,
+    airspace: AirspaceProvider | None = None,
     judge: Judge = default_judge,
     hitl: bool = False,
 ) -> CompiledStateGraph[SOCState]:
@@ -152,10 +174,22 @@ def build_soc_graph(
         retriever = _default_retriever(settings)
     if experience is None:
         experience = _default_experience(settings)
+    if gnss_jam is None:
+        gnss_jam = _default_gnss_jam(settings)
+    if airspace is None:
+        airspace = _default_airspace(settings)
 
     triage = TriageAgent(settings, engine)
     investigation = InvestigationAgent(
-        settings, retriever, llm, ti, experience, sandbox, vuln
+        settings,
+        retriever,
+        llm,
+        ti,
+        experience,
+        sandbox,
+        vuln,
+        gnss_jam=gnss_jam,
+        airspace=airspace,
     )
     validation = ValidationAgent(settings, judge)
     response = ResponseAgent(settings, engine)

@@ -54,6 +54,9 @@ def signal_judge(state: SOCState) -> Verdict:
         bool(inv.similar_cases)
         or inv.confidence >= 0.5
         or inv.experience_corroboration > 0  # exp/ 과거 정탐 자문(하한 불변)
+        # spec #1: 외부 GNSS/Airspace 컨텍스트도 corroborated 기여.
+        or any(f.level >= 2 for f in inv.gnss_jam_findings)
+        or any(f.hostile and f.distance_km <= 10.0 for f in inv.airspace_findings)
     )
     verdict = (
         Verdict.TRUE_POSITIVE

@@ -76,6 +76,46 @@ class SandboxReport(BaseModel):
     source: str = ""
 
 
+class GnssJamFinding(BaseModel):
+    """GPSJam.org 셀 한 건. level 은 0(no signal loss)~3(severe).
+
+    Attributes:
+        cell: "lat_int,lon_int" 1° 그리드 키 (소스 그대로).
+        level: 0..3 정수 jam 심각도.
+        as_of: ISO8601 date — gpsjam 은 일 단위 집계.
+        source: 출처 식별자(예: gpsjam, stub).
+    """
+
+    cell: str
+    level: int = Field(ge=0, le=3)
+    as_of: str
+    source: str = "gpsjam"
+
+
+class AirspaceFinding(BaseModel):
+    """OpenSky 항적 한 건(경보 좌표 인근 비행체).
+
+    Attributes:
+        icao24: 트랜스폰더 ICAO24 (16진).
+        callsign: 비행 콜사인(빈값 가능).
+        lat: 비행체 위도(deg).
+        lon: 비행체 경도(deg).
+        distance_km: 경보 좌표 대비 거리(km).
+        hostile: 적대 판정(callsign 화이트리스트 외 / 빈값 + 공중).
+        on_ground: 지상 여부.
+        source: 출처 식별자(예: opensky, stub).
+    """
+
+    icao24: str
+    callsign: str = ""
+    lat: float
+    lon: float
+    distance_km: float = 0.0
+    hostile: bool = False
+    on_ground: bool = False
+    source: str = "opensky"
+
+
 class VulnFinding(BaseModel):
     """취약점(CVE) 컨텍스트 한 건(악용 여부 + 심각도).
 
@@ -161,6 +201,9 @@ class Alert(BaseModel):
     dwelling_min: int = 0
     lateral_correlation: bool = False
     no_effect_sustained: bool = False
+    # 지리 컨텍스트(외부 GNSS/Airspace 도구 조회용; 없으면 asset-tiers.yaml fallback)
+    lat: float | None = None
+    lon: float | None = None
 
 
 class InvestigationResult(BaseModel):
@@ -195,6 +238,14 @@ class InvestigationResult(BaseModel):
     vuln_findings: list[VulnFinding] = Field(
         default_factory=list,
         description="경보 CVE 취약점 컨텍스트(KEV 악용 시 confidence 보강).",
+    )
+    gnss_jam_findings: list[GnssJamFinding] = Field(
+        default_factory=list,
+        description="외부 GPSJam 회상(S1 시나리오 + level≥2 시 confidence 보강).",
+    )
+    airspace_findings: list[AirspaceFinding] = Field(
+        default_factory=list,
+        description="외부 OpenSky 항적 회상(hostile + 근접 시 confidence 보강).",
     )
 
 
