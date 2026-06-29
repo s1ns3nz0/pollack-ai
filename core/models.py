@@ -512,6 +512,7 @@ class SOCState(TypedDict, total=False):
     priority: int
     investigation: InvestigationResult
     verdict: Verdict
+    ensemble: object  # EnsembleResult (avoid import cycle)
     approval: ApprovalResult
     response: ResponseResult
     rule_update: RuleUpdateResult

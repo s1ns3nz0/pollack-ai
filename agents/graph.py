@@ -28,6 +28,10 @@ from agents.investigation_agent import (
     ThreatIntelTool,
     VulnContext,
 )
+from agents.judges.base import Judge as ScoreJudge
+from agents.judges.experience_judge import ExperienceJudge
+from agents.judges.llm_judge import LlmJudge
+from agents.judges.signal_judge import SignalJudge
 from agents.report_agent import ReportAgent
 from agents.response_agent import ResponseAgent
 from agents.rule_update_agent import RuleUpdateAgent
@@ -149,6 +153,8 @@ def build_soc_graph(
     actor_read: ActorReadGate | None = None,
     actor_write: ActorWriteGate | None = None,
     judge: Judge = default_judge,
+    ensemble_judges: list[ScoreJudge] | None = None,
+    llm_judge_enabled: bool = False,
     hitl: bool = False,
 ) -> CompiledStateGraph[SOCState]:
     """6-에이전트 SOC 파이프라인을 조립해 컴파일된 그래프를 반환한다.
@@ -200,7 +206,10 @@ def build_soc_graph(
         airspace=airspace,
         actor_read=actor_read,
     )
-    validation = ValidationAgent(settings, judge)
+    # spec B1: ensemble_judges 명시 주입 우선. 없고 llm_judge_enabled 일 때만 자동 배선.
+    if ensemble_judges is None and llm_judge_enabled:
+        ensemble_judges = [SignalJudge(), LlmJudge(llm), ExperienceJudge()]
+    validation = ValidationAgent(settings, judge, ensemble_judges=ensemble_judges)
     response = ResponseAgent(settings, engine)
     rule_update = RuleUpdateAgent(settings, rule_publisher)
     report = ReportAgent(settings, engine)
