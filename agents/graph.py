@@ -43,9 +43,11 @@ from agents.validation_agent import (
     route_after_validation,
 )
 from core.actors import ActorReadGate, ActorWriteGate, InMemoryActorStore
+from core.causal import CausalReasoner
 from core.experience import MemoryReadGate
 from core.llm import LLMClient
 from core.models import SOCState
+from core.predictor import SequencePredictor
 from core.settings import Settings, get_settings
 from core.severity import SeverityEngine
 from tools.rule_publisher import RulePublisher
@@ -152,6 +154,9 @@ def build_soc_graph(
     airspace: AirspaceProvider | None = None,
     actor_read: ActorReadGate | None = None,
     actor_write: ActorWriteGate | None = None,
+    ragas: object | None = None,
+    predictor: object | None = None,
+    reasoner: CausalReasoner | None = None,
     judge: Judge = default_judge,
     ensemble_judges: list[ScoreJudge] | None = None,
     llm_judge_enabled: bool = False,
@@ -193,6 +198,25 @@ def build_soc_graph(
         _store = InMemoryActorStore()
         actor_read = ActorReadGate(_store)
         actor_write = ActorWriteGate(_store)
+    # spec C1: predictor 미주입 시 인메모리 SequencePredictor 자동 배선.
+    if predictor is None:
+        predictor = SequencePredictor(
+            min_support=settings.predict_min_support,
+            min_probability=settings.predict_min_probability,
+            top_k=settings.predict_top_k,
+        )
+    # spec A1: causal-rules.yaml 존재 시 reasoner 자동 배선.
+    if reasoner is None:
+        rules_path = Path(settings.causal_rules_path)
+        if rules_path.exists():
+            reasoner = CausalReasoner(
+                rules_path, llm=llm, explain=settings.causal_llm_explain
+            )
+    # spec D1: ragas opt-in.
+    if ragas is None and settings.ragas_enabled:
+        from tools.ragas_evaluator import RagasEvaluator
+
+        ragas = RagasEvaluator(settings)
     triage = TriageAgent(settings, engine, actor_read=actor_read)
     investigation = InvestigationAgent(
         settings,
@@ -205,6 +229,8 @@ def build_soc_graph(
         gnss_jam=gnss_jam,
         airspace=airspace,
         actor_read=actor_read,
+        ragas=ragas,  # type: ignore[arg-type]
+        predictor=predictor,  # type: ignore[arg-type]
     )
     # spec B1: ensemble_judges 명시 주입 우선. 없고 llm_judge_enabled 일 때만 자동 배선.
     if ensemble_judges is None and llm_judge_enabled:
@@ -212,7 +238,7 @@ def build_soc_graph(
     validation = ValidationAgent(settings, judge, ensemble_judges=ensemble_judges)
     response = ResponseAgent(settings, engine)
     rule_update = RuleUpdateAgent(settings, rule_publisher)
-    report = ReportAgent(settings, engine)
+    report = ReportAgent(settings, engine, reasoner=reasoner)
 
     graph: StateGraph[SOCState] = StateGraph(SOCState)
     # 노드는 KPI 타이밍 래퍼(_timed)로 감싸 등록. add_node 오버로드는 바운드 메서드는

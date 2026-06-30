@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from core.models import SOCState
+from core.models import SOCState, WorkerReport
 from core.settings import Settings
 from utils.logging import get_logger
 
@@ -30,4 +30,20 @@ class BaseSOCAgent(ABC):
         Returns:
             병합할 부분 상태(자신의 산출물 + trace).
         """
+        ...
+
+
+class BaseWorkerAgent(ABC):
+    """Deployment B (learning worker) 주기 사이클 에이전트 베이스(spec T1).
+
+    `BaseSOCAgent.run(state)` 와 시그너처가 다르다 — alert state 무관 + 주기 트리거.
+    """
+
+    def __init__(self, settings: Settings) -> None:
+        self._settings = settings
+        self._logger = get_logger(self.__class__.__name__)
+
+    @abstractmethod
+    async def run(self) -> WorkerReport:
+        """주기 사이클 실행. 보고서 반환."""
         ...
