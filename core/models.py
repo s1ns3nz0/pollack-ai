@@ -390,6 +390,46 @@ class ActorProfile(BaseModel):
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+class FeedSnapshot(BaseModel):
+    """위협 피드 스냅샷 한 건(spec T1).
+
+    Attributes:
+        source: "attack" | "atlas" | "embed3d" | "kev".
+        version: 피드 자체 version 필드 또는 fetched_at.
+        techniques: T-id 목록 (KEV 면 빈 목록).
+        cves: KEV 만 비어있지 않음.
+        fetched_at: ISO8601.
+        raw_hash: SHA-256 — 변경 추적.
+    """
+
+    source: str
+    version: str = ""
+    techniques: list[str] = Field(default_factory=list)
+    cves: list[str] = Field(default_factory=list)
+    fetched_at: str = ""
+    raw_hash: str = ""
+
+
+class LandscapeDiff(BaseModel):
+    """피드 비교 diff 한 건(spec T1)."""
+
+    source: str
+    added: list[str] = Field(default_factory=list)
+    changed: list[str] = Field(default_factory=list)
+    removed: list[str] = Field(default_factory=list)
+    kev_new: list[str] = Field(default_factory=list)
+
+
+class WorkerReport(BaseModel):
+    """주기 워커 사이클 결과(spec T1)."""
+
+    cycle_at: str = ""
+    diffs: list[LandscapeDiff] = Field(default_factory=list)
+    auto_applied: int = 0
+    pr_urls: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
+
+
 class RagasResult(BaseModel):
     """RAGAS 분석 품질 측정 한 건(spec D1).
 

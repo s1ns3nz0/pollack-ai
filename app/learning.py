@@ -4,28 +4,55 @@
 (MemoryWriteGate), 누적된 오탐 패턴을 RuleUpdate(Watch List PR)로 증류한다. 독립
 스케일/롤아웃(ADR 0002 D6). 헬스 서버는 백그라운드 스레드로 K8s 프로브에 응답.
 
-본 모듈은 워커 골격이다 — 실제 큐/이벤트 소스 연결은 배포 환경에서 주입한다. 한 사이클
-실패가 워커를 죽이지 않도록 예외를 격리한다.
+spec T1: ThreatLandscapeAgent 주입 시 `feed_refresh_hours` 마다 위협 피드 갱신
+사이클을 실행한다. 미주입 시 기존 거동 보존.
 """
 
 from __future__ import annotations
 
 import asyncio
+import time
 
+from agents.threat_landscape_agent import ThreatLandscapeAgent
 from app.health import serve_in_background
-from core.settings import get_settings
+from core.settings import Settings, get_settings
 from utils.logging import get_logger
 
 _logger = get_logger("learning")
 
 
-async def run_cycle() -> None:
-    """학습 사이클 1회(골격) — 적립 대기열 처리 지점.
+async def run_cycle(
+    threat_landscape: ThreatLandscapeAgent | None = None,
+    last_landscape_refresh: list[float] | None = None,
+    settings: Settings | None = None,
+) -> None:
+    """학습 사이클 1회 — exp 적립(미연결) + (선택) 위협 피드 갱신.
 
-    실제 연결 시: OutcomeProbe 결과 수집 → MemoryWriteGate.submit → 임계 누적 시
-    RuleUpdateAgent 발행. 여기서는 하트비트만 남긴다(이벤트 소스 미주입).
+    Args:
+        threat_landscape: ThreatLandscapeAgent — 주입 시 `feed_refresh_hours` 게이트
+            통과 시 사이클 실행.
+        last_landscape_refresh: 마지막 갱신 epoch(공유 리스트 — 0번 인덱스).
+        settings: 전역 설정. 미주입 시 get_settings().
     """
     _logger.info("learning 사이클 tick")
+    if threat_landscape is None:
+        return
+    s = settings or get_settings()
+    state = last_landscape_refresh or [0.0]
+    if (time.time() - state[0]) / 3600 < s.feed_refresh_hours:
+        return
+    try:
+        report = await threat_landscape.run()
+    except Exception as exc:  # noqa: BLE001 - 사이클 보호
+        _logger.warning("threat_landscape 실패(계속): %s", exc)
+        return
+    state[0] = time.time()
+    _logger.info(
+        "threat_landscape: applied=%d prs=%d errors=%d",
+        report.auto_applied,
+        len(report.pr_urls),
+        len(report.errors),
+    )
 
 
 async def main(interval_seconds: float | None = None) -> None:
