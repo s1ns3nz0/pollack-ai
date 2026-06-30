@@ -2,12 +2,14 @@
 
 spec C1: investigation.predictions 가 있으면 `hunt_candidates` 에 노출.
 spec A1: CausalReasoner 주입 시 `causal_summary` + OSCAL `causal_chain` 임베드.
+spec B-1: actor_read 주입 시 actor.pb_scores top-3 을 guardrail_flags 에 노출.
 """
 
 from __future__ import annotations
 
 from agents.base import BaseSOCAgent
 from core import oscal
+from core.actors import ActorReadGate
 from core.causal import CausalReasoner
 from core.coerce import opt_str
 from core.models import SOCReport, SOCState, Verdict
@@ -23,10 +25,12 @@ class ReportAgent(BaseSOCAgent):
         settings: Settings,
         engine: SeverityEngine,
         reasoner: CausalReasoner | None = None,
+        actor_read: ActorReadGate | None = None,
     ) -> None:
         super().__init__(settings)
         self._engine = engine
         self._reasoner = reasoner
+        self._actor_read = actor_read
 
     async def run(self, state: SOCState) -> SOCState:
         """리포트 + OSCAL 증거 구성."""
@@ -60,6 +64,20 @@ class ReportAgent(BaseSOCAgent):
             chain = await self._reasoner.build_chain(alert, inv)
             if chain.steps:
                 report.causal_summary = chain
+
+        # spec B-1: actor.pb_scores top-3 노출
+        if self._actor_read is not None and alert.actor_id:
+            profile = await self._actor_read.recall(alert.actor_id.strip())
+            if profile is not None and profile.pb_scores:
+                top = sorted(profile.pb_scores.values(), key=lambda s: -s.avg_effect)[
+                    :3
+                ]
+                top_str = ", ".join(
+                    f"{s.playbook_id}={s.avg_effect:.2f}({s.count})" for s in top
+                )
+                report.guardrail_flags = list(report.guardrail_flags) + [
+                    f"actor[{profile.actor_id}] PB 효과 top-3: {top_str}"
+                ]
 
         evidence = oscal.build_evidence(state, evidence_level)
         if report.causal_summary is not None:
