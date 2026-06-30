@@ -45,6 +45,7 @@ class ActorWriteStatus(StrEnum):
     REJECTED_NOT_TP = "rejected_not_tp"
     REJECTED_EMPTY = "rejected_empty"
     REJECTED_STORE_ERROR = "rejected_store_error"
+    REJECTED_NO_ACTOR = "rejected_no_actor"  # spec B-1: outcome 측정 시 actor 미존재
 
 
 class ActorWriteDecision(BaseModel):

@@ -238,7 +238,7 @@ def build_soc_graph(
     validation = ValidationAgent(settings, judge, ensemble_judges=ensemble_judges)
     response = ResponseAgent(settings, engine)
     rule_update = RuleUpdateAgent(settings, rule_publisher)
-    report = ReportAgent(settings, engine, reasoner=reasoner)
+    report = ReportAgent(settings, engine, reasoner=reasoner, actor_read=actor_read)
 
     graph: StateGraph[SOCState] = StateGraph(SOCState)
     # 노드는 KPI 타이밍 래퍼(_timed)로 감싸 등록. add_node 오버로드는 바운드 메서드는

@@ -250,7 +250,7 @@ class InvestigationResult(BaseModel):
         default_factory=list,
         description="외부 OpenSky 항적 회상(hostile + 근접 시 confidence 보강).",
     )
-    predictions: list["AttackPrediction"] = Field(
+    predictions: list[AttackPrediction] = Field(
         default_factory=list,
         description="spec C1: actor.kill_chain n-gram 기반 다음 기법 예측 후보.",
     )
@@ -320,6 +320,19 @@ class ExperienceRecord(BaseModel):
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+class ActorPlaybookScore(BaseModel):
+    """ActorProfile 의 PB 효과 점수 한 건(spec B-1).
+
+    호출자가 신호→점수 매핑 책임. avg_effect = sum_effect / count.
+    """
+
+    playbook_id: str
+    count: int = Field(default=0, ge=0)
+    sum_effect: float = Field(default=0.0, ge=0.0)
+    avg_effect: float = Field(default=0.0, ge=0.0, le=1.0)
+    last_seen: str = ""
+
+
 class ActorTtpStat(BaseModel):
     """ActorProfile 의 TTP 빈도 통계 한 건(spec #2)."""
 
@@ -367,6 +380,10 @@ class ActorProfile(BaseModel):
     ttp_stats: list[ActorTtpStat] = Field(default_factory=list)
     ioc_patterns: list[ActorIocPattern] = Field(default_factory=list)
     kill_chain: list[ActorKillChainStep] = Field(default_factory=list)
+    pb_scores: dict[str, ActorPlaybookScore] = Field(
+        default_factory=dict,
+        description="spec B-1: playbook_id → 효과 점수 누적. 호출자 책임으로 갱신.",
+    )
     content_hash: str = ""
     signature: str = ""
 
@@ -385,6 +402,8 @@ class ActorProfile(BaseModel):
                 key=lambda d: (d["kind"], d["value"]),
             ),
             "chain": [s.model_dump() for s in self.kill_chain],
+            # spec B-1: pb_scores 포함 (정렬 keys 로 결정론).
+            "pb_scores": {k: v.model_dump() for k, v in sorted(self.pb_scores.items())},
         }
         canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
