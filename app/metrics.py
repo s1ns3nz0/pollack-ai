@@ -25,6 +25,11 @@ class _Counters:
         self.verdict_total: dict[str, int] = {}
         self._node_ms_sum: dict[str, float] = {}
         self._node_ms_count: dict[str, int] = {}
+        # spec D1: RAGAS 누적
+        self.ragas_evaluations_total = 0
+        self._ragas_faith_sum = 0.0
+        self._ragas_ans_rel_sum = 0.0
+        self._ragas_ctx_rel_sum = 0.0
 
     def record_alert(self, verdict: str) -> None:
         """경보 1건 처리 + 판정 집계."""
@@ -45,6 +50,26 @@ class _Counters:
                 n: round(self._node_ms_sum[n] / self._node_ms_count[n], 2)
                 for n in self._node_ms_sum
                 if self._node_ms_count.get(n)
+            }
+
+    def observe_ragas(self, faith: float, ans_rel: float, ctx_rel: float) -> None:
+        """RAGAS 측정 1건 누적(spec D1)."""
+        with self._lock:
+            self.ragas_evaluations_total += 1
+            self._ragas_faith_sum += faith
+            self._ragas_ans_rel_sum += ans_rel
+            self._ragas_ctx_rel_sum += ctx_rel
+
+    def ragas_avgs(self) -> dict[str, float]:
+        """RAGAS 메트릭 평균(spec D1). 측정 0건이면 빈 dict."""
+        with self._lock:
+            n = self.ragas_evaluations_total
+            if n == 0:
+                return {}
+            return {
+                "faithfulness": round(self._ragas_faith_sum / n, 3),
+                "answer_relevancy": round(self._ragas_ans_rel_sum / n, 3),
+                "context_relevancy": round(self._ragas_ctx_rel_sum / n, 3),
             }
 
 
@@ -83,6 +108,17 @@ def render_text() -> str:
     out.append("# TYPE soc_node_latency_avg_ms gauge")
     for node, avg in sorted(c.node_avg_ms().items()):
         out.append(_line("soc_node_latency_avg_ms", avg, f'{{node="{node}"}}'))
+
+    # spec D1: RAGAS 게이지
+    ragas_avg = c.ragas_avgs()
+    if ragas_avg:
+        out.append("# HELP soc_ragas_evaluations_total RAGAS 측정 누적")
+        out.append("# TYPE soc_ragas_evaluations_total counter")
+        out.append(_line("soc_ragas_evaluations_total", c.ragas_evaluations_total))
+        for k in ("faithfulness", "answer_relevancy", "context_relevancy"):
+            out.append(f"# HELP soc_ragas_{k}_avg RAGAS {k} 평균")
+            out.append(f"# TYPE soc_ragas_{k}_avg gauge")
+            out.append(_line(f"soc_ragas_{k}_avg", ragas_avg[k]))
 
     out.extend(_coverage_metrics())
     return "\n".join(out) + "\n"

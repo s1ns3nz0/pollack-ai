@@ -250,6 +250,10 @@ class InvestigationResult(BaseModel):
         default_factory=list,
         description="외부 OpenSky 항적 회상(hostile + 근접 시 confidence 보강).",
     )
+    predictions: list["AttackPrediction"] = Field(
+        default_factory=list,
+        description="spec C1: actor.kill_chain n-gram 기반 다음 기법 예측 후보.",
+    )
 
 
 class JudgeFeatures(BaseModel):
@@ -386,6 +390,58 @@ class ActorProfile(BaseModel):
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+class RagasResult(BaseModel):
+    """RAGAS 분석 품질 측정 한 건(spec D1).
+
+    Investigation 의 summary + similar_cases 에 대한 faithfulness/relevancy 측정.
+    핫패스 외 비동기로 수행 — KPI 누적용. Prometheus 게이지로도 노출된다.
+    """
+
+    faithfulness: float = Field(ge=0.0, le=1.0)
+    answer_relevancy: float = Field(ge=0.0, le=1.0)
+    context_relevancy: float = Field(ge=0.0, le=1.0)
+    evaluated_at: str = ""
+    n_contexts: int = Field(default=0, ge=0)
+    source: str = "ragas"
+
+
+class AttackPrediction(BaseModel):
+    """공격 시퀀스 예측 한 건(spec C1).
+
+    ActorProfile.kill_chain n-gram 빈도 기반 다음 기법 후보.
+    """
+
+    next_technique: str
+    probability: float = Field(ge=0.0, le=1.0)
+    support_count: int = Field(ge=0)
+    basis_actor_id: str
+
+
+class CausalStep(BaseModel):
+    """인과 체인의 한 단계(spec A1).
+
+    Attributes:
+        signal: 입력 신호(예: GPS_GLITCH_FLAG).
+        effect: 결과 효과(예: GNSS_INTEGRITY_LOSS).
+        next_step: 다음 단계 식별자. 빈값이면 체인 끝.
+        mitre_technique: 매핑 ATT&CK technique(있으면).
+        explanation: LLM 생성 자연어(선택, 빈값 가능).
+    """
+
+    signal: str
+    effect: str
+    next_step: str = ""
+    mitre_technique: str = ""
+    explanation: str = ""
+
+
+class CausalChain(BaseModel):
+    """매칭된 인과 룰의 결정론 체인(spec A1)."""
+
+    steps: list[CausalStep] = Field(default_factory=list)
+    basis_rules: list[str] = Field(default_factory=list)
+
+
 class ResponseResult(BaseModel):
     """Response 산출물(정탐 경로)."""
 
@@ -480,6 +536,13 @@ class SOCReport(BaseModel):
     mitre: dict[str, object] = Field(default_factory=dict)
     guardrail_flags: list[str] = Field(default_factory=list)
     hitl: str | None = None
+    hunt_candidates: list[str] = Field(
+        default_factory=list,
+        description="spec C1: SequencePredictor 예측 → 헌트 후보 technique 목록.",
+    )
+    causal_summary: CausalChain | None = Field(
+        default=None, description="spec A1: 결정론 인과 체인 요약."
+    )
 
 
 class OscalEvidence(BaseModel):
@@ -496,6 +559,9 @@ class OscalEvidence(BaseModel):
     investigation: InvestigationResult | None = None
     response: ResponseResult | None = None
     severity_rationale: list[str] | None = None
+    causal_chain: CausalChain | None = Field(
+        default=None, description="spec A1: OSCAL evidence 임베드용."
+    )
 
 
 class SOCState(TypedDict, total=False):

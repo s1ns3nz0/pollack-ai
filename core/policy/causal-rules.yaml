@@ -1,0 +1,47 @@
+# =============================================================================
+# 인과 추론 룰(spec A1) — 결정론 매핑.
+# Investigation 단계 신호 → 영향(effect) → 다음 단계 체인.
+# LLM 은 step.explanation 채울 때만 (선택 — settings.causal_llm_explain=true).
+# =============================================================================
+
+version: 1
+rules:
+  - id: S1-GNSS-SPOOF
+    when_signal: ["GPS_GLITCH_FLAG", "EKF_HIGH_VARIANCE"]
+    chain:
+      - signal: GPS_GLITCH_FLAG
+        effect: GNSS_INTEGRITY_LOSS
+        next_step: EKF_DIVERGENCE
+        mitre_technique: T0830
+      - signal: EKF_DIVERGENCE
+        effect: POSITION_UNCERTAINTY
+        next_step: FLIGHT_PATH_DEVIATION
+        mitre_technique: T0843
+      - signal: FLIGHT_PATH_DEVIATION
+        effect: MISSION_ABORT
+        next_step: ""
+        mitre_technique: T0815
+
+  - id: S5-RAG-POISON
+    when_signal: ["SUGGESTED_SEVERITY_DROP", "RAG_UNTRUSTED_SOURCE"]
+    chain:
+      - signal: SUGGESTED_SEVERITY_DROP
+        effect: SEVERITY_DOWNGRADE_ATTEMPT
+        next_step: GUARDRAIL_TRIGGER
+        mitre_technique: ATLAS-AML-T0051
+      - signal: GUARDRAIL_TRIGGER
+        effect: POLICY_LOCK
+        next_step: ""
+        mitre_technique: ""
+
+  - id: S2-LATERAL
+    when_signal: ["sig.a", "lateral.movement", "smb.scan"]
+    chain:
+      - signal: lateral.movement
+        effect: NETWORK_PIVOT
+        next_step: CRED_ACCESS_ATTEMPT
+        mitre_technique: T1021
+      - signal: CRED_ACCESS_ATTEMPT
+        effect: PRIVILEGE_ESCALATION
+        next_step: ""
+        mitre_technique: T1078

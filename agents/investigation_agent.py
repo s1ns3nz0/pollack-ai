@@ -22,8 +22,10 @@ from core.models import (
     ActorProfile,
     AirspaceFinding,
     Alert,
+    AttackPrediction,
     GnssJamFinding,
     InvestigationResult,
+    RagasResult,
     RetrievedChunk,
     SandboxReport,
     SOCState,
@@ -123,6 +125,26 @@ class AirspaceProvider(Protocol):
         ...
 
 
+@runtime_checkable
+class RagasEvaluatorProto(Protocol):
+    """RAGAS 비동기 측정기 계약(spec D1)."""
+
+    async def aevaluate(
+        self, alert: Alert, summary: str, contexts: list[RetrievedChunk]
+    ) -> RagasResult | None:
+        """RAGAS 메트릭 측정. 미설치/장애 시 None."""
+        ...
+
+
+@runtime_checkable
+class SequencePredictorProto(Protocol):
+    """공격 시퀀스 예측기 계약(spec C1)."""
+
+    def predict(self, profile: ActorProfile, current: str) -> list[AttackPrediction]:
+        """현재 technique 기준 다음 단계 후보를 반환한다."""
+        ...
+
+
 def _is_s1_scenario(scenario_id: str) -> bool:
     """spec D2 — S1 GNSS 시나리오 군 판정(`S1`·`S1-GNSS-001` 등)."""
     return scenario_id.upper().startswith("S1")
@@ -172,6 +194,8 @@ class InvestigationAgent(BaseSOCAgent):
         gnss_jam: GnssJamProvider | None = None,
         airspace: AirspaceProvider | None = None,
         actor_read: ActorReadGate | None = None,
+        ragas: RagasEvaluatorProto | None = None,
+        predictor: SequencePredictorProto | None = None,
     ) -> None:
         super().__init__(settings)
         self._retriever = retriever
@@ -183,6 +207,8 @@ class InvestigationAgent(BaseSOCAgent):
         self._gnss_jam = gnss_jam
         self._airspace = airspace
         self._actor_read = actor_read
+        self._ragas = ragas
+        self._predictor = predictor
         self._asset_coords = _load_asset_coords()
 
     async def run(self, state: SOCState) -> SOCState:
@@ -270,18 +296,25 @@ class InvestigationAgent(BaseSOCAgent):
 
         # spec #2: actor 회상 후 TTP 매치 시 confidence +0.2 (한 번).
         profile = await self._recall_actor(alert)
+        predictions: list[AttackPrediction] = []
         if profile is not None:
             techs_raw = alert.mitre.get("techniques", [])
-            current = (
+            current_techs = (
                 {str(t) for t in techs_raw} if isinstance(techs_raw, list) else set()
             )
             top_techs = {
                 s.technique
                 for s in sorted(profile.ttp_stats, key=lambda x: -x.count)[:3]
             }
-            if current & top_techs:
+            if current_techs & top_techs:
                 confidence = round(min(1.0, confidence + 0.2), 3)
                 flags.append(f"actor[{profile.actor_id}] TTP 매치 → conf +0.2")
+            # spec C1: 다음 기법 예측 (profile + 현재 technique 첫 항목).
+            if self._predictor is not None:
+                cur = next(iter(current_techs), "")
+                predictions = self._predictor.predict(profile, cur)
+                if predictions:
+                    flags.append(f"actor[{profile.actor_id}] 예측 {len(predictions)}건")
 
         self._logger.info(
             "investigation: alert=%s hits=%d trusted=%d degraded=%s ti=%d sb=%d "
@@ -314,9 +347,15 @@ class InvestigationAgent(BaseSOCAgent):
                 vuln_findings=vuln_findings,
                 gnss_jam_findings=gnss_jam_findings,
                 airspace_findings=airspace_findings,
+                predictions=predictions,
             ),
             "trace": ["investigation"],
         }
+        # spec D1: RAGAS 비동기 측정 — 결과 안 기다림 (fire-and-forget).
+        if self._ragas is not None and summary and trusted:
+            import asyncio as _aio
+
+            _aio.create_task(self._evaluate_ragas(alert, summary, trusted))
         if rag_degraded:
             flags.insert(0, "RAG 검색 불가 — 빈 컨텍스트로 강등(대응 계속)")
         if dropped:
@@ -342,6 +381,42 @@ class InvestigationAgent(BaseSOCAgent):
             return None
         actor_id, _ = resolve_actor_id(alert)
         return await self._actor_read.recall(actor_id)
+
+    async def _evaluate_ragas(
+        self, alert: Alert, summary: str, contexts: list[RetrievedChunk]
+    ) -> None:
+        """RAGAS 비동기 측정 + Prometheus 게이지 갱신(spec D1).
+
+        결과는 그래프 머지에 반영 안 됨 — 핫패스 응답이 RAGAS 완료를 기다리지
+        않는다. KPI 누적 + faithfulness 임계 미달 시 경고 로그만 남긴다.
+        """
+        if self._ragas is None:
+            return
+        try:
+            result = await self._ragas.aevaluate(alert, summary, contexts)
+        except Exception as exc:  # noqa: BLE001 — fire-and-forget 보호
+            self._logger.warning("ragas 측정 task 실패: %s", exc)
+            return
+        if result is None:
+            return
+        try:
+            from app.metrics import metrics
+
+            metrics().observe_ragas(
+                result.faithfulness,
+                result.answer_relevancy,
+                result.context_relevancy,
+            )
+        except Exception as exc:  # noqa: BLE001 — 메트릭 모듈 결합 최소화
+            self._logger.warning("ragas metrics 갱신 실패: %s", exc)
+        threshold = self._settings.ragas_faithfulness_threshold
+        if result.faithfulness < threshold:
+            self._logger.warning(
+                "RAGAS faithfulness 저하: alert=%s score=%.2f (< %.2f)",
+                alert.id,
+                result.faithfulness,
+                threshold,
+            )
 
     async def _lookup_gnss_jam(self, lat: float, lon: float) -> list[GnssJamFinding]:
         """GPSJam 회상. 미주입/장애 시 빈 결과."""

@@ -224,6 +224,61 @@ class Settings(BaseSettings):
         description="OpenSky BBox 반경(deg). 0.1 ≒ ±11km.",
     )
 
+    # ── RAGAS 분석 품질 측정 (spec D1) ──────────────
+    ragas_enabled: bool = Field(
+        default=False, description="opt-in — 비동기 RAGAS 측정."
+    )
+    ragas_faithfulness_threshold: float = Field(
+        default=0.7,
+        ge=0.0,
+        le=1.0,
+        description="faithfulness 임계(미달 시 가드 플래그).",
+    )
+    ragas_answer_relevancy_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+    ragas_context_relevancy_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+
+    # ── 공격 시퀀스 예측 (spec C1) ──────────────
+    predict_min_support: int = Field(
+        default=3, ge=1, description="n-gram 채택 최소 빈도."
+    )
+    predict_min_probability: float = Field(
+        default=0.5, ge=0.0, le=1.0, description="조건부 확률 임계."
+    )
+    predict_top_k: int = Field(default=3, ge=1, description="후보 상위 K.")
+
+    # ── 인과 추론 (spec A1) ──────────────
+    causal_rules_path: str = Field(
+        default="core/policy/causal-rules.yaml",
+        description="결정론 인과 룰 yaml 경로.",
+    )
+    causal_llm_explain: bool = Field(
+        default=False, description="LLM 으로 step.explanation 채울지(opt-in)."
+    )
+
+    # ── 위협 피드 (spec T1) ──────────────
+    feed_refresh_hours: int = Field(default=24, ge=1, description="피드 갱신 주기.")
+    feed_user_agent: str = Field(default="pollack-ai-threat-landscape/1.0")
+    feed_added_cap: int = Field(default=100, ge=1, description="자동 적용 상한.")
+    attack_feed_url: str = Field(
+        default=(
+            "https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/"
+            "enterprise-attack.json"
+        )
+    )
+    atlas_feed_url: str = Field(
+        default=(
+            "https://raw.githubusercontent.com/mitre-atlas/atlas-data/main/"
+            "dist/ATLAS.yaml"
+        )
+    )
+    embed3d_feed_url: str = Field(default="")
+    kev_feed_url: str = Field(
+        default=(
+            "https://www.cisa.gov/sites/default/files/feeds/"
+            "known_exploited_vulnerabilities.json"
+        )
+    )
+
     @property
     def ragflow_retrieval_url(self) -> str:
         """RAGFlow 검색 엔드포인트 전체 URL."""
