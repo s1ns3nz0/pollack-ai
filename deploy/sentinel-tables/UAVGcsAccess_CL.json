@@ -1,0 +1,72 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Log Analytics 워크스페이스 이름(dah-data-law)"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/tables",
+      "apiVersion": "2022-10-01",
+      "name": "[concat(parameters('workspaceName'), '/UAVGcsAccess_CL')]",
+      "properties": {
+        "schema": {
+          "name": "UAVGcsAccess_CL",
+          "columns": [
+            {
+              "name": "TimeGenerated",
+              "type": "datetime"
+            },
+            {
+              "name": "SessionId",
+              "type": "string"
+            },
+            {
+              "name": "ClientIp",
+              "type": "string"
+            },
+            {
+              "name": "Transport",
+              "type": "string"
+            },
+            {
+              "name": "Operator",
+              "type": "string"
+            },
+            {
+              "name": "Action",
+              "type": "string"
+            },
+            {
+              "name": "UserAgent",
+              "type": "string"
+            },
+            {
+              "name": "BytesSent",
+              "type": "long"
+            },
+            {
+              "name": "BytesReceived",
+              "type": "long"
+            },
+            {
+              "name": "DurationSec",
+              "type": "real"
+            },
+            {
+              "name": "Result",
+              "type": "string"
+            }
+          ]
+        },
+        "retentionInDays": 30,
+        "totalRetentionInDays": 90
+      }
+    }
+  ]
+}

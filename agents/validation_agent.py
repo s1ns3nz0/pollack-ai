@@ -2,13 +2,19 @@
 
 판정기(Judge)는 주입 가능. 기본 Judge 는 신호-탐지로직 정합성 + ground_truth 로
 결정론적으로 동작(MVP). 실연동 시 LLM-as-Judge 루브릭으로 교체.
+
+spec B1: `ensemble_judges` 를 주입하면 점수형 다중 judge 가중 앙상블 + signal 단독
+hard veto 모드로 동작한다. 미주입 시 기존 단일 callable judge 거동 보존.
 """
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 
 from agents.base import BaseSOCAgent
+from agents.judges.base import Judge as ScoreJudge
+from agents.judges.ensemble import EnsembleResult, ensemble
 from core.models import SOCState, Verdict
 from core.settings import Settings
 
@@ -51,13 +57,28 @@ def signal_judge(state: SOCState) -> Verdict:
         or alert.expected_detection.get("sentinel_rule")
     )
     corroborated = inv is not None and (
-        bool(inv.similar_cases) or inv.confidence >= 0.5
+        bool(inv.similar_cases)
+        or inv.confidence >= 0.5
+        or inv.experience_corroboration > 0  # exp/ 과거 정탐 자문(하한 불변)
+        # spec #1: 외부 GNSS/Airspace 컨텍스트도 corroborated 기여.
+        or any(f.level >= 2 for f in inv.gnss_jam_findings)
+        or any(f.hostile and f.distance_km <= 10.0 for f in inv.airspace_findings)
     )
-    return (
+    verdict = (
         Verdict.TRUE_POSITIVE
         if (has_signal and has_rule and corroborated)
         else Verdict.FALSE_POSITIVE
     )
+    # 맥락 FP 억제(위험 방향): 신뢰 출처·동일 신호패턴 과거 오탐이 있을 때만 TP→FP.
+    # Investigation 이 ReadGate(신뢰 출처 한정) + 부분집합 매칭으로 좁게 산정하므로
+    # 진짜 공격(다른 신호)이나 미신뢰 출처로는 억제되지 않는다.
+    if (
+        verdict == Verdict.TRUE_POSITIVE
+        and inv is not None
+        and inv.suppression_corroboration > 0
+    ):
+        return Verdict.FALSE_POSITIVE
+    return verdict
 
 
 def route_after_validation(state: SOCState) -> str:
@@ -69,22 +90,56 @@ def route_after_validation(state: SOCState) -> str:
     )
 
 
-class ValidationAgent(BaseSOCAgent):
-    """오탐/정탐 판정 Agent."""
+_DEFAULT_WEIGHTS: dict[str, float] = {
+    "signal": 0.4,
+    "llm": 0.3,
+    "experience": 0.3,
+}
 
-    def __init__(self, settings: Settings, judge: Judge = default_judge) -> None:
+
+class ValidationAgent(BaseSOCAgent):
+    """오탐/정탐 판정 Agent.
+
+    두 모드:
+    - 단일 callable judge (기존) — `judge=` 인자.
+    - 다중 점수 judge ensemble (spec B1) — `ensemble_judges=` 인자.
+    """
+
+    def __init__(
+        self,
+        settings: Settings,
+        judge: Judge = default_judge,
+        ensemble_judges: list[ScoreJudge] | None = None,
+        weights: dict[str, float] | None = None,
+        threshold: float = 0.5,
+    ) -> None:
         super().__init__(settings)
         self._judge = judge
+        self._ensemble_judges = ensemble_judges
+        self._weights = weights or _DEFAULT_WEIGHTS
+        self._threshold = threshold
 
     async def run(self, state: SOCState) -> SOCState:
-        """판정 실행.
-
-        Args:
-            state: investigation 까지 완료된 상태.
-
-        Returns:
-            verdict 가 담긴 부분 상태.
-        """
+        """판정 실행."""
+        if self._ensemble_judges:
+            scores = await asyncio.gather(
+                *(j.ascore(state) for j in self._ensemble_judges)
+            )
+            result: EnsembleResult = ensemble(
+                list(scores), self._weights, self._threshold
+            )
+            self._logger.info(
+                "validation: alert=%s verdict=%s composite=%.2f veto=%s",
+                state["alert"].id,
+                result.verdict,
+                result.composite_score,
+                result.veto_triggered,
+            )
+            return {
+                "verdict": result.verdict,
+                "ensemble": result,
+                "trace": ["validation"],
+            }
         verdict = self._judge(state)
         self._logger.info("validation: alert=%s verdict=%s", state["alert"].id, verdict)
         return {"verdict": verdict, "trace": ["validation"]}

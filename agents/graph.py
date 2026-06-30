@@ -10,6 +10,7 @@ Response/Report 의 HITL·자동대응·OSCAL 수준을 좌우한다.
 from __future__ import annotations
 
 from collections.abc import Callable, Coroutine
+from pathlib import Path
 from time import perf_counter
 from typing import Any, cast
 
@@ -19,10 +20,18 @@ from langgraph.graph.state import CompiledStateGraph
 
 from agents.approval_agent import ApprovalAgent
 from agents.investigation_agent import (
+    AirspaceProvider,
     ContextRetriever,
+    GnssJamProvider,
     InvestigationAgent,
+    SandboxDetonator,
     ThreatIntelTool,
+    VulnContext,
 )
+from agents.judges.base import Judge as ScoreJudge
+from agents.judges.experience_judge import ExperienceJudge
+from agents.judges.llm_judge import LlmJudge
+from agents.judges.signal_judge import SignalJudge
 from agents.report_agent import ReportAgent
 from agents.response_agent import ResponseAgent
 from agents.rule_update_agent import RuleUpdateAgent
@@ -33,10 +42,13 @@ from agents.validation_agent import (
     default_judge,
     route_after_validation,
 )
+from core.actors import ActorReadGate, ActorWriteGate, InMemoryActorStore
+from core.experience import MemoryReadGate
 from core.llm import LLMClient
 from core.models import SOCState
 from core.settings import Settings, get_settings
 from core.severity import SeverityEngine
+from tools.rule_publisher import RulePublisher
 
 # LangGraph 노드 시그니처(에이전트 .run 과 동일: 비동기 SOCState→SOCState).
 _NodeFn = Callable[[SOCState], Coroutine[Any, Any, SOCState]]
@@ -67,6 +79,64 @@ def _timed(name: str, fn: _NodeFn) -> _NodeFn:
     return wrapper
 
 
+_GRAPH_DATA = Path(__file__).resolve().parents[1] / "data" / "mitre_attack_graph.yaml"
+
+
+def _default_retriever(settings: Settings) -> ContextRetriever | None:
+    """설정에 따라 기본 검색기를 구성한다.
+
+    RAGFlow 설정이 있으면 평면 RAG 를, `graph_rag_enabled` 이고 그래프 씨앗이 있으면
+    GraphRAG 를 포함한다. 둘이면 `CompositeRetriever` 로 합치고, 하나면 그것을, 아무것도
+    없으면 None(=RAG 생략)을 반환한다.
+    """
+    pieces: list[ContextRetriever] = []
+    if settings.ragflow_api_token.get_secret_value() and settings.ragflow_dataset_id:
+        from tools.ragflow_tool import RagflowRetrievalTool
+
+        pieces.append(RagflowRetrievalTool(settings=settings))
+    if settings.graph_rag_enabled and _GRAPH_DATA.is_file():
+        from tools.graph_retriever import GraphRetriever
+
+        pieces.append(GraphRetriever.from_yaml(_GRAPH_DATA))
+    if not pieces:
+        return None
+    if len(pieces) == 1:
+        return pieces[0]
+    from tools.graph_retriever import CompositeRetriever
+
+    return CompositeRetriever(pieces)
+
+
+def _default_experience(settings: Settings) -> MemoryReadGate | None:
+    """경험메모리 데이터셋이 있으면 RAGFlow 백엔드 읽기 게이트를 구성(없으면 None)."""
+    if not (
+        settings.ragflow_api_token.get_secret_value()
+        and settings.ragflow_exp_dataset_id
+    ):
+        return None
+    from tools.ragflow_experience import RagflowExperienceStore
+
+    return MemoryReadGate(RagflowExperienceStore(settings))
+
+
+def _default_gnss_jam(settings: Settings) -> GnssJamProvider | None:
+    """GPSJam 어댑터를 구성한다(엔드포인트 없으면 None)."""
+    if not settings.gpsjam_endpoint:
+        return None
+    from tools.gnss_jam_tool import GpsJamRetriever
+
+    return GpsJamRetriever(settings)
+
+
+def _default_airspace(settings: Settings) -> AirspaceProvider | None:
+    """OpenSky 어댑터를 구성한다(베이스 URL 없으면 None)."""
+    if not settings.opensky_base_url:
+        return None
+    from tools.airspace_tool import OpenSkyRetriever
+
+    return OpenSkyRetriever(settings)
+
+
 def build_soc_graph(
     *,
     settings: Settings | None = None,
@@ -74,7 +144,17 @@ def build_soc_graph(
     retriever: ContextRetriever | None = None,
     llm: LLMClient | None = None,
     ti: ThreatIntelTool | None = None,
+    experience: MemoryReadGate | None = None,
+    sandbox: SandboxDetonator | None = None,
+    vuln: VulnContext | None = None,
+    rule_publisher: RulePublisher | None = None,
+    gnss_jam: GnssJamProvider | None = None,
+    airspace: AirspaceProvider | None = None,
+    actor_read: ActorReadGate | None = None,
+    actor_write: ActorWriteGate | None = None,
     judge: Judge = default_judge,
+    ensemble_judges: list[ScoreJudge] | None = None,
+    llm_judge_enabled: bool = False,
     hitl: bool = False,
 ) -> CompiledStateGraph[SOCState]:
     """6-에이전트 SOC 파이프라인을 조립해 컴파일된 그래프를 반환한다.
@@ -82,9 +162,13 @@ def build_soc_graph(
     Args:
         settings: 전역 설정(미지정 시 환경에서 로드).
         engine: 심각도 엔진(미지정 시 정책 파일에서 생성).
-        retriever: RAG 리트리버(미지정 시 Investigation 은 빈 컨텍스트).
+        retriever: RAG 리트리버(미지정 시 설정 있으면 RAGFlow 자동 배선, 없으면 생략).
         llm: 요약용 LLM(미지정 시 Investigation 요약은 결정론적 폴백).
         ti: 외부 위협 인텔 도구(미지정 시 IOC 보강 생략).
+        experience: 경험메모리 읽기 게이트(미지정 시 exp 데이터셋 있으면 자동 배선).
+        sandbox: 샌드박스 디토네이터(미지정 시 해시 IOC 분석 생략).
+        vuln: 취약점 컨텍스트(미지정 시 CVE 보강 생략).
+        rule_publisher: Watch List PR 발행기(미지정 시 RuleUpdate 는 proposed 만 산출).
         judge: Validation 판정기(기본은 결정론적 — 판정권을 LLM 에 주지 않음).
         hitl: True 면 고위험 정탐에 운용자 승인 대기(interrupt) 노드 삽입 +
             checkpointer 동반. 호출 시 `config={"configurable":{"thread_id":...}}` 필요.
@@ -94,12 +178,40 @@ def build_soc_graph(
     """
     settings = settings or get_settings()
     engine = engine or SeverityEngine()
+    # 명시 주입이 없고 설정이 있으면 RAGFlow 검색기/경험저장소를 기본 배선(opt-in).
+    if retriever is None:
+        retriever = _default_retriever(settings)
+    if experience is None:
+        experience = _default_experience(settings)
+    if gnss_jam is None:
+        gnss_jam = _default_gnss_jam(settings)
+    if airspace is None:
+        airspace = _default_airspace(settings)
 
-    triage = TriageAgent(settings, engine)
-    investigation = InvestigationAgent(settings, retriever, llm, ti)
-    validation = ValidationAgent(settings, judge)
+    # actor write/read 미주입 시 한 쌍 인메모리 생성(테스트/로컬 데모).
+    if actor_read is None and actor_write is None:
+        _store = InMemoryActorStore()
+        actor_read = ActorReadGate(_store)
+        actor_write = ActorWriteGate(_store)
+    triage = TriageAgent(settings, engine, actor_read=actor_read)
+    investigation = InvestigationAgent(
+        settings,
+        retriever,
+        llm,
+        ti,
+        experience,
+        sandbox,
+        vuln,
+        gnss_jam=gnss_jam,
+        airspace=airspace,
+        actor_read=actor_read,
+    )
+    # spec B1: ensemble_judges 명시 주입 우선. 없고 llm_judge_enabled 일 때만 자동 배선.
+    if ensemble_judges is None and llm_judge_enabled:
+        ensemble_judges = [SignalJudge(), LlmJudge(llm), ExperienceJudge()]
+    validation = ValidationAgent(settings, judge, ensemble_judges=ensemble_judges)
     response = ResponseAgent(settings, engine)
-    rule_update = RuleUpdateAgent(settings)
+    rule_update = RuleUpdateAgent(settings, rule_publisher)
     report = ReportAgent(settings, engine)
 
     graph: StateGraph[SOCState] = StateGraph(SOCState)

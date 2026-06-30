@@ -1,0 +1,60 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Log Analytics 워크스페이스 이름(dah-data-law)"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/tables",
+      "apiVersion": "2022-10-01",
+      "name": "[concat(parameters('workspaceName'), '/UAVImagery_CL')]",
+      "properties": {
+        "schema": {
+          "name": "UAVImagery_CL",
+          "columns": [
+            {
+              "name": "TimeGenerated",
+              "type": "datetime"
+            },
+            {
+              "name": "UAVId",
+              "type": "string"
+            },
+            {
+              "name": "StreamId",
+              "type": "string"
+            },
+            {
+              "name": "MsgType",
+              "type": "string"
+            },
+            {
+              "name": "EventType",
+              "type": "string"
+            },
+            {
+              "name": "FrameRate",
+              "type": "real"
+            },
+            {
+              "name": "GapMs",
+              "type": "long"
+            },
+            {
+              "name": "Resolution",
+              "type": "string"
+            }
+          ]
+        },
+        "retentionInDays": 30,
+        "totalRetentionInDays": 90
+      }
+    }
+  ]
+}

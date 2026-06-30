@@ -1,0 +1,33 @@
+# SOC 워크로드 Application — deploy/k8s 매니페스트를 dah-soc 네임스페이스로 동기화.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dah-soc-workloads
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: dah-soc
+  source:
+    repoURL: https://github.com/s1ns3nz0/pollack-ai.git
+    targetRevision: main
+    path: deploy/k8s
+    # 시크릿 예제는 동기화 제외(실제 시크릿은 sealed-secrets/KeyVault CSI 로 별도 주입).
+    directory:
+      exclude: "15-secret.example.yaml"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dah-soc
+  syncPolicy:
+    automated:
+      prune: true # git 에서 삭제된 리소스는 클러스터에서도 제거
+      selfHeal: true # 수동 드리프트를 git 상태로 자동 복원
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        maxDuration: 2m
+        factor: 2

@@ -1,0 +1,145 @@
+# UAV ATT&CK 커버리지 매트릭스 — 전술별 탐지상태 + 갭 archetype.
+#
+# 출처: 팀 「UAV ATT&CK 매핑표 (Enterprise+ICS)」. status: covered(✅)/planned(🔜)/
+# uncovered(❌). uncovered 는 archetype(A~E)와 대응전략을 함께 보유한다.
+# tools/coverage.py 가 이 파일로 커버리지 KPI·갭 분류·인접추론을 산출한다.
+# 분석/전략 서술: docs/attack-coverage-gaps.md
+
+archetypes:
+  A_pre_compromise:
+    name: "침해 이전·네트워크 밖"
+    strategy: "scope 밖 재분류 + 예방통제(네트워크 격리, EASM)"
+  B_passive_collection:
+    name: "수동 수집/읽기"
+    strategy: "eBPF/Falco 파일·exec 감사 + VNC 세션 카운터(❌→🔜)"
+  C_encrypted_c2:
+    name: "암호·터널·난독 C2"
+    strategy: "메타데이터·행위분석(JA3, 비콘주기, 엔드포인트 화이트리스트)"
+  D_uninstrumented_exfil:
+    name: "미계측 매체/채널 유출"
+    strategy: "텔레메트리 컬럼 추가(SATCOM TxBytes, REST 송신 감사)"
+  E_destruction_prevention:
+    name: "파괴·루트킷·펌웨어모드"
+    strategy: "예방통제(시큐어부트) + 호스트 밖 불변 로그(공백 역탐지)"
+
+# 전술은 킬체인 순서(order)로 정렬 — 인접추론(coverage-by-adjacency)에 사용.
+tactics:
+  - name: Reconnaissance
+    order: 1
+    covered: [T1595, T1592]
+    planned: []
+    uncovered:
+      - { id: T1590, name: "Gather Victim Network Information", archetype: A_pre_compromise }
+      - { id: T1596, name: "Search Open Technical Databases", archetype: A_pre_compromise }
+
+  - name: ResourceDevelopment
+    order: 2
+    covered: []
+    planned: []
+    uncovered:
+      - { id: T1587, name: "Develop Capabilities", archetype: A_pre_compromise }
+      - { id: T1588, name: "Obtain Capabilities", archetype: A_pre_compromise }
+      - { id: T1608, name: "Stage Capabilities", archetype: A_pre_compromise }
+
+  - name: InitialAccess
+    order: 3
+    covered: [T1190, T1195, T1078, T0860, T0864]
+    planned: [T1133]
+    uncovered: []
+
+  - name: Execution
+    order: 4
+    covered: [T1059, T1106, T1204, T0821, T1692.001]
+    planned: []
+    uncovered: []
+
+  - name: Persistence
+    order: 5
+    covered: [T1556, T1542.001, T1078, T1546]
+    planned: []
+    uncovered: []
+
+  - name: PrivilegeEscalation
+    order: 6
+    covered: [T1068, T1078]
+    planned: []
+    uncovered: []
+
+  - name: StealthEvasion
+    order: 7
+    covered: [T1070, T1036, T1601, T1692.001, T0878]
+    planned: []
+    uncovered:
+      - { id: T1014, name: "Rootkit", archetype: E_destruction_prevention }
+
+  - name: Discovery
+    order: 8
+    covered: [T0842, T0887]
+    planned: [T0840]
+    uncovered: []
+
+  - name: LateralMovement
+    order: 9
+    covered: [T1078, T0843, T1210, T1570, T1021, T1550, T1694, T1080]
+    planned: [T1563]
+    uncovered: []
+
+  - name: Collection
+    order: 10
+    covered: [T1185]
+    planned: []
+    uncovered:
+      - { id: T1125, name: "Video Capture", archetype: B_passive_collection }
+      - { id: T1119, name: "Automated Collection", archetype: B_passive_collection }
+      - { id: T0845, name: "Program Upload", archetype: B_passive_collection }
+      - { id: T0801, name: "Monitor Process State", archetype: B_passive_collection }
+      - { id: T0887, name: "Wireless Sniffing (collection)", archetype: B_passive_collection }
+      - { id: T1113, name: "Screen Capture", archetype: B_passive_collection }
+      - { id: T1005, name: "Data from Local System", archetype: B_passive_collection }
+      - { id: T0868, name: "Detect Operating Mode", archetype: B_passive_collection }
+      - { id: T0861, name: "Point & Tag Identification", archetype: B_passive_collection }
+      - { id: T1056, name: "Input Capture", archetype: B_passive_collection }
+      - { id: T1074, name: "Data Staged", archetype: B_passive_collection }
+      - { id: T1560, name: "Archive Collected Data", archetype: B_passive_collection }
+
+  - name: CommandAndControl
+    order: 11
+    covered: [T1071, T1571, T1090, T1008, T1105, T1095, T1104, T1219]
+    planned: [T1659]
+    uncovered:
+      - { id: T1572, name: "Protocol Tunneling", archetype: C_encrypted_c2 }
+      - { id: T1573, name: "Encrypted Channel", archetype: C_encrypted_c2 }
+      - { id: T1001, name: "Data Obfuscation", archetype: C_encrypted_c2 }
+      - { id: T1132, name: "Data Encoding", archetype: C_encrypted_c2 }
+
+  - name: Exfiltration
+    order: 12
+    covered: [T1041, T1020, T1029, T1048, T1030]
+    planned: []
+    uncovered:
+      - { id: T1011, name: "Exfiltration Over Other Network Medium", archetype: D_uninstrumented_exfil }
+      - { id: T1567, name: "Exfiltration Over Web Service", archetype: D_uninstrumented_exfil }
+
+  - name: ImpairProcessControl
+    order: 13
+    covered: [T0836, T1693, T1692, T0806]
+    planned: []
+    uncovered: []
+
+  - name: InhibitResponseFunction
+    order: 14
+    covered: [T0838, T0814, T1695, T1691.002, T0881, T0816, T0892, T0835]
+    planned: []
+    uncovered:
+      - { id: T0878, name: "Alarm Suppression", archetype: E_destruction_prevention }
+      - { id: T0809, name: "Data Destruction", archetype: E_destruction_prevention }
+      - { id: T0800, name: "Activate Firmware Update Mode", archetype: E_destruction_prevention }
+      - { id: T0851, name: "Rootkit", archetype: E_destruction_prevention }
+
+  - name: Impact
+    order: 15
+    covered: [T0832, T0827, T0880, T0879, T1498, T1565, T0831, T0813, T0826, T0837, T0828, T1499, T1529, T1495]
+    planned: [T0815, T0829, T1531]
+    uncovered:
+      - { id: T0882, name: "Theft of Operational Information", archetype: B_passive_collection }
+      - { id: T1485, name: "Data Destruction", archetype: E_destruction_prevention }

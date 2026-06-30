@@ -1,0 +1,26 @@
+# SOC 모니터링 자원(ServiceMonitor + Grafana 대시보드) 동기화.
+# sync-wave 1: kube-prometheus-stack(CRD) 설치 후 적용.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: soc-monitoring
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: dah-soc
+  source:
+    repoURL: https://github.com/s1ns3nz0/pollack-ai.git
+    targetRevision: main
+    path: deploy/monitoring
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dah-soc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

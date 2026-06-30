@@ -20,3 +20,31 @@ class PolicyError(SOCPlatformError):
 
 class LLMError(SOCPlatformError):
     """LLM(요약/판정) 호출 오류."""
+
+
+class ExperienceStoreError(SOCPlatformError):
+    """경험메모리(`exp/`) 저장소 읽기/쓰기 오류."""
+
+
+class ThreatIntelError(SOCPlatformError):
+    """외부 위협 인텔(TI) 조회 오류(연동/응답 검증 실패)."""
+
+
+class SandboxError(SOCPlatformError):
+    """샌드박스 디토네이션/분석 오류(연동/응답 검증 실패)."""
+
+
+class VulnLookupError(SOCPlatformError):
+    """취약점(CVE) 컨텍스트 조회 오류(연동/응답 검증 실패)."""
+
+
+class RulePublishError(SOCPlatformError):
+    """탐지룰 저장소(Watch List PR) 발행 오류(연동/응답 검증 실패)."""
+
+
+class GraphRetrievalError(SOCPlatformError):
+    """지식그래프(GraphRAG) 로드/검색 오류."""
+
+
+class CoverageDataError(SOCPlatformError):
+    """ATT&CK 커버리지 매트릭스 로드/검증 오류."""

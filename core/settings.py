@@ -42,6 +42,10 @@ class Settings(BaseSettings):
         default="",
         description="검색 대상 지식베이스(dataset) ID.",
     )
+    ragflow_exp_dataset_id: str = Field(
+        default="",
+        description="경험메모리(exp/) 적립·회상 대상 dataset ID. 비면 영속화 비활성.",
+    )
     ragflow_similarity_threshold: float = Field(
         default=0.2,
         ge=0.0,
@@ -55,6 +59,10 @@ class Settings(BaseSettings):
         description="벡터 유사도 가중치(나머지는 BM25).",
     )
     ragflow_top_k: int = Field(default=1024, gt=0, description="벡터 후보 풀 크기.")
+    graph_rag_enabled: bool = Field(
+        default=False,
+        description="True 면 GraphRAG(TTP 그래프) 검색기를 기본 배선에 합성.",
+    )
     ragflow_timeout_seconds: float = Field(
         default=60.0,
         gt=0.0,
@@ -78,6 +86,142 @@ class Settings(BaseSettings):
         default=120.0,
         gt=0.0,
         description="LLM 요청 타임아웃(초).",
+    )
+
+    # ── 외부 위협 인텔(TI) — 멀티소스 어댑터 ──────────────
+    virustotal_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        description="VirusTotal API 키(x-apikey). 비면 VT 어댑터 비활성.",
+    )
+    virustotal_base_url: str = Field(
+        default="https://www.virustotal.com/api/v3",
+        description="VirusTotal v3 API 베이스 URL.",
+    )
+    greynoise_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        description="GreyNoise Community API 키. 비면 어댑터 비활성.",
+    )
+    greynoise_base_url: str = Field(
+        default="https://api.greynoise.io/v3/community",
+        description="GreyNoise Community API 베이스 URL.",
+    )
+    abuseipdb_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        description="AbuseIPDB API 키(Key 헤더). 비면 어댑터 비활성.",
+    )
+    abuseipdb_base_url: str = Field(
+        default="https://api.abuseipdb.com/api/v2",
+        description="AbuseIPDB v2 API 베이스 URL.",
+    )
+    threatfox_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        description="ThreatFox(abuse.ch) Auth-Key. 비면 어댑터 비활성.",
+    )
+    threatfox_base_url: str = Field(
+        default="https://threatfox-api.abuse.ch/api/v1",
+        description="ThreatFox API 베이스 URL.",
+    )
+    ti_timeout_seconds: float = Field(
+        default=20.0,
+        gt=0.0,
+        description="TI 조회 요청 타임아웃(초).",
+    )
+
+    # ── 샌드박스 디토네이션 ──────────────
+    hybridanalysis_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        description="Hybrid Analysis(Falcon Sandbox) API 키. 비면 어댑터 비활성.",
+    )
+    hybridanalysis_base_url: str = Field(
+        default="https://www.hybrid-analysis.com/api/v2",
+        description="Hybrid Analysis v2 API 베이스 URL.",
+    )
+    sandbox_timeout_seconds: float = Field(
+        default=30.0,
+        gt=0.0,
+        description="샌드박스 조회 요청 타임아웃(초).",
+    )
+
+    # ── 취약점 컨텍스트 (CISA KEV / NVD) ──────────────
+    cisa_kev_url: str = Field(
+        default=(
+            "https://www.cisa.gov/sites/default/files/feeds/"
+            "known_exploited_vulnerabilities.json"
+        ),
+        description="CISA KEV 카탈로그 JSON 피드 URL(공개, 키 불요).",
+    )
+    nvd_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        description="NVD API 키(선택 — 없으면 낮은 레이트리밋).",
+    )
+    nvd_base_url: str = Field(
+        default="https://services.nvd.nist.gov/rest/json/cves/2.0",
+        description="NVD CVE API v2.0 베이스 URL.",
+    )
+    vuln_timeout_seconds: float = Field(
+        default=20.0,
+        gt=0.0,
+        description="취약점 조회 요청 타임아웃(초).",
+    )
+
+    # ── 탐지룰 저장소 (Watch List 자동 갱신) ──────────────
+    sentinel_content_repo: str = Field(
+        default="s1ns3nz0/dah-sentinel-content",
+        description="Watch List/룰 콘텐츠 저장소(owner/name).",
+    )
+    github_token: SecretStr = Field(
+        default=SecretStr(""),
+        description="GitHub PAT(Watch List PR 생성용). 비면 publisher 비활성.",
+    )
+    github_base_url: str = Field(
+        default="https://api.github.com",
+        description="GitHub API 베이스 URL.",
+    )
+    rule_branch_prefix: str = Field(
+        default="fix/watchlist",
+        description="Watch List PR 브랜치 접두(저장소 컨벤션: FP 개선=fix).",
+    )
+    rule_base_branch: str = Field(
+        default="main",
+        description="Watch List PR 의 베이스 브랜치(머지 대상).",
+    )
+    github_timeout_seconds: float = Field(
+        default=20.0,
+        gt=0.0,
+        description="GitHub API 요청 타임아웃(초).",
+    )
+
+    # ── 외부 공역/GNSS 컨텍스트 (Airspace & GNSS spec #1) ──────────
+    gpsjam_endpoint: str = Field(
+        default="https://gpsjam.org/api/",
+        description="GPSJam 공개 REST 엔드포인트. 비면 어댑터 비활성.",
+    )
+    gpsjam_timeout_seconds: float = Field(
+        default=15.0, gt=0.0, description="GPSJam 호출 타임아웃(초)."
+    )
+    opensky_base_url: str = Field(
+        default="https://opensky-network.org/api",
+        description="OpenSky Network REST 베이스 URL.",
+    )
+    opensky_username: SecretStr = Field(
+        default=SecretStr(""),
+        description="OpenSky 사용자명(익명 = 400req/day).",
+    )
+    opensky_password: SecretStr = Field(
+        default=SecretStr(""),
+        description="OpenSky 비밀번호.",
+    )
+    opensky_timeout_seconds: float = Field(
+        default=15.0, gt=0.0, description="OpenSky 호출 타임아웃(초)."
+    )
+    airspace_known_friends: list[str] = Field(
+        default_factory=list,
+        description="콜사인 화이트리스트 — 등록 자산(외 → hostile).",
+    )
+    airspace_bbox_deg: float = Field(
+        default=0.1,
+        gt=0.0,
+        description="OpenSky BBox 반경(deg). 0.1 ≒ ±11km.",
     )
 
     @property

@@ -1,0 +1,22 @@
+# app-of-apps 루트 — deploy/argocd/apps 하위 Application 들을 선언적으로 관리.
+# 이것만 한 번 apply 하면 이후 모든 앱은 git 으로 추가/변경된다(완전 GitOps).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dah-soc-root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: dah-soc
+  source:
+    repoURL: https://github.com/s1ns3nz0/pollack-ai.git
+    targetRevision: main
+    path: deploy/argocd/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

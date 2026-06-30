@@ -1,0 +1,68 @@
+# Deployment A — SOC 핫패스(지연민감). 상태 보유(AlertCorrelator 등)로 single-replica.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: soc-hotpath
+  namespace: dah-soc
+  labels:
+    app: soc-hotpath
+    soc.role: hotpath
+spec:
+  replicas: 1 # 상태 보유 → 단일 레플리카(ADR 0002 D6)
+  strategy:
+    type: Recreate # 상태 컴포넌트 중복 방지
+  selector:
+    matchLabels:
+      app: soc-hotpath
+  template:
+    metadata:
+      labels:
+        app: soc-hotpath
+    spec:
+      containers:
+        - name: hotpath
+          image: ghcr.io/s1ns3nz0/uav-ai-soc:latest
+          command: ["python", "-m", "app.hotpath"]
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: soc-config
+            - secretRef:
+                name: soc-secrets
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: soc-hotpath
+  namespace: dah-soc
+  labels:
+    app: soc-hotpath
+    monitoring: enabled # ServiceMonitor 선택 라벨
+spec:
+  selector:
+    app: soc-hotpath
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

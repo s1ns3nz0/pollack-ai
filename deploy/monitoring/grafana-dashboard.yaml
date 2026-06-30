@@ -1,0 +1,93 @@
+# Grafana 대시보드 — UAV SOC KPI. grafana_dashboard 라벨로 사이드카가 자동 적재.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: soc-grafana-dashboard
+  namespace: dah-soc
+  labels:
+    grafana_dashboard: "1"
+data:
+  uav-soc-kpi.json: |
+    {
+      "title": "UAV AI SOC — KPI",
+      "uid": "uav-soc-kpi",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "tags": ["uav", "soc"],
+      "templating": {
+        "list": [
+          {
+            "name": "DS_PROMETHEUS",
+            "type": "datasource",
+            "query": "prometheus",
+            "current": {}
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "ATT&CK 커버리지",
+          "type": "stat",
+          "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "soc_attack_coverage_ratio", "legendFormat": "coverage"},
+            {"expr": "soc_attack_addressable_ratio", "legendFormat": "addressable"}
+          ]
+        },
+        {
+          "id": 2,
+          "title": "갭(archetype 별)",
+          "type": "piechart",
+          "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "soc_attack_gap_total", "legendFormat": "{{archetype}}"}
+          ]
+        },
+        {
+          "id": 3,
+          "title": "판정 비율",
+          "type": "piechart",
+          "gridPos": {"h": 6, "w": 6, "x": 12, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "soc_verdict_total", "legendFormat": "{{verdict}}"}
+          ]
+        },
+        {
+          "id": 4,
+          "title": "전술별 미탐지 기법",
+          "type": "barchart",
+          "gridPos": {"h": 6, "w": 6, "x": 18, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "soc_attack_tactic_uncovered", "legendFormat": "{{tactic}}"}
+          ]
+        },
+        {
+          "id": 5,
+          "title": "경보 처리율(/s)",
+          "type": "timeseries",
+          "gridPos": {"h": 7, "w": 12, "x": 0, "y": 6},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "rate(soc_alerts_total[5m])", "legendFormat": "alerts/s"}
+          ]
+        },
+        {
+          "id": 6,
+          "title": "노드 평균 지연(ms)",
+          "type": "timeseries",
+          "gridPos": {"h": 7, "w": 12, "x": 12, "y": 6},
+          "fieldConfig": {"defaults": {"unit": "ms"}},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "soc_node_latency_avg_ms", "legendFormat": "{{node}}"}
+          ]
+        }
+      ]
+    }
