@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import time
 
+from agents.outcome_probe_agent import OutcomeProbeAgent
 from agents.threat_landscape_agent import ThreatLandscapeAgent
 from app.health import serve_in_background
 from core.settings import Settings, get_settings
@@ -23,6 +24,7 @@ _logger = get_logger("learning")
 
 async def run_cycle(
     threat_landscape: ThreatLandscapeAgent | None = None,
+    outcome_probe: OutcomeProbeAgent | None = None,
     last_landscape_refresh: list[float] | None = None,
     settings: Settings | None = None,
 ) -> None:
@@ -35,6 +37,16 @@ async def run_cycle(
         settings: 전역 설정. 미주입 시 get_settings().
     """
     _logger.info("learning 사이클 tick")
+    if outcome_probe is not None:
+        try:
+            report = await outcome_probe.run()
+            _logger.info(
+                "outcome_probe: applied=%d errors=%d",
+                report.auto_applied,
+                len(report.errors),
+            )
+        except Exception as exc:  # noqa: BLE001 - 사이클 보호
+            _logger.warning("outcome_probe 실패(계속): %s", exc)
     if threat_landscape is None:
         return
     s = settings or get_settings()
