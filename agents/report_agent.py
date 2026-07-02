@@ -12,6 +12,7 @@ from core import oscal
 from core.actors import ActorReadGate
 from core.causal import CausalReasoner
 from core.coerce import opt_str
+from core.lineage import LineageCollector
 from core.models import SOCReport, SOCState, Verdict
 from core.settings import Settings
 from core.severity import SeverityEngine
@@ -26,11 +27,13 @@ class ReportAgent(BaseSOCAgent):
         engine: SeverityEngine,
         reasoner: CausalReasoner | None = None,
         actor_read: ActorReadGate | None = None,
+        lineage: LineageCollector | None = None,
     ) -> None:
         super().__init__(settings)
         self._engine = engine
         self._reasoner = reasoner
         self._actor_read = actor_read
+        self._lineage = lineage
 
     async def run(self, state: SOCState) -> SOCState:
         """리포트 + OSCAL 증거 구성."""
@@ -82,6 +85,8 @@ class ReportAgent(BaseSOCAgent):
         evidence = oscal.build_evidence(state, evidence_level)
         if report.causal_summary is not None:
             evidence.causal_chain = report.causal_summary
+        if self._lineage is not None:
+            evidence.lineage = self._lineage.snapshot(state)
 
         self._logger.info(
             "report: alert=%s severity=%s verdict=%s hunts=%d causal=%s",

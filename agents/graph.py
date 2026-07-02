@@ -45,6 +45,7 @@ from agents.validation_agent import (
 from core.actors import ActorReadGate, ActorWriteGate, InMemoryActorStore
 from core.causal import CausalReasoner
 from core.experience import MemoryReadGate
+from core.lineage import LineageCollector
 from core.llm import LLMClient
 from core.models import SOCState
 from core.predictor import SequencePredictor
@@ -157,6 +158,7 @@ def build_soc_graph(
     ragas: object | None = None,
     predictor: object | None = None,
     reasoner: CausalReasoner | None = None,
+    lineage: LineageCollector | None = None,
     judge: Judge = default_judge,
     ensemble_judges: list[ScoreJudge] | None = None,
     llm_judge_enabled: bool = False,
@@ -238,7 +240,16 @@ def build_soc_graph(
     validation = ValidationAgent(settings, judge, ensemble_judges=ensemble_judges)
     response = ResponseAgent(settings, engine)
     rule_update = RuleUpdateAgent(settings, rule_publisher)
-    report = ReportAgent(settings, engine, reasoner=reasoner, actor_read=actor_read)
+    # spec D-1: lineage opt-in.
+    if lineage is None and settings.lineage_enabled:
+        lineage = LineageCollector(settings)
+    report = ReportAgent(
+        settings,
+        engine,
+        reasoner=reasoner,
+        actor_read=actor_read,
+        lineage=lineage,
+    )
 
     graph: StateGraph[SOCState] = StateGraph(SOCState)
     # 노드는 KPI 타이밍 래퍼(_timed)로 감싸 등록. add_node 오버로드는 바운드 메서드는

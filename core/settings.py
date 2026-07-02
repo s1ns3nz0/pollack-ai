@@ -279,6 +279,12 @@ class Settings(BaseSettings):
         )
     )
 
+    # ── Data Lineage (spec D-1) ──────────────
+    lineage_enabled: bool = Field(
+        default=False,
+        description="opt-in — Report 노드가 라인리지 스냅샷을 OSCAL evidence 에 임베드.",
+    )
+
     @property
     def ragflow_retrieval_url(self) -> str:
         """RAGFlow 검색 엔드포인트 전체 URL."""

@@ -604,6 +604,24 @@ class SOCReport(BaseModel):
     )
 
 
+class LineageSnapshot(BaseModel):
+    """방산 재현성 라인리지 스냅샷(spec D-1).
+
+    Report 노드가 일괄 수집. 방산 컴플라이언스(NIST SP 800-53 AU/CM/SI) 감사 추적.
+    시크릿은 pydantic SecretStr 자동 마스킹 후 fingerprint 해싱 — 원본 노출 방지.
+    """
+
+    captured_at: str
+    code_version: str = "unknown"
+    llm_provider: str = ""
+    llm_model: str = ""
+    policy_hashes: dict[str, str] = Field(default_factory=dict)
+    settings_fingerprint: str = ""
+    ensemble_weights: dict[str, float] = Field(default_factory=dict)
+    total_latency_ms: float = Field(default=0.0, ge=0.0)
+    node_latencies: dict[str, float] = Field(default_factory=dict)
+
+
 class OscalEvidence(BaseModel):
     """OSCAL 증거(등급별 차등). 실제 OSCAL 모델은 인프라 lane."""
 
@@ -620,6 +638,9 @@ class OscalEvidence(BaseModel):
     severity_rationale: list[str] | None = None
     causal_chain: CausalChain | None = Field(
         default=None, description="spec A1: OSCAL evidence 임베드용."
+    )
+    lineage: LineageSnapshot | None = Field(
+        default=None, description="spec D-1: 방산 재현성 라인리지 임베드."
     )
 
 
