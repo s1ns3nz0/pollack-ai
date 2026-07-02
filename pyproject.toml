@@ -127,6 +127,7 @@ warn_return_any = true
 # 서드파티 타입 스텁 없는 패키지 허용
 [[tool.mypy.overrides]]
 module = [
+    "agents.auto_kql_rule_agent",
     "datasets",
     "datasets.*",
     "graphrag.*",
