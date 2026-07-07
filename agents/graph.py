@@ -52,6 +52,7 @@ from core.lineage import LineageCollector
 from core.llm import LLMClient
 from core.models import SOCState
 from core.predictor import PredictionMatcher, SequencePredictor
+from core.recovery import RecoveryMatrix, RecoveryPlanner
 from core.settings import Settings, get_settings
 from core.severity import SeverityEngine
 from core.staging import DefenseStager
@@ -271,6 +272,13 @@ def build_soc_graph(
         )
     except SOCPlatformError:
         coa_planner = None
+    # recovery: coverage + recovery-matrix.yaml 있으면 축출/복구 플래너 자동 배선.
+    try:
+        recovery_planner: RecoveryPlanner | None = RecoveryPlanner(
+            CoverageMatrix.from_yaml(), RecoveryMatrix.from_yaml()
+        )
+    except SOCPlatformError:
+        recovery_planner = None
     report = ReportAgent(
         settings,
         engine,
@@ -279,6 +287,7 @@ def build_soc_graph(
         lineage=lineage,
         stager=stager,
         coa_planner=coa_planner,
+        recovery_planner=recovery_planner,
     )
 
     graph: StateGraph[SOCState] = StateGraph(SOCState)
