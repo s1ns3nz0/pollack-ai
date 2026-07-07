@@ -1,0 +1,100 @@
+# =============================================================================
+# BAS(Breach & Attack Simulation) 시나리오 세트 — 방어 상시 검증
+# -----------------------------------------------------------------------------
+# "우리 탐지룰이 진짜 이 공격을 막나" 를 결정론으로 상시 검증한다. 각 공격 케이스를
+# 방어 판정(신호 존재 + 매칭 탐지룰 존재)에 통과시켜 탐지 성공/미탐(gap)을 집계하고,
+# tactic·STRIDE 별 커버리지를 산출한다. detection_rule 이 비면 = 미탐 갭(방어 공백).
+#
+# STRIDE(UAV STRIDE 모델, 2025 IET): S(Spoofing) T(Tampering) R(Repudiation)
+#   I(Info Disclosure) D(DoS) E(Elevation of Privilege). STRIDE 기능이 재사용한다.
+# tactic 키는 data/attack_coverage.yaml tactic 이름과 일치.
+# =============================================================================
+
+version: 0.1
+owner: 황준식
+
+scenarios:
+  - id: S1-GNSS-SPOOF
+    name: GPS/GNSS 스푸핑
+    signals: ["GNSS-INS 잔차 급증", "C/N0 비정상 상승"]
+    detection_rule: uav_gps_spoof_residual.yml
+    tactic: ImpairProcessControl
+    stride: [S, T]
+
+  - id: S2-C2-HIJACK
+    name: C2 재밍·하이재킹
+    signals: ["지상국 미발신 명령 수신", "명령 시퀀스 불연속"]
+    detection_rule: uav_c2_unauthorized_cmd.yml
+    tactic: CommandAndControl
+    stride: [S, E]
+
+  - id: S3-SATCOM-MITM
+    name: SATCOM MITM
+    signals: ["MAC 검증 실패율 상승", "페이로드 체크섬 불일치"]
+    detection_rule: uav_satcom_integrity_fail.yml
+    tactic: CommandAndControl
+    stride: [T, I]
+
+  - id: S4-FW-TAMPER
+    name: 펌웨어·공급망 변조
+    signals: ["펌웨어 서명·해시 불일치", "SBOM 미등록 컴포넌트"]
+    detection_rule: uav_fw_signature_mismatch.yml
+    tactic: Persistence
+    stride: [T, E]
+
+  - id: S5-RAG-POISON
+    name: RAG 포이즈닝(AI SOC)
+    signals: ["정책 기대등급-판정 괴리", "미서명 컨텍스트 검색"]
+    detection_rule: aisoc_severity_anomaly.yml
+    tactic: Impact
+    stride: [T, E]
+
+  - id: S6-GCS-COMPROMISE
+    name: GCS 침해·횡적확산
+    signals: ["비정상 로그인", "다수 기체 재지정"]
+    detection_rule: gcs_mass_retasking.yml
+    tactic: LateralMovement
+    stride: [S, E]
+
+  - id: S7-UGV-HIJACK
+    name: UGV 원격조종 탈취
+    signals: ["제어 두절", "탈취 자격증명 재사용"]
+    detection_rule: ugv_teleop_hijack_capture.yml
+    tactic: CommandAndControl
+    stride: [S, E]
+
+  - id: S8-ONBOARD-AI-EVADE
+    name: 온보드 AI 적대공격
+    signals: ["센서간 표적 불일치", "탐지 신뢰도 이상분포"]
+    detection_rule: onboard_ai_adversarial_evade.yml
+    tactic: Impact
+    stride: [T, I]
+
+  - id: S9-SWARM-SATURATION
+    name: 군집 포화·SOC 과부하
+    signals: ["경보 레이트 이상", "다축 상관 클러스터"]
+    detection_rule: swarm_saturation_alertstorm.yml
+    tactic: InhibitResponseFunction
+    stride: [D]
+
+  - id: S10-SATCOM-DISABLE
+    name: SATCOM 단말 무력화
+    signals: ["다수 단말 동시 접속실패", "관리채널 이상"]
+    detection_rule: satcom_terminal_mass_failure.yml
+    tactic: InhibitResponseFunction
+    stride: [D]
+
+  - id: S11-MOBILE-GCS
+    name: 모바일/전술 GCS 침해
+    signals: ["비인가 앱", "세션 토큰 재사용"]
+    detection_rule: mobile_gcs_compromise.yml
+    tactic: LateralMovement
+    stride: [S, R, E]
+
+  # 미탐 갭 케이스 — 탐지룰 미보유(BAS 가 방어 공백으로 표기).
+  - id: S12-COVERT-EXFIL
+    name: 은닉 매체 데이터 유출(미계측 채널)
+    signals: ["미계측 매체 대용량 전송 흔적"]
+    detection_rule: ""
+    tactic: Exfiltration
+    stride: [I]
