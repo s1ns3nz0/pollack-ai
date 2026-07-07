@@ -196,7 +196,33 @@ def render_text() -> str:
         out.append(_line("soc_prediction_hit_ratio", pred["hit_ratio"]))
 
     out.extend(_coverage_metrics())
+    out.extend(_bas_metrics())
     return "\n".join(out) + "\n"
+
+
+def _bas_metrics() -> list[str]:
+    """BAS 방어 검증 게이지(시나리오 없으면 빈 목록)."""
+    try:
+        from core.bas import BASRunner
+
+        report = BASRunner.from_yaml().run()
+    except Exception:  # noqa: BLE001 - 메트릭 조회 실패가 스크레이프를 깨지 않게
+        return []
+    out: list[str] = [
+        "# HELP soc_bas_detection_ratio BAS 방어 검증 탐지 비율(detected/total)",
+        "# TYPE soc_bas_detection_ratio gauge",
+        _line("soc_bas_detection_ratio", report.detection_ratio),
+        "# HELP soc_bas_gap_total BAS 미탐(방어 공백) 시나리오 수",
+        "# TYPE soc_bas_gap_total gauge",
+        _line("soc_bas_gap_total", len(report.gaps)),
+        "# HELP soc_bas_stride_detection_ratio STRIDE 카테고리별 탐지 비율",
+        "# TYPE soc_bas_stride_detection_ratio gauge",
+    ]
+    for cat, stat in sorted(report.by_stride.items()):
+        out.append(
+            _line("soc_bas_stride_detection_ratio", stat.ratio, f'{{stride="{cat}"}}')
+        )
+    return out
 
 
 def _coverage_metrics() -> list[str]:
