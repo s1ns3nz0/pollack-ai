@@ -558,6 +558,26 @@ class CoaOption(BaseModel):
     stage: str = "current"
 
 
+class MissionContinuity(BaseModel):
+    """자산 손상 시 임무 지속성 판정 한 건(graceful degradation).
+
+    DoD mission assurance: 손상된 능력으로라도 임무를 계속할 수 있는지 + 대체 경로.
+
+    Attributes:
+        asset_id: 손상 자산 id.
+        level: SUSTAINED(저하 지속) | MINIMAL(핵심 안전능력만) | ABORT(임무 불가).
+        capability_lost: 손실된 능력 서술.
+        fallback: 대체 능력·경로(페일오버).
+        sustains: 임무 완수 가능 여부(SUSTAINED=True).
+    """
+
+    asset_id: str
+    level: str
+    capability_lost: str = ""
+    fallback: str = ""
+    sustains: bool = False
+
+
 class RecoveryStep(BaseModel):
     """축출/복구 절차 한 단계(D3FEND Evict/Restore).
 
@@ -723,6 +743,10 @@ class SOCReport(BaseModel):
     recovery_plan: RecoveryPlan | None = Field(
         default=None,
         description="정탐 확정 시 공격자 축출→복구→검증 절차(D3FEND Evict/Restore).",
+    )
+    mission_continuity: MissionContinuity | None = Field(
+        default=None,
+        description="graceful degradation: 손상 자산 임무 지속성 등급 + 대체경로.",
     )
     causal_summary: CausalChain | None = Field(
         default=None, description="spec A1: 결정론 인과 체인 요약."

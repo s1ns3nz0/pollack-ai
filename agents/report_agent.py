@@ -15,11 +15,13 @@ from core.actors import ActorReadGate
 from core.causal import CausalReasoner
 from core.coa import CoaPlanner
 from core.coerce import opt_str
+from core.degradation import DegradationAssessor
 from core.lineage import LineageCollector
 from core.models import (
     Alert,
     CoaOption,
     InvestigationResult,
+    MissionContinuity,
     RecoveryPlan,
     SOCReport,
     SOCState,
@@ -45,11 +47,13 @@ class ReportAgent(BaseSOCAgent):
         stager: DefenseStager | None = None,
         coa_planner: CoaPlanner | None = None,
         recovery_planner: RecoveryPlanner | None = None,
+        degradation: DegradationAssessor | None = None,
     ) -> None:
         super().__init__(settings)
         self._engine = engine
         self._coa_planner = coa_planner
         self._recovery_planner = recovery_planner
+        self._degradation = degradation
         self._reasoner = reasoner
         self._actor_read = actor_read
         self._lineage = lineage
@@ -73,6 +77,11 @@ class ReportAgent(BaseSOCAgent):
 
         coa_options = await self._build_coa(alert, inv)
         recovery_plan = await self._build_recovery(alert, verdict)
+        mission_continuity: MissionContinuity | None = None
+        if self._degradation is not None:
+            mission_continuity = self._degradation.assess(alert, verdict)
+            if mission_continuity is not None and mission_continuity.level == "ABORT":
+                metrics().record_mission_abort()
 
         report = SOCReport(
             alert_id=alert.id,
@@ -90,6 +99,7 @@ class ReportAgent(BaseSOCAgent):
             staged_defenses=staged_defenses,
             coa_options=coa_options,
             recovery_plan=recovery_plan,
+            mission_continuity=mission_continuity,
         )
         # kill chain: 후반단계 도달 시 guardrail 노출 + 메트릭 계측.
         if alert.kill_chain_advanced:

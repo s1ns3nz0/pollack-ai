@@ -1,0 +1,69 @@
+# =============================================================================
+# Degradation Matrix — 자산 손상 시 임무 지속성 등급 + 대체 능력(graceful degradation)
+# -----------------------------------------------------------------------------
+# DoD mission assurance: 공격으로 자산이 손상돼도 "저하된 능력으로라도 임무를 계속"
+# 할 수 있는지 판정한다. 정탐 확정 시 손상 자산(alert.asset_id)을 조회해 임무 지속성
+# 등급 + 손실 능력 + 대체 경로(fallback)를 report 에 제시한다(실행권은 페일오버 절차).
+#
+# level: SUSTAINED(저하됐으나 임무 지속) | MINIMAL(핵심 안전능력만, 회귀) | ABORT(임무 불가)
+# sustains: 임무 완수 가능 여부(SUSTAINED=True, MINIMAL/ABORT=False).
+# 자산 id 는 asset-tiers.yaml assets[].id 와 일치.
+# =============================================================================
+
+version: 0.1
+owner: 황준식
+
+assets:
+  GNSS:
+    level: SUSTAINED
+    capability_lost: "위성항법 정확도"
+    fallback: "INS/관성항법 단독 전환 + 마지막 신뢰좌표 기준 항법 지속"
+    sustains: true
+
+  C2_LINK:
+    level: MINIMAL
+    capability_lost: "실시간 지상 지휘통제"
+    fallback: "자율 페일세이프 모드 + 대체 링크(SATCOM/LOS) 시도, 미복구 시 RTB"
+    sustains: false
+
+  SATCOM:
+    level: SUSTAINED
+    capability_lost: "위성 데이터링크(원거리 C2/텔레메트리)"
+    fallback: "LOS 직접링크·중계 대체망 전환, 링크 이중화로 임무 지속"
+    sustains: true
+
+  GCS:
+    level: SUSTAINED
+    capability_lost: "1차 지상통제소 지휘"
+    fallback: "백업 GCS 로 지휘권 이관, 저하된 감시로 임무 지속"
+    sustains: true
+
+  AUTOPILOT:
+    level: ABORT
+    capability_lost: "비행제어(기본 비행 안정성)"
+    fallback: "검증 이미지 미확보 시 비행 불가 — 즉시 안전착륙/기동 불능화"
+    sustains: false
+
+  PAYLOAD_EOIR:
+    level: SUSTAINED
+    capability_lost: "EO/IR 표적인식 신뢰도"
+    fallback: "다중센서 융합 교차검증 + 자율교전 차단, 비행·정찰 임무는 지속"
+    sustains: true
+
+  UGV_TELEOP:
+    level: MINIMAL
+    capability_lost: "원격조종 제어권"
+    fallback: "안전정지(세이프스톱) + 제어권 회복 불가 시 zeroize"
+    sustains: false
+
+  TELEMETRY:
+    level: SUSTAINED
+    capability_lost: "텔레메트리 가시성"
+    fallback: "온보드 로깅으로 사후 복원 + 핵심 헬스체크만 저대역 전송"
+    sustains: true
+
+  AI_SOC:
+    level: SUSTAINED
+    capability_lost: "AI SOC 자동 판정(메타 자산)"
+    fallback: "정책 엔진 단독 모드(LLM 불신) + 운용자 수동 검토 병행, 방어 지속"
+    sustains: true
