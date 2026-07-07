@@ -44,6 +44,7 @@ from agents.validation_agent import (
 )
 from core.actors import ActorReadGate, ActorWriteGate, InMemoryActorStore
 from core.causal import CausalReasoner
+from core.coa import CoaMatrix, CoaPlanner
 from core.exceptions import SOCPlatformError
 from core.experience import MemoryReadGate
 from core.killchain import KillChainProgressor
@@ -54,6 +55,7 @@ from core.predictor import PredictionMatcher, SequencePredictor
 from core.settings import Settings, get_settings
 from core.severity import SeverityEngine
 from core.staging import DefenseStager
+from tools.coverage import CoverageMatrix
 from tools.rule_publisher import RulePublisher
 
 # LangGraph 노드 시그니처(에이전트 .run 과 동일: 비동기 SOCState→SOCState).
@@ -258,10 +260,17 @@ def build_soc_graph(
     if lineage is None and settings.lineage_enabled:
         lineage = LineageCollector(settings)
     # 예측 폐루프: coverage 매트릭스 있으면 선제 스테이징 자동 배선.
+    # COA matrix: coverage + coa-matrix.yaml 있으면 COA 플래너 자동 배선.
     try:
         stager: DefenseStager | None = DefenseStager()
     except SOCPlatformError:
         stager = None
+    try:
+        coa_planner: CoaPlanner | None = CoaPlanner(
+            CoverageMatrix.from_yaml(), CoaMatrix.from_yaml()
+        )
+    except SOCPlatformError:
+        coa_planner = None
     report = ReportAgent(
         settings,
         engine,
@@ -269,6 +278,7 @@ def build_soc_graph(
         actor_read=actor_read,
         lineage=lineage,
         stager=stager,
+        coa_planner=coa_planner,
     )
 
     graph: StateGraph[SOCState] = StateGraph(SOCState)

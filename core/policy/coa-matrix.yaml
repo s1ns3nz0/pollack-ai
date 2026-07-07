@@ -1,0 +1,120 @@
+# =============================================================================
+# COA(Courses of Action) Matrix — kill chain 단계 × 7D 방어
+# -----------------------------------------------------------------------------
+# DoD/Lockheed 교리(JP 3-12, CTI COA matrix): 공격 kill chain 각 단계에 대해
+# 7D 방어(Discover·Detect·Deny·Disrupt·Degrade·Deceive·Destroy) 옵션을 매핑한다.
+# CoaPlanner 가 공격자의 현재 도달 단계 + 예측 다음 단계의 COA 를 report 에 제시한다
+# (실행권은 기존 defense_playbook — 여기는 "무엇을 할 수 있나" 결정론 메뉴).
+#
+# 셀 형식: { action: 구체 UAV 방어행동, d3fend: D3FEND technique id }
+# 미정의 7D 셀은 CoaPlanner 가 status=gap 으로 노출한다(방어 공백 = 정보).
+# tactic 키는 data/attack_coverage.yaml 의 tactic 이름과 일치(kill chain 축 공유).
+# =============================================================================
+
+version: 0.1
+owner: 황준식
+
+# 7D 방어 축(순서 = 능동성 증가). 매트릭스에 없는 (tactic,7D) 조합은 gap.
+defenses: [Discover, Detect, Deny, Disrupt, Degrade, Deceive, Destroy]
+
+matrix:
+  InitialAccess:
+    Detect:
+      action: "비인가 원격서비스·유효계정 이상 로그인 탐지룰"
+      d3fend: "D3-UBA"        # User Behavior Analysis
+    Deny:
+      action: "화이트리스트 외 접속 차단 + MFA 강제"
+      d3fend: "D3-MFA"        # Multi-factor Authentication
+    Deceive:
+      action: "미끼 자격증명(허니토큰) 배치 — 접촉 시 즉시 확정탐지"
+      d3fend: "D3-DUC"        # Decoy User Credential
+
+  Execution:
+    Detect:
+      action: "미인가 명령 시퀀스·프로그램 다운로드 탐지"
+      d3fend: "D3-PSA"        # Process Spawn Analysis
+    Deny:
+      action: "명령 인증 강제 + 미서명 페이로드 폐기"
+      d3fend: "D3-EAL"        # Executable Allowlisting
+
+  Persistence:
+    Detect:
+      action: "펌웨어 서명·SBOM 불일치 탐지"
+      d3fend: "D3-FV"         # File Analysis / integrity
+    Deny:
+      action: "비행금지 게이트 — 서명 검증 전 임무 배정 차단"
+      d3fend: "D3-BA"         # Bootloader Authentication
+
+  LateralMovement:
+    Detect:
+      action: "단시간 다수 기체 재지정·내부망 횡적연결 탐지"
+      d3fend: "D3-NTA"        # Network Traffic Analysis
+    Deny:
+      action: "세션 격리 + 2차 승인 강제 + 자격증명 회전"
+      d3fend: "D3-ANCI"       # Authentication Cache Invalidation
+    Deceive:
+      action: "가짜 GCS 세션 디코이 — 횡적확산 유인·탐지"
+      d3fend: "D3-DE"         # Decoy Environment
+
+  Collection:
+    Detect:
+      action: "비정상 데이터 스테이징·페이로드 수집 탐지"
+      d3fend: "D3-FA"         # File Access Pattern Analysis
+    Degrade:
+      action: "민감 임무데이터 접근 rate-limit + 마스킹"
+      d3fend: "D3-DENCR"      # Disk Encryption
+
+  CommandAndControl:
+    Detect:
+      action: "C2 비콘주기·JA3·엔드포인트 화이트리스트 이탈 탐지"
+      d3fend: "D3-NTA"        # Network Traffic Analysis
+    Deny:
+      action: "미인가 C2 채널 차단 + GCS 화이트리스트 강제"
+      d3fend: "D3-OTF"        # Outbound Traffic Filtering
+    Disrupt:
+      action: "대체 링크 강제전환 + C2 세션 리셋"
+      d3fend: "D3-NI"         # Network Isolation
+    Deceive:
+      action: "가짜 C2 엔드포인트 디코이 배치 — 명령 유인"
+      d3fend: "D3-DNR"        # Decoy Network Resource
+
+  Exfiltration:
+    Detect:
+      action: "SATCOM TxBytes·비계측 채널 유출량 이상 탐지"
+      d3fend: "D3-NTCD"       # Network Traffic Community Deviation
+    Deny:
+      action: "외부 송신 감사 + 대용량 전송 차단"
+      d3fend: "D3-OTF"        # Outbound Traffic Filtering
+    Disrupt:
+      action: "링크 무결성 실패 세그먼트 격리 + 키 롤오버"
+      d3fend: "D3-NI"         # Network Isolation
+
+  ImpairProcessControl:
+    Detect:
+      action: "제어로직 변조·위조 명령 주입 탐지"
+      d3fend: "D3-OSM"        # Operating System Monitoring
+    Disrupt:
+      action: "INS/관성항법 페일오버 + 자율 페일세이프"
+      d3fend: "D3-PH"         # Process Hardening
+    Deny:
+      action: "GNSS 신뢰도 강등 + 센서퓨전 교차검증 강제"
+      d3fend: "D3-IOPR"       # I/O Port Restriction
+
+  InhibitResponseFunction:
+    Detect:
+      action: "알람 억제·군집 포화(alert storm) 탐지"
+      d3fend: "D3-NTA"        # Network Traffic Analysis
+    Degrade:
+      action: "경보 집약 + 임무크리티컬 자산 우선처리로 포화 완화"
+      d3fend: "D3-RTSD"       # Real-time Service Degradation defense
+
+  Impact:
+    Disrupt:
+      action: "보수적 RTB + 자율교전 차단"
+      d3fend: "D3-PH"         # Process Hardening
+    Deny:
+      action: "원격 zeroize + 안전정지(세이프스톱)"
+      d3fend: "D3-DA"         # Disk/Data Access denial
+    Destroy:
+      action: "노획 위험 시 키·임무데이터 소거(원격 zeroize)"
+      d3fend: "D3-DKP"        # Data Key Purge

@@ -538,6 +538,26 @@ class StagedDefense(BaseModel):
     note: str = ""
 
 
+class CoaOption(BaseModel):
+    """Courses of Action 한 셀 — (kill chain 단계, 7D 방어) 방어 옵션(교리 COA matrix).
+
+    Attributes:
+        tactic: kill chain 단계(tactic 이름).
+        defense: 7D 방어 축(Discover/Detect/Deny/Disrupt/Degrade/Deceive/Destroy).
+        status: "available"(우리 자산으로 실행 가능) | "gap"(방어 공백).
+        action: 구체 UAV 방어 행동 서술(gap 이면 빈값).
+        d3fend_id: 매핑된 D3FEND technique id(gap 이면 빈값).
+        stage: "current"(actor 도달 단계) | "predicted"(예측 다음 단계) — 대응/선제 구분.
+    """
+
+    tactic: str
+    defense: str
+    status: str
+    action: str = ""
+    d3fend_id: str = ""
+    stage: str = "current"
+
+
 class CausalStep(BaseModel):
     """인과 체인의 한 단계(spec A1).
 
@@ -664,6 +684,10 @@ class SOCReport(BaseModel):
     staged_defenses: list[StagedDefense] = Field(
         default_factory=list,
         description="예측 폐루프: 예측 TTP 선제 스테이징 판정(staged/accelerate/gap).",
+    )
+    coa_options: list[CoaOption] = Field(
+        default_factory=list,
+        description="COA matrix: 현재+예측 단계 7D 방어 옵션(교리 courses of action).",
     )
     causal_summary: CausalChain | None = Field(
         default=None, description="spec A1: 결정론 인과 체인 요약."

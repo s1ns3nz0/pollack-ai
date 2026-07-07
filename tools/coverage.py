@@ -173,6 +173,25 @@ class CoverageMatrix:
                 return t.order
         return None
 
+    def tactic_of(self, technique: str) -> str | None:
+        """technique id 의 소속 tactic 이름을 반환한다(미매핑이면 None).
+
+        covered/planned/uncovered 전체에서 찾는다 — kill chain 진행도·COA 에서
+        예측 technique 을 단계(tactic)로 환산할 때 쓴다.
+
+        Args:
+            technique: MITRE technique id.
+
+        Returns:
+            소속 tactic 이름, 없으면 None.
+        """
+        for t in self.tactics:
+            if technique in t.covered or technique in t.planned:
+                return t.name
+            if any(g.id == technique for g in t.uncovered):
+                return t.name
+        return None
+
     def max_tactic_order(self, tactics: list[str]) -> int:
         """tactic 목록 중 최고 order 를 반환한다(actor 누적 진행도용).
 
