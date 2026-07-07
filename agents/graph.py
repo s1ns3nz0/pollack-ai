@@ -57,6 +57,7 @@ from core.recovery import RecoveryMatrix, RecoveryPlanner
 from core.settings import Settings, get_settings
 from core.severity import SeverityEngine
 from core.staging import DefenseStager
+from core.stride import StrideClassifier, StrideModel
 from tools.coverage import CoverageMatrix
 from tools.rule_publisher import RulePublisher
 
@@ -287,6 +288,11 @@ def build_soc_graph(
         )
     except SOCPlatformError:
         degradation = None
+    # UAV STRIDE: stride-model.yaml 있으면 위협 분류기 배선.
+    try:
+        stride: StrideClassifier | None = StrideClassifier(StrideModel.from_yaml())
+    except SOCPlatformError:
+        stride = None
     report = ReportAgent(
         settings,
         engine,
@@ -297,6 +303,7 @@ def build_soc_graph(
         coa_planner=coa_planner,
         recovery_planner=recovery_planner,
         degradation=degradation,
+        stride=stride,
     )
 
     graph: StateGraph[SOCState] = StateGraph(SOCState)

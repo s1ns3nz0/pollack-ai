@@ -558,6 +558,20 @@ class CoaOption(BaseModel):
     stage: str = "current"
 
 
+class StrideThreat(BaseModel):
+    """UAV STRIDE 위협 분류 한 건(2025 IET UAV STRIDE 모델).
+
+    Attributes:
+        code: STRIDE 코드(S/T/R/I/D/E).
+        name: 위협 유형명(Spoofing/Tampering/…).
+        mitigation: 완화책(D3FEND/COA 연계).
+    """
+
+    code: str
+    name: str
+    mitigation: str = ""
+
+
 class MissionContinuity(BaseModel):
     """자산 손상 시 임무 지속성 판정 한 건(graceful degradation).
 
@@ -747,6 +761,10 @@ class SOCReport(BaseModel):
     mission_continuity: MissionContinuity | None = Field(
         default=None,
         description="graceful degradation: 손상 자산 임무 지속성 등급 + 대체경로.",
+    )
+    stride_threats: list[StrideThreat] = Field(
+        default_factory=list,
+        description="UAV STRIDE 모델: 이 공격의 위협 유형 분류 + 완화책.",
     )
     causal_summary: CausalChain | None = Field(
         default=None, description="spec A1: 결정론 인과 체인 요약."

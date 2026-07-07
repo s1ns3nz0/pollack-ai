@@ -1,0 +1,51 @@
+# =============================================================================
+# UAV STRIDE 위협 모델 — 6 카테고리 + 완화 매핑 + tactic 연계
+# -----------------------------------------------------------------------------
+# UAV 전용 STRIDE 모델(2025 IET, "Enhanced Cybersecurity Framework for UAS: A
+# Comprehensive STRIDE-Model Analysis"). 공격을 6개 위협 유형으로 분류하고 각
+# 유형별 완화책(D3FEND/COA 연계)을 제시한다. StrideClassifier 가 alert 의 tactic/
+# STRIDE 태그를 분류하고, BAS 의 by_stride 커버리지와 연계해 "어느 위협 유형에
+# 방어 공백이 있나" 를 산출한다.
+#
+# code: S/T/R/I/D/E. tactics: 이 위협 유형에 해당하는 ATT&CK tactic(분류 힌트).
+# =============================================================================
+
+version: 0.1
+owner: 황준식
+
+categories:
+  S:
+    name: Spoofing
+    desc: "신원·신호 위장 — GNSS 스푸핑, 비인가 GCS 위장, 위조 자격증명"
+    mitigation: "상호 인증·서명 검증, 센서퓨전 교차검증, 화이트리스트(D3FEND Detect/Deny)"
+    tactics: [InitialAccess, CommandAndControl, LateralMovement]
+
+  T:
+    name: Tampering
+    desc: "데이터·펌웨어·제어로직 변조 — MITM, 펌웨어 임플란트, 명령 변조"
+    mitigation: "무결성 검증·디지털 서명·암호 해시, SBOM 검증(D3FEND Harden/Detect)"
+    tactics: [Persistence, ImpairProcessControl, Impact]
+
+  R:
+    name: Repudiation
+    desc: "행위 부인 — 감사로그 조작, 세션 추적 회피"
+    mitigation: "불변 감사로그(호스트 밖), 세션 토큰 서명, 행위 귀속(D3FEND Detect)"
+    tactics: [LateralMovement]
+
+  I:
+    name: Information Disclosure
+    desc: "정보 유출 — 임무데이터 탈취, 미계측 채널 유출, 텔레메트리 도청"
+    mitigation: "링크 암호화·마스킹, 송신 감사·rate-limit, 텔레메트리 계측(D3FEND Deny)"
+    tactics: [Collection, Exfiltration]
+
+  D:
+    name: Denial of Service
+    desc: "가용성 공격 — C2 재밍, SATCOM 무력화, 군집 포화·SOC 과부하"
+    mitigation: "이중화·대체링크, anti-jam, 경보 집약·우선순위(D3FEND Disrupt/Degrade)"
+    tactics: [InhibitResponseFunction, CommandAndControl]
+
+  E:
+    name: Elevation of Privilege
+    desc: "권한 상승 — 유효계정 탈취, 원격서비스 악용, 횡적확산"
+    mitigation: "RBAC·최소권한, MFA·자격증명 회전, 세션 격리(D3FEND Deny/Evict)"
+    tactics: [InitialAccess, PrivilegeEscalation, LateralMovement]
