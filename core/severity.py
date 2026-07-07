@@ -154,6 +154,10 @@ class SeverityEngine:
                 inc = _as_int(rule.get("action", 0))
                 total += inc
                 rationale.append(f"dyn[prediction_match]={inc:+d}")
+            elif name == "kill_chain_advanced" and alert.kill_chain_advanced:
+                inc = _as_int(rule.get("action", 0))
+                total += inc
+                rationale.append(f"dyn[kill_chain_advanced]={inc:+d}")
 
         for raw in self._rules("de_escalation"):
             rule = _as_dict(raw, where="de_escalation rule")

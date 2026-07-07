@@ -204,6 +204,9 @@ class Alert(BaseModel):
     # 예측 폐루프: 이 alert 의 technique 이 해당 actor 의 pending 예측과 일치.
     # PredictionMatcher(읽기 전용 대조)가 채움 — 정책 dynamics 격상 입력.
     prediction_match: bool = False
+    # kill chain: 이 actor 가 누적으로 후반 단계(C2 이후)에 도달.
+    # KillChainProgressor(읽기 전용)가 채움 — 진행 중 캠페인 판단 → dynamics 격상.
+    kill_chain_advanced: bool = False
     # 지리 컨텍스트(외부 GNSS/Airspace 도구 조회용; 없으면 asset-tiers.yaml fallback)
     lat: float | None = None
     lon: float | None = None

@@ -46,6 +46,7 @@ from core.actors import ActorReadGate, ActorWriteGate, InMemoryActorStore
 from core.causal import CausalReasoner
 from core.exceptions import SOCPlatformError
 from core.experience import MemoryReadGate
+from core.killchain import KillChainProgressor
 from core.lineage import LineageCollector
 from core.llm import LLMClient
 from core.models import SOCState
@@ -218,6 +219,8 @@ def build_soc_graph(
         )
     # 예측 폐루프: 읽기 전용 pending 대조기 — triage 진입 전 alert enrich.
     matcher = PredictionMatcher(actor_read) if actor_read is not None else None
+    # kill chain: 읽기 전용 진행도 산정기 — actor 누적 후반단계 도달 시 격상 플래그.
+    progressor = KillChainProgressor(actor_read) if actor_read is not None else None
     # spec A1: causal-rules.yaml 존재 시 reasoner 자동 배선.
     if reasoner is None:
         rules_path = Path(settings.causal_rules_path)
@@ -273,16 +276,25 @@ def build_soc_graph(
     # 노드는 KPI 타이밍 래퍼(_timed)로 감싸 등록. add_node 오버로드는 바운드 메서드는
     # 받지만 동일 시그니처의 Callable 별칭은 거부하므로 arg-type 만 무시(런타임 동일).
     async def _triage_with_match(state: SOCState) -> SOCState:
-        """triage 진입 전 pending 예측 대조 — 적중 시 alert 를 상태에 반영."""
-        enriched_alert = None
+        """triage 진입 전 읽기전용 enrich — 예측 적중 + kill chain 진행도.
+
+        matcher(예측 pending 대조) → progressor(actor 누적 진행도)를 순차 적용해
+        prediction_match·kill_chain_advanced 플래그를 alert 에 반영한다(둘 다 정책
+        dynamics 격상 입력). enrich 로 alert 가 바뀌면 상태에 실어 downstream 공유.
+        """
+        alert = state["alert"]
+        changed = False
         if matcher is not None:
-            enriched = await matcher.enrich(state["alert"])
-            if enriched.prediction_match:
-                state = cast(SOCState, {**state, "alert": enriched})
-                enriched_alert = enriched
+            alert = await matcher.enrich(alert)
+            changed = changed or alert.prediction_match
+        if progressor is not None:
+            alert = await progressor.enrich(alert)
+            changed = changed or alert.kill_chain_advanced
+        if changed:
+            state = cast(SOCState, {**state, "alert": alert})
         out = dict(await triage.run(state))
-        if enriched_alert is not None:
-            out["alert"] = enriched_alert
+        if changed:
+            out["alert"] = alert
         return cast(SOCState, out)
 
     nodes: list[tuple[str, _NodeFn]] = [

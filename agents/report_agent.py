@@ -9,6 +9,7 @@ spec B-1: actor_read 주입 시 actor.pb_scores top-3 을 guardrail_flags 에 �
 from __future__ import annotations
 
 from agents.base import BaseSOCAgent
+from app.metrics import metrics
 from core import oscal
 from core.actors import ActorReadGate
 from core.causal import CausalReasoner
@@ -70,6 +71,13 @@ class ReportAgent(BaseSOCAgent):
             hunt_candidates=hunt_candidates,
             staged_defenses=staged_defenses,
         )
+        # kill chain: 후반단계 도달 시 guardrail 노출 + 메트릭 계측.
+        if alert.kill_chain_advanced:
+            report.guardrail_flags = list(report.guardrail_flags) + [
+                "kill chain 후반단계(C2 이후) 도달 — 진행 중 캠페인, 심각도 격상됨"
+            ]
+            metrics().record_killchain_advanced()
+
         # spec A1: 인과 체인 매핑
         if self._reasoner is not None:
             chain = await self._reasoner.build_chain(alert, inv)
