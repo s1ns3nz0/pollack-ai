@@ -20,11 +20,13 @@ from core.models import (
     Alert,
     CoaOption,
     InvestigationResult,
+    RecoveryPlan,
     SOCReport,
     SOCState,
     StagedDefense,
     Verdict,
 )
+from core.recovery import RecoveryPlanner
 from core.settings import Settings
 from core.severity import SeverityEngine
 from core.staging import DefenseStager
@@ -42,10 +44,12 @@ class ReportAgent(BaseSOCAgent):
         lineage: LineageCollector | None = None,
         stager: DefenseStager | None = None,
         coa_planner: CoaPlanner | None = None,
+        recovery_planner: RecoveryPlanner | None = None,
     ) -> None:
         super().__init__(settings)
         self._engine = engine
         self._coa_planner = coa_planner
+        self._recovery_planner = recovery_planner
         self._reasoner = reasoner
         self._actor_read = actor_read
         self._lineage = lineage
@@ -68,6 +72,7 @@ class ReportAgent(BaseSOCAgent):
                 staged_defenses = self._stager.stage(inv.predictions)
 
         coa_options = await self._build_coa(alert, inv)
+        recovery_plan = await self._build_recovery(alert, verdict)
 
         report = SOCReport(
             alert_id=alert.id,
@@ -84,6 +89,7 @@ class ReportAgent(BaseSOCAgent):
             hunt_candidates=hunt_candidates,
             staged_defenses=staged_defenses,
             coa_options=coa_options,
+            recovery_plan=recovery_plan,
         )
         # kill chain: 후반단계 도달 시 guardrail 노출 + 메트릭 계측.
         if alert.kill_chain_advanced:
@@ -156,3 +162,28 @@ class ReportAgent(BaseSOCAgent):
             [p.next_technique for p in inv.predictions] if inv is not None else []
         )
         return self._coa_planner.plan(tactics, predicted)
+
+    async def _build_recovery(
+        self, alert: Alert, verdict: Verdict
+    ) -> RecoveryPlan | None:
+        """정탐 확정 시 도달 tactic 의 축출/복구/검증 플랜을 조립한다.
+
+        오탐은 recovery 불필요(None). 현재 tactic = alert.mitre tactics +
+        actor 누적 이력(진행도 반영, planner 가 최고 order 채택).
+
+        Args:
+            alert: 대상 알람.
+            verdict: 최종 판정(정탐일 때만 플랜 생성).
+
+        Returns:
+            RecoveryPlan, 정탐 아님/미주입/미매핑 시 None.
+        """
+        if self._recovery_planner is None or verdict != Verdict.TRUE_POSITIVE:
+            return None
+        raw = alert.mitre.get("tactics", [])
+        tactics = [str(t) for t in raw] if isinstance(raw, list) else []
+        if self._actor_read is not None and alert.actor_id:
+            profile = await self._actor_read.recall(alert.actor_id.strip())
+            if profile is not None:
+                tactics.extend(s.tactic for s in profile.ttp_stats)
+        return self._recovery_planner.plan(tactics)

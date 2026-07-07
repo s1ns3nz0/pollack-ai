@@ -35,6 +35,8 @@ class _Counters:
         self.prediction_misses = 0
         # kill chain: 후반단계 도달 격상 누적(Report 노드가 갱신)
         self.killchain_advanced_total = 0
+        # recovery: 축출 실패(축출 후 재발) 누적(RecoveryVerifier 가 갱신)
+        self.eviction_failed_total = 0
 
     def record_alert(self, verdict: str) -> None:
         """경보 1건 처리 + 판정 집계."""
@@ -69,6 +71,11 @@ class _Counters:
         """kill chain 후반단계 도달 격상 1건 누적."""
         with self._lock:
             self.killchain_advanced_total += 1
+
+    def record_eviction_failed(self) -> None:
+        """축출 실패(축출 후 재발) 1건 누적."""
+        with self._lock:
+            self.eviction_failed_total += 1
 
     def record_prediction(self, *, hit: bool) -> None:
         """예측 판정 1건 누적(예측 폐루프)."""
@@ -157,6 +164,12 @@ def render_text() -> str:
         )
         out.append("# TYPE soc_killchain_advanced_total counter")
         out.append(_line("soc_killchain_advanced_total", c.killchain_advanced_total))
+
+    # recovery: 축출 실패(축출 후 재발) 카운터
+    if c.eviction_failed_total:
+        out.append("# HELP soc_eviction_failed_total 축출 후 재발(축출 실패) 수")
+        out.append("# TYPE soc_eviction_failed_total counter")
+        out.append(_line("soc_eviction_failed_total", c.eviction_failed_total))
 
     # 예측 폐루프: hit/miss 카운터 + 적중률 게이지
     pred = c.prediction_stats()

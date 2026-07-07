@@ -30,6 +30,9 @@ class Observation(BaseModel):
     mission_effect_observed: bool = False
     no_effect_sustained: bool = False
     reoccurred: bool = False
+    # 검증 폐루프: 이 관측 이전에 RecoveryPlan(축출/복구)이 실행됐는지.
+    # True + reoccurred → 축출 실패(공격자 잔존) 판정(RecoveryVerifier).
+    recovery_applied: bool = False
     dwelling_min: int = 0
     ts: str
     # exp/actors 적립용 알림 원본 메타.

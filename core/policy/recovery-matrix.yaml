@@ -1,0 +1,62 @@
+# =============================================================================
+# Recovery Matrix — 공격 tactic × {축출(Evict) → 복구(Restore) → 검증} 절차
+# -----------------------------------------------------------------------------
+# D3FEND Evict/Restore 교리. 정탐 확정(CONFIRMED_TP) 후 공격자를 축출하고 시스템을
+# 복구하는 순차 절차를 tactic 별로 매핑한다. RecoveryPlanner 가 조립해 report 에
+# 제시하며(실행권은 defense_playbook), 검증 단계는 outcome_probe 의 reoccurred
+# (재발) 관측과 연계 — 축출 후 재발 = 축출 실패(공격자 잔존) → 재축출 재발령.
+#
+# 셀 형식: { action: 구체 UAV 절차, d3fend: D3FEND technique id }
+# tactic 키는 data/attack_coverage.yaml tactic 이름과 일치(kill chain 축 공유).
+# =============================================================================
+
+version: 0.1
+owner: 황준식
+
+matrix:
+  InitialAccess:
+    evict:
+      - { action: "탈취 유효계정 세션 무효화 + 자격증명 회전", d3fend: "D3-CR" }
+      - { action: "비인가 원격서비스 접속 축출·차단", d3fend: "D3-CE" }
+    restore:
+      - { action: "정상 인증 경로 복구 + MFA 재적용", d3fend: "D3-RA" }
+    verify: "동일 계정 재접속(reoccurred) 관측 시 축출 실패 — 자격증명 전면 폐기 + 격리 확대"
+
+  Persistence:
+    evict:
+      - { action: "변조 펌웨어 축출 — 검증 이미지로 재이미징", d3fend: "D3-FEV" }
+      - { action: "미서명 프로그램·임플란트 제거", d3fend: "D3-PEV" }
+    restore:
+      - { action: "SBOM 재검증 통과 이미지로 시스템 복원", d3fend: "D3-SYSR" }
+    verify: "서명 불일치 재발(reoccurred) 시 축출 실패 — 공급망 소스 격리 + 재이미징 반복"
+
+  LateralMovement:
+    evict:
+      - { action: "횡적확산 세션 격리·종료 + 자격증명 전면 회전", d3fend: "D3-ANCI" }
+      - { action: "침해 GCS 계정 접근 축출", d3fend: "D3-CE" }
+    restore:
+      - { action: "백업 GCS 로 지휘권 이관·복구", d3fend: "D3-RA" }
+    verify: "다수 기체 재지정 재발(reoccurred) 시 축출 실패 — 전 세션 강제 종료 + 재인증"
+
+  CommandAndControl:
+    evict:
+      - { action: "C2 세션 강제 종료 + 미인가 연결 축출", d3fend: "D3-CE" }
+      - { action: "탈취 자격증명 회전 + 채널 화이트리스트 재적용", d3fend: "D3-CR" }
+    restore:
+      - { action: "대체 링크로 지휘통제 복구 + 세션 재확립", d3fend: "D3-RA" }
+    verify: "미인가 C2 재확립(reoccurred) 시 축출 실패 — 링크 전면 리셋 + 키 롤오버"
+
+  ImpairProcessControl:
+    evict:
+      - { action: "위조 명령원 축출 + GNSS 신뢰도 강등 유지", d3fend: "D3-CE" }
+    restore:
+      - { action: "INS/센서퓨전 기반 항법 복구 + 제어로직 재검증", d3fend: "D3-RC" }
+    verify: "제어 변조 재발(reoccurred) 시 축출 실패 — 자율 페일세이프 + 운용자 수동 인계"
+
+  Impact:
+    evict:
+      - { action: "노획 위험 시 키·임무데이터 원격 zeroize", d3fend: "D3-DKP" }
+      - { action: "탈취 자격증명 즉시 폐기", d3fend: "D3-CR" }
+    restore:
+      - { action: "안전정지 후 백업 기체·GCS 로 임무 이관", d3fend: "D3-RA" }
+    verify: "제어권 미회복(reoccurred) 시 축출 실패 — 기동 불능화 + 물리 회수 절차"

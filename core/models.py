@@ -558,6 +558,37 @@ class CoaOption(BaseModel):
     stage: str = "current"
 
 
+class RecoveryStep(BaseModel):
+    """축출/복구 절차 한 단계(D3FEND Evict/Restore).
+
+    Attributes:
+        action: 구체 UAV 절차 서술.
+        d3fend_id: 매핑된 D3FEND technique id.
+    """
+
+    action: str
+    d3fend_id: str = ""
+
+
+class RecoveryPlan(BaseModel):
+    """정탐 후 공격자 축출 → 시스템 복구 → 검증 순차 플랜(D3FEND Evict/Restore).
+
+    실행권은 defense_playbook 이 갖는다 — 이 플랜은 결정론 절차 제시. 검증 단계는
+    outcome_probe 의 reoccurred(재발) 관측과 연계: 축출 후 재발 = 축출 실패.
+
+    Attributes:
+        tactic: 대상 kill chain 단계(tactic 이름).
+        evict_steps: 공격자 축출 단계(자격증명/세션/접근 축출).
+        restore_steps: 시스템 복구 단계(재이미징/페일오버/백업 전환).
+        verify: 재감염 검증 절차(reoccurred 관측 시 축출 실패 대응).
+    """
+
+    tactic: str
+    evict_steps: list[RecoveryStep] = Field(default_factory=list)
+    restore_steps: list[RecoveryStep] = Field(default_factory=list)
+    verify: str = ""
+
+
 class CausalStep(BaseModel):
     """인과 체인의 한 단계(spec A1).
 
@@ -688,6 +719,10 @@ class SOCReport(BaseModel):
     coa_options: list[CoaOption] = Field(
         default_factory=list,
         description="COA matrix: 현재+예측 단계 7D 방어 옵션(교리 courses of action).",
+    )
+    recovery_plan: RecoveryPlan | None = Field(
+        default=None,
+        description="정탐 확정 시 공격자 축출→복구→검증 절차(D3FEND Evict/Restore).",
     )
     causal_summary: CausalChain | None = Field(
         default=None, description="spec A1: 결정론 인과 체인 요약."
