@@ -26,12 +26,14 @@ from core.models import (
     SOCReport,
     SOCState,
     StagedDefense,
+    StrideThreat,
     Verdict,
 )
 from core.recovery import RecoveryPlanner
 from core.settings import Settings
 from core.severity import SeverityEngine
 from core.staging import DefenseStager
+from core.stride import StrideClassifier
 
 
 class ReportAgent(BaseSOCAgent):
@@ -48,12 +50,14 @@ class ReportAgent(BaseSOCAgent):
         coa_planner: CoaPlanner | None = None,
         recovery_planner: RecoveryPlanner | None = None,
         degradation: DegradationAssessor | None = None,
+        stride: StrideClassifier | None = None,
     ) -> None:
         super().__init__(settings)
         self._engine = engine
         self._coa_planner = coa_planner
         self._recovery_planner = recovery_planner
         self._degradation = degradation
+        self._stride = stride
         self._reasoner = reasoner
         self._actor_read = actor_read
         self._lineage = lineage
@@ -82,6 +86,9 @@ class ReportAgent(BaseSOCAgent):
             mission_continuity = self._degradation.assess(alert, verdict)
             if mission_continuity is not None and mission_continuity.level == "ABORT":
                 metrics().record_mission_abort()
+        stride_threats: list[StrideThreat] = []
+        if self._stride is not None:
+            stride_threats = self._stride.classify(alert)
 
         report = SOCReport(
             alert_id=alert.id,
@@ -100,6 +107,7 @@ class ReportAgent(BaseSOCAgent):
             coa_options=coa_options,
             recovery_plan=recovery_plan,
             mission_continuity=mission_continuity,
+            stride_threats=stride_threats,
         )
         # kill chain: 후반단계 도달 시 guardrail 노출 + 메트릭 계측.
         if alert.kill_chain_advanced:
