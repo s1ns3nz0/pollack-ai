@@ -44,13 +44,15 @@ from agents.validation_agent import (
 )
 from core.actors import ActorReadGate, ActorWriteGate, InMemoryActorStore
 from core.causal import CausalReasoner
+from core.exceptions import SOCPlatformError
 from core.experience import MemoryReadGate
 from core.lineage import LineageCollector
 from core.llm import LLMClient
 from core.models import SOCState
-from core.predictor import SequencePredictor
+from core.predictor import PredictionMatcher, SequencePredictor
 from core.settings import Settings, get_settings
 from core.severity import SeverityEngine
+from core.staging import DefenseStager
 from tools.rule_publisher import RulePublisher
 
 # LangGraph 노드 시그니처(에이전트 .run 과 동일: 비동기 SOCState→SOCState).
@@ -195,11 +197,6 @@ def build_soc_graph(
     if airspace is None:
         airspace = _default_airspace(settings)
 
-    # actor write/read 미주입 시 한 쌍 인메모리 생성(테스트/로컬 데모).
-    if actor_read is None and actor_write is None:
-        _store = InMemoryActorStore()
-        actor_read = ActorReadGate(_store)
-        actor_write = ActorWriteGate(_store)
     # spec C1: predictor 미주입 시 인메모리 SequencePredictor 자동 배선.
     if predictor is None:
         predictor = SequencePredictor(
@@ -207,6 +204,20 @@ def build_soc_graph(
             min_probability=settings.predict_min_probability,
             top_k=settings.predict_top_k,
         )
+    # actor write/read 미주입 시 한 쌍 인메모리 생성(테스트/로컬 데모).
+    # 예측 폐루프: 게이트에 predictor(TP 적립 시 발행) + metrics 훅 배선.
+    if actor_read is None and actor_write is None:
+        from app.metrics import metrics as _metrics
+
+        _store = InMemoryActorStore()
+        actor_read = ActorReadGate(_store)
+        actor_write = ActorWriteGate(
+            _store,
+            predictor=predictor,  # type: ignore[arg-type]
+            on_settle=lambda hit: _metrics().record_prediction(hit=hit),
+        )
+    # 예측 폐루프: 읽기 전용 pending 대조기 — triage 진입 전 alert enrich.
+    matcher = PredictionMatcher(actor_read) if actor_read is not None else None
     # spec A1: causal-rules.yaml 존재 시 reasoner 자동 배선.
     if reasoner is None:
         rules_path = Path(settings.causal_rules_path)
@@ -243,19 +254,39 @@ def build_soc_graph(
     # spec D-1: lineage opt-in.
     if lineage is None and settings.lineage_enabled:
         lineage = LineageCollector(settings)
+    # 예측 폐루프: coverage 매트릭스 있으면 선제 스테이징 자동 배선.
+    try:
+        stager: DefenseStager | None = DefenseStager()
+    except SOCPlatformError:
+        stager = None
     report = ReportAgent(
         settings,
         engine,
         reasoner=reasoner,
         actor_read=actor_read,
         lineage=lineage,
+        stager=stager,
     )
 
     graph: StateGraph[SOCState] = StateGraph(SOCState)
+
     # 노드는 KPI 타이밍 래퍼(_timed)로 감싸 등록. add_node 오버로드는 바운드 메서드는
     # 받지만 동일 시그니처의 Callable 별칭은 거부하므로 arg-type 만 무시(런타임 동일).
+    async def _triage_with_match(state: SOCState) -> SOCState:
+        """triage 진입 전 pending 예측 대조 — 적중 시 alert 를 상태에 반영."""
+        enriched_alert = None
+        if matcher is not None:
+            enriched = await matcher.enrich(state["alert"])
+            if enriched.prediction_match:
+                state = cast(SOCState, {**state, "alert": enriched})
+                enriched_alert = enriched
+        out = dict(await triage.run(state))
+        if enriched_alert is not None:
+            out["alert"] = enriched_alert
+        return cast(SOCState, out)
+
     nodes: list[tuple[str, _NodeFn]] = [
-        ("triage", triage.run),
+        ("triage", _triage_with_match),
         ("investigation", investigation.run),
         ("validation", validation.run),
         ("response", response.run),

@@ -30,6 +30,9 @@ class _Counters:
         self._ragas_faith_sum = 0.0
         self._ragas_ans_rel_sum = 0.0
         self._ragas_ctx_rel_sum = 0.0
+        # 예측 폐루프: hit/miss 판정 누적(ActorWriteGate on_settle 훅이 갱신)
+        self.prediction_hits = 0
+        self.prediction_misses = 0
 
     def record_alert(self, verdict: str) -> None:
         """경보 1건 처리 + 판정 집계."""
@@ -59,6 +62,26 @@ class _Counters:
             self._ragas_faith_sum += faith
             self._ragas_ans_rel_sum += ans_rel
             self._ragas_ctx_rel_sum += ctx_rel
+
+    def record_prediction(self, *, hit: bool) -> None:
+        """예측 판정 1건 누적(예측 폐루프)."""
+        with self._lock:
+            if hit:
+                self.prediction_hits += 1
+            else:
+                self.prediction_misses += 1
+
+    def prediction_stats(self) -> dict[str, float]:
+        """예측 적중 통계. 판정 0건이면 빈 dict."""
+        with self._lock:
+            total = self.prediction_hits + self.prediction_misses
+            if total == 0:
+                return {}
+            return {
+                "hits": self.prediction_hits,
+                "misses": self.prediction_misses,
+                "hit_ratio": round(self.prediction_hits / total, 3),
+            }
 
     def ragas_avgs(self) -> dict[str, float]:
         """RAGAS 메트릭 평균(spec D1). 측정 0건이면 빈 dict."""
@@ -119,6 +142,17 @@ def render_text() -> str:
             out.append(f"# HELP soc_ragas_{k}_avg RAGAS {k} 평균")
             out.append(f"# TYPE soc_ragas_{k}_avg gauge")
             out.append(_line(f"soc_ragas_{k}_avg", ragas_avg[k]))
+
+    # 예측 폐루프: hit/miss 카운터 + 적중률 게이지
+    pred = c.prediction_stats()
+    if pred:
+        out.append("# HELP soc_prediction_hit_total 예측 판정 누적(hit/miss)")
+        out.append("# TYPE soc_prediction_hit_total counter")
+        out.append(_line("soc_prediction_hit_total", pred["hits"], '{result="hit"}'))
+        out.append(_line("soc_prediction_hit_total", pred["misses"], '{result="miss"}'))
+        out.append("# HELP soc_prediction_hit_ratio 예측 적중률")
+        out.append("# TYPE soc_prediction_hit_ratio gauge")
+        out.append(_line("soc_prediction_hit_ratio", pred["hit_ratio"]))
 
     out.extend(_coverage_metrics())
     return "\n".join(out) + "\n"

@@ -1,14 +1,20 @@
-"""공격 시퀀스 예측 — ActorProfile.kill_chain n-gram(spec C1).
+"""공격 시퀀스 예측 — ActorProfile.kill_chain n-gram(spec C1) + 폐루프 대조.
 
 결정론 n=2 마르코프 — (prev, curr) → next 조건부 빈도. support/probability 가드로
 잡음 후보 제거. 미달 시 빈 결과 (graceful).
+
+PredictionMatcher: 새 알람을 actor 의 pending 예측과 읽기 전용 대조 —
+일치 시 `Alert.prediction_match` 세팅(정책 dynamics 격상 입력). 프로필 변이는
+ActorWriteGate 만 한다(포이즈닝 면역).
 
 Spec: docs/superpowers/specs/2026-06-30-attack-sequence-prediction-design.md
 """
 
 from __future__ import annotations
 
-from core.models import ActorProfile, AttackPrediction
+from core.actor_fingerprint import is_empty_fingerprint, resolve_actor_id
+from core.actors import ActorReadGate
+from core.models import ActorProfile, Alert, AttackPrediction
 
 
 class SequencePredictor:
@@ -61,3 +67,35 @@ class SequencePredictor:
                     )
                 )
         return sorted(out, key=lambda p: -p.probability)[: self._top_k]
+
+
+class PredictionMatcher:
+    """pending 예측 ↔ 신규 알람 읽기 전용 대조기(예측 폐루프 절반).
+
+    hit/miss *판정·적립* 은 TP 확정 시 ActorWriteGate 가 한다. 여기는
+    미검증 알람에 대한 사전 신호만 세팅 — 저장소를 절대 변이하지 않는다.
+    """
+
+    def __init__(self, read_gate: ActorReadGate) -> None:
+        self._read_gate = read_gate
+
+    async def enrich(self, alert: Alert) -> Alert:
+        """alert technique 이 actor 의 pending 예측과 일치하면 플래그 세팅.
+
+        Args:
+            alert: 파이프라인 진입 알람.
+
+        Returns:
+            일치 시 `prediction_match=True` 인 복사본, 아니면 원본 그대로.
+        """
+        actor_id, is_explicit = resolve_actor_id(alert)
+        if not is_explicit and is_empty_fingerprint(actor_id):
+            return alert
+        profile = await self._read_gate.recall(actor_id)
+        if profile is None or not profile.pending_predictions:
+            return alert
+        techs_raw = alert.mitre.get("techniques", [])
+        techs = {str(t) for t in techs_raw} if isinstance(techs_raw, list) else set()
+        if any(p.technique in techs for p in profile.pending_predictions):
+            return alert.model_copy(update={"prediction_match": True})
+        return alert
