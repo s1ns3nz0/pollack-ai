@@ -1,0 +1,50 @@
+# =============================================================================
+# SLO 규칙 — 상시 모니터링(continuous monitoring) 위반 감시
+# -----------------------------------------------------------------------------
+# 지금까지의 방어 지표(BAS 탐지율·커버리지·예측 적중·축출 실패·임무 중단)를 임계와
+# 대조해 상시 위반을 감지한다. SLOMonitor 가 현재 지표 스냅샷을 평가해 위반 목록
+# (SloBreach)을 산출한다 — /metrics 는 값을 노출하고, 이 규칙은 "언제 경보인가" 를
+# 정책으로 외부화한다(코드 재배포 없이 임계 튜닝).
+#
+# operator: lt(미만이면 위반) | gt(초과면 위반). severity: warning | critical.
+# =============================================================================
+
+version: 0.1
+owner: 황준식
+
+rules:
+  - metric: bas_detection_ratio
+    operator: lt
+    threshold: 0.9
+    severity: critical
+    message: "BAS 방어 탐지율 저하 — 룰이 공격을 놓치기 시작(회귀 의심)"
+
+  - metric: attack_coverage_ratio
+    operator: lt
+    threshold: 0.6
+    severity: warning
+    message: "ATT&CK 커버리지 회귀 — 미탐 기법 증가"
+
+  - metric: prediction_hit_ratio
+    operator: lt
+    threshold: 0.5
+    severity: warning
+    message: "예측 적중률 저하 — 시퀀스 모델 품질 하락"
+
+  - metric: eviction_failed_total
+    operator: gt
+    threshold: 0
+    severity: critical
+    message: "축출 실패 발생 — 공격자 잔존, 재축출·격리확대 필요"
+
+  - metric: mission_abort_total
+    operator: gt
+    threshold: 0
+    severity: critical
+    message: "임무 중단(ABORT) 판정 발생 — 임무 지속 불가 자산 손상"
+
+  - metric: alerts_total
+    operator: gt
+    threshold: 1000
+    severity: warning
+    message: "경보 처리량 급증 — 부하/공격 파동(군집 포화 의심)"
