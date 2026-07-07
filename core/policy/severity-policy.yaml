@@ -81,6 +81,8 @@ dynamics:
     - rule: lateral_correlation         # 상위자산(GCS/C2) 침해 시 의존 기체 등급↑
       action: set_dependents_min
       value: m
+    - rule: prediction_match            # actor pending 예측 적중 → 캠페인 진행 판단, 등급↑
+      action: +1
   de_escalation:
     - rule: no_effect_sustained         # 무영향 지속 → 등급↓ (단 posture lock 시 금지)
       window_min: 60

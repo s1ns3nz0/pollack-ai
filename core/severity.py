@@ -150,6 +150,10 @@ class SeverityEngine:
                     rationale.append(
                         f"dyn[lateral_correlation]→min {rule.get('value')}"
                     )
+            elif name == "prediction_match" and alert.prediction_match:
+                inc = _as_int(rule.get("action", 0))
+                total += inc
+                rationale.append(f"dyn[prediction_match]={inc:+d}")
 
         for raw in self._rules("de_escalation"):
             rule = _as_dict(raw, where="de_escalation rule")

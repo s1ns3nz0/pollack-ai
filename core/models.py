@@ -201,6 +201,9 @@ class Alert(BaseModel):
     dwelling_min: int = 0
     lateral_correlation: bool = False
     no_effect_sustained: bool = False
+    # 예측 폐루프: 이 alert 의 technique 이 해당 actor 의 pending 예측과 일치.
+    # PredictionMatcher(읽기 전용 대조)가 채움 — 정책 dynamics 격상 입력.
+    prediction_match: bool = False
     # 지리 컨텍스트(외부 GNSS/Airspace 도구 조회용; 없으면 asset-tiers.yaml fallback)
     lat: float | None = None
     lon: float | None = None
@@ -360,6 +363,29 @@ class ActorKillChainStep(BaseModel):
     technique: str
 
 
+class PendingPrediction(BaseModel):
+    """발행돼 아직 적중/만료 판정 전인 예측 한 건(예측 폐루프).
+
+    ActorProfile 에 적립돼 후속 알람과 대조된다. 적중(hit)이면 정책 dynamics
+    격상 근거, 동일 actor 알람 TTL 경과 시 miss 로 만료 — 적중률 자가채점 입력.
+
+    Attributes:
+        technique: 예측된 다음 MITRE technique.
+        probability: 발행 시점 조건부 확률.
+        source_alert_id: 예측을 발생시킨 alert id.
+        issued_at: 발행 ISO8601(없으면 빈값 — 결정론 테스트 허용).
+        status: "pending" | "hit" | "miss".
+        age_alerts: 발행 이후 경과한 동일 actor 알람 수(TTL 판정 기준).
+    """
+
+    technique: str
+    probability: float = Field(ge=0.0, le=1.0)
+    source_alert_id: str
+    issued_at: str = ""
+    status: str = "pending"
+    age_alerts: int = Field(default=0, ge=0)
+
+
 class ActorProfile(BaseModel):
     """공격자 동적 프로필(spec #2).
 
@@ -384,6 +410,12 @@ class ActorProfile(BaseModel):
         default_factory=dict,
         description="spec B-1: playbook_id → 효과 점수 누적. 호출자 책임으로 갱신.",
     )
+    pending_predictions: list[PendingPrediction] = Field(
+        default_factory=list,
+        description="예측 폐루프: 발행 후 미판정 예측. 쓰기 게이트만 갱신.",
+    )
+    prediction_hits: int = Field(default=0, ge=0)
+    prediction_misses: int = Field(default=0, ge=0)
     content_hash: str = ""
     signature: str = ""
 
@@ -404,6 +436,10 @@ class ActorProfile(BaseModel):
             "chain": [s.model_dump() for s in self.kill_chain],
             # spec B-1: pb_scores 포함 (정렬 keys 로 결정론).
             "pb_scores": {k: v.model_dump() for k, v in sorted(self.pb_scores.items())},
+            # 예측 폐루프: pending + hit/miss 카운터 포함 — 변조 시 서명 불일치.
+            "pending_predictions": [p.model_dump() for p in self.pending_predictions],
+            "prediction_hits": self.prediction_hits,
+            "prediction_misses": self.prediction_misses,
         }
         canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
@@ -474,6 +510,29 @@ class AttackPrediction(BaseModel):
     probability: float = Field(ge=0.0, le=1.0)
     support_count: int = Field(ge=0)
     basis_actor_id: str
+
+
+class StagedDefense(BaseModel):
+    """예측 TTP 에 대한 선제 방어 스테이징 한 건(예측 폐루프).
+
+    coverage 매트릭스 조회 결과에 따라:
+    - staged     : 기존 탐지룰 보유 → 감시 강화 후보(즉시 대응 가능).
+    - accelerate : 룰 planned 상태 → 배치 가속 후보.
+    - gap        : 미커버 → archetype 대응전략을 노트로 노출(헌트+보완 대상).
+
+    Attributes:
+        technique: 예측된 MITRE technique.
+        status: "staged" | "accelerate" | "gap".
+        tactic: 매트릭스상 소속 전술(미상이면 빈값).
+        probability: 예측 발행 시점 조건부 확률.
+        note: gap 이면 archetype 대응전략, 그 외 빈값.
+    """
+
+    technique: str
+    status: str
+    tactic: str = ""
+    probability: float = Field(default=0.0, ge=0.0, le=1.0)
+    note: str = ""
 
 
 class CausalStep(BaseModel):
@@ -598,6 +657,10 @@ class SOCReport(BaseModel):
     hunt_candidates: list[str] = Field(
         default_factory=list,
         description="spec C1: SequencePredictor 예측 → 헌트 후보 technique 목록.",
+    )
+    staged_defenses: list[StagedDefense] = Field(
+        default_factory=list,
+        description="예측 폐루프: 예측 TTP 선제 스테이징 판정(staged/accelerate/gap).",
     )
     causal_summary: CausalChain | None = Field(
         default=None, description="spec A1: 결정론 인과 체인 요약."

@@ -3,6 +3,7 @@
 spec C1: investigation.predictions 가 있으면 `hunt_candidates` 에 노출.
 spec A1: CausalReasoner 주입 시 `causal_summary` + OSCAL `causal_chain` 임베드.
 spec B-1: actor_read 주입 시 actor.pb_scores top-3 을 guardrail_flags 에 노출.
+예측 폐루프: stager 주입 시 예측 TTP 선제 스테이징 판정을 `staged_defenses` 노출.
 """
 
 from __future__ import annotations
@@ -13,9 +14,10 @@ from core.actors import ActorReadGate
 from core.causal import CausalReasoner
 from core.coerce import opt_str
 from core.lineage import LineageCollector
-from core.models import SOCReport, SOCState, Verdict
+from core.models import SOCReport, SOCState, StagedDefense, Verdict
 from core.settings import Settings
 from core.severity import SeverityEngine
+from core.staging import DefenseStager
 
 
 class ReportAgent(BaseSOCAgent):
@@ -28,12 +30,14 @@ class ReportAgent(BaseSOCAgent):
         reasoner: CausalReasoner | None = None,
         actor_read: ActorReadGate | None = None,
         lineage: LineageCollector | None = None,
+        stager: DefenseStager | None = None,
     ) -> None:
         super().__init__(settings)
         self._engine = engine
         self._reasoner = reasoner
         self._actor_read = actor_read
         self._lineage = lineage
+        self._stager = stager
 
     async def run(self, state: SOCState) -> SOCState:
         """리포트 + OSCAL 증거 구성."""
@@ -45,8 +49,11 @@ class ReportAgent(BaseSOCAgent):
 
         inv = state.get("investigation")
         hunt_candidates: list[str] = []
+        staged_defenses: list[StagedDefense] = []
         if inv is not None and inv.predictions:
             hunt_candidates = [p.next_technique for p in inv.predictions]
+            if self._stager is not None:
+                staged_defenses = self._stager.stage(inv.predictions)
 
         report = SOCReport(
             alert_id=alert.id,
@@ -61,6 +68,7 @@ class ReportAgent(BaseSOCAgent):
             guardrail_flags=state.get("guardrail_flags", []),
             hitl=opt_str(meta.get("hitl")),
             hunt_candidates=hunt_candidates,
+            staged_defenses=staged_defenses,
         )
         # spec A1: 인과 체인 매핑
         if self._reasoner is not None:

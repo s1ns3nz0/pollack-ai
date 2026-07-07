@@ -36,6 +36,7 @@ sys.path.insert(0, str(ROOT))
 from agents.graph import build_soc_graph  # noqa: E402
 from agents.investigation_agent import ContextRetriever  # noqa: E402
 from agents.validation_agent import signal_judge  # noqa: E402
+from app.metrics import metrics as _metrics  # noqa: E402
 from core.models import Alert, Severity, Verdict  # noqa: E402
 from tools.kb_stub_tool import KbStubRetriever  # noqa: E402
 
@@ -274,6 +275,8 @@ async def main(with_llm: bool = False) -> None:
         "report_evidence_completeness": round(evidence_ok / n, 3) if n else None,
         "pipeline_total_ms_avg": _avg(total_ms),
         "llm": "live" if llm is not None else "deterministic-fallback",
+        # 예측 폐루프: 세션 내 hit/miss 판정 통계(없으면 None — 단발 평가셋).
+        "prediction": _metrics().prediction_stats() or None,
     }
     out = ROOT / "benchmarks" / "results"
     out.mkdir(parents=True, exist_ok=True)
