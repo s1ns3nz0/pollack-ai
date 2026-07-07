@@ -45,6 +45,7 @@ from agents.validation_agent import (
 from core.actors import ActorReadGate, ActorWriteGate, InMemoryActorStore
 from core.causal import CausalReasoner
 from core.coa import CoaMatrix, CoaPlanner
+from core.degradation import DegradationAssessor, DegradationMatrix
 from core.exceptions import SOCPlatformError
 from core.experience import MemoryReadGate
 from core.killchain import KillChainProgressor
@@ -279,6 +280,13 @@ def build_soc_graph(
         )
     except SOCPlatformError:
         recovery_planner = None
+    # graceful degradation: degradation-matrix.yaml 있으면 임무지속성 평가기 배선.
+    try:
+        degradation: DegradationAssessor | None = DegradationAssessor(
+            DegradationMatrix.from_yaml()
+        )
+    except SOCPlatformError:
+        degradation = None
     report = ReportAgent(
         settings,
         engine,
@@ -288,6 +296,7 @@ def build_soc_graph(
         stager=stager,
         coa_planner=coa_planner,
         recovery_planner=recovery_planner,
+        degradation=degradation,
     )
 
     graph: StateGraph[SOCState] = StateGraph(SOCState)
