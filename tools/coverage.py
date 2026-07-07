@@ -159,6 +159,34 @@ class CoverageMatrix:
             raise CoverageDataError("커버리지 매트릭스에 전술이 없음.")
         return cls(tactics, archetypes)
 
+    def tactic_order(self, tactic: str) -> int | None:
+        """tactic 이름의 kill-chain order 를 반환한다(미매핑이면 None).
+
+        Args:
+            tactic: ATT&CK tactic 이름(예: "Collection").
+
+        Returns:
+            kill-chain 진행 순서(1=초기 정찰 … 후반=영향). 매트릭스에 없으면 None.
+        """
+        for t in self.tactics:
+            if t.name == tactic:
+                return t.order
+        return None
+
+    def max_tactic_order(self, tactics: list[str]) -> int:
+        """tactic 목록 중 최고 order 를 반환한다(actor 누적 진행도용).
+
+        미매핑 tactic(예: ATLAS MLAttackStaging)은 무시한다.
+
+        Args:
+            tactics: tactic 이름 목록.
+
+        Returns:
+            매핑된 tactic 의 최고 order. 하나도 매핑 안 되면 0.
+        """
+        orders = [o for t in tactics if (o := self.tactic_order(t)) is not None]
+        return max(orders) if orders else 0
+
     def gaps(self) -> list[GapTechnique]:
         """모든 미탐지(❌) 기법을 평탄화해 반환한다."""
         return [g for t in self.tactics for g in t.uncovered]

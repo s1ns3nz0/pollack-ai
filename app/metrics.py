@@ -33,6 +33,8 @@ class _Counters:
         # 예측 폐루프: hit/miss 판정 누적(ActorWriteGate on_settle 훅이 갱신)
         self.prediction_hits = 0
         self.prediction_misses = 0
+        # kill chain: 후반단계 도달 격상 누적(Report 노드가 갱신)
+        self.killchain_advanced_total = 0
 
     def record_alert(self, verdict: str) -> None:
         """경보 1건 처리 + 판정 집계."""
@@ -62,6 +64,11 @@ class _Counters:
             self._ragas_faith_sum += faith
             self._ragas_ans_rel_sum += ans_rel
             self._ragas_ctx_rel_sum += ctx_rel
+
+    def record_killchain_advanced(self) -> None:
+        """kill chain 후반단계 도달 격상 1건 누적."""
+        with self._lock:
+            self.killchain_advanced_total += 1
 
     def record_prediction(self, *, hit: bool) -> None:
         """예측 판정 1건 누적(예측 폐루프)."""
@@ -142,6 +149,14 @@ def render_text() -> str:
             out.append(f"# HELP soc_ragas_{k}_avg RAGAS {k} 평균")
             out.append(f"# TYPE soc_ragas_{k}_avg gauge")
             out.append(_line(f"soc_ragas_{k}_avg", ragas_avg[k]))
+
+    # kill chain: 후반단계 도달 격상 카운터
+    if c.killchain_advanced_total:
+        out.append(
+            "# HELP soc_killchain_advanced_total kill chain 후반단계 도달 격상 수"
+        )
+        out.append("# TYPE soc_killchain_advanced_total counter")
+        out.append(_line("soc_killchain_advanced_total", c.killchain_advanced_total))
 
     # 예측 폐루프: hit/miss 카운터 + 적중률 게이지
     pred = c.prediction_stats()
