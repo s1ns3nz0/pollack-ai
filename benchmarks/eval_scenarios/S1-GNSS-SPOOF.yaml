@@ -1,0 +1,30 @@
+# 오프라인 KPI 평가셋 — 재구성본 (원본: projects/dah2026/scenarios, 회사 PC)
+# 출처: sim_bridge/detector.py:30-61 (런타임 빌더), data/mitre_attack_graph.yaml,
+#       docs/hackathon/hwang-junsik-status.md 마스터 표. 원본과 diff 검증 필요.
+scenario_id: S1-GNSS-SPOOF
+title: GPS/GNSS 스푸핑
+target_asset:
+  id: GNSS
+  tier: T1-Critical
+mission_context:
+  phase: on-station
+severity_baseline: h
+telemetry:
+  signals:
+    - "GNSS-INS 잔차 급증 (PosHorizVariance 정상 대비 7배)"
+    - "C/N0 비정상 상승"
+    - "위성수 급감"
+expected_detection:
+  sigma_rule: uav_gps_spoof_residual.yml
+  sentinel_rule: S1_GNSS_Spoofing
+mitre:
+  attack_ics: ["T0830-AiTM", "T0856-SpoofReportingMessage", "T0831", "T0815"]
+defense_playbook:
+  id: PB-NAV-RTB-01
+  actions:
+    - "GNSS 신뢰도 강등, INS/관성항법으로 페일오버"
+    - "마지막 신뢰 좌표 기준 항법 재계산"
+    - "운용자 경보 + 자동 RTB 후보 경로 제시"
+  failover: "INS 단독 항법으로 즉시 전환 후 RTB"
+  onboard_defense:
+    - "온보드 센서퓨전(GPS-IMU 교차검증)으로 통신 없이 GPS 자율 강등"

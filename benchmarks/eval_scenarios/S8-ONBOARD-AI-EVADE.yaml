@@ -1,0 +1,31 @@
+# 오프라인 KPI 평가셋 — 재구성본 (원본: projects/dah2026/scenarios, 회사 PC)
+# 출처: sim_bridge/detector.py S8 런타임 빌더 + docs/superpowers/plans/
+#       2026-06-25-s8-onboard-ai-evade-live-demo.md:358-389. 원본과 diff 검증 필요.
+scenario_id: S8-ONBOARD-AI-EVADE
+title: 온보드 표적인식 AI 적대공격
+target_asset:
+  id: PAYLOAD_EOIR
+  tier: T2-Important
+mission_context:
+  phase: on-station
+severity_baseline: m
+telemetry:
+  signals:
+    - "센서간 표적 불일치"
+    - "탐지 신뢰도 이상 분포"
+expected_detection:
+  sigma_rule: onboard_ai_adversarial_evade.yml
+mitre:
+  atlas: ["AML.T0015-EvadeMLModel", "AML.T0043-CraftAdversarialData", "AML.T0020"]
+defense_playbook:
+  id: PB-ONBOARDAI-08
+  actions:
+    - "다중센서 융합 교차검증, 불일치 표적 보류"
+    - "탐지 신뢰도 이상 시 자율교전 차단 + HITL 표적확인"
+    - "적대적 견고화(robust) 모델/입력 정규화 런타임 방어"
+    - "인식 신뢰 불가 시 보수적 RTB"
+  onboard_defense:
+    - "메타 AI 가 주 비전모델 출력 신뢰도·판단 패턴 상시 감시(AI 가 AI 를 감시)"
+    - "적대 의심 시 경량 백업 비전모델 자동 전환 + 주 모델 격리"
+  failover: "인식 신뢰 불가 시 자율교전 금지, 보수적 RTB 후 운용자 수동 식별"
+  hitl: "severity=m → 자율교전 차단 후 표적확인"

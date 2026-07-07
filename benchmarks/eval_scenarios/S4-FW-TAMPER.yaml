@@ -1,0 +1,27 @@
+# 오프라인 KPI 평가셋 — 재구성본 (원본: projects/dah2026/scenarios, 회사 PC)
+# 출처: docs/hackathon/hwang-junsik-status.md, data/mitre_attack_graph.yaml.
+#       원본과 diff 검증 필요.
+scenario_id: S4-FW-TAMPER
+title: 펌웨어·공급망 변조
+target_asset:
+  id: AUTOPILOT
+  tier: T1-Critical
+mission_context:
+  phase: pre-flight
+severity_baseline: h
+telemetry:
+  signals:
+    - "펌웨어 서명·해시 불일치"
+    - "SBOM 미등록 컴포넌트 탑재"
+expected_detection:
+  sigma_rule: uav_fw_signature_mismatch.yml
+  watchlist: Approved_Firmware_Hash_List
+mitre:
+  attack_ics: ["T0862", "T0857", "T0843", "T0889"]
+defense_playbook:
+  id: PB-FW-INTEG-04
+  actions:
+    - "비행금지 게이트 발동(해당 기체 그라운드)"
+    - "검증 이미지로 재이미징"
+    - "SBOM 재검증 + 공급망 소스 추적"
+  failover: "서명 검증 통과 전 임무 배정 금지"
