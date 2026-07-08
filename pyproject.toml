@@ -140,6 +140,20 @@ module = [
 ]
 ignore_missing_imports = true
 
+# 인프라 매니페스트 구조 검증 테스트 — 동적 YAML/JSON 을 중첩 인덱싱해 단언한다.
+# dict[str, object] 로 좁히면 매 접근마다 narrowing 이 필요해 노이즈만 커진다(안전
+# 이득 없음). 이 모듈만 generic-any 완화(bare dict=dict[Any,Any] 허용).
+[[tool.mypy.overrides]]
+module = [
+    "__tests__.test_deploy_manifests",
+    "__tests__.test_argocd_manifests",
+    "__tests__.test_monitoring_manifests",
+    "__tests__.test_sentinel_tables",
+    "__tests__.test_ioa_graph",
+]
+disallow_any_generics = false
+warn_return_any = false
+
 # ─────────────────────────────────────────
 # pytest
 # ─────────────────────────────────────────

@@ -31,7 +31,8 @@ class TestPostureLadder:
     def test_level_names(self) -> None:
         """국정원 표기 매핑."""
         ladder = PostureLadder.from_yaml()
-        assert ladder.level(1) is not None and ladder.level(1).name == "심각"
+        lvl = ladder.level(1)
+        assert lvl is not None and lvl.name == "심각"
 
     def test_empty_raises(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
         """빈 사다리 → PolicyError."""

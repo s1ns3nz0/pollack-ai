@@ -282,7 +282,7 @@ class Settings(BaseSettings):
     # ── Data Lineage (spec D-1) ──────────────
     lineage_enabled: bool = Field(
         default=False,
-        description="opt-in — Report 노드가 라인리지 스냅샷을 OSCAL evidence 에 임베드.",
+        description="opt-in — Report 노드가 라인리지를 OSCAL evidence 에 임베드.",
     )
 
     # ── CPCON 사이버 태세 (DoD CPCON / 국정원 위기경보) ──────────────

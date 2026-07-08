@@ -161,11 +161,15 @@ class TestCytoscapeSerialization:
         # 각 노드는 data 래핑
         for n in data["nodes"]:
             assert "data" in n
-            assert "id" in n["data"] and "type" in n["data"]
+            node_data = n["data"]
+            assert isinstance(node_data, dict)
+            assert "id" in node_data and "type" in node_data
         # edges 도 id 자동 생성
         for e in data["edges"]:
             assert "data" in e
-            assert "id" in e["data"]
+            edge_data = e["data"]
+            assert isinstance(edge_data, dict)
+            assert "id" in edge_data
 
     def test_empty_graph_returns_empty_arrays(self) -> None:
         empty = IoAGraph()

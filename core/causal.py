@@ -95,7 +95,7 @@ class CausalReasoner:
                             mitre_technique=str(s.get("mitre_technique", "")),
                         )
                     )
-                except Exception:  # noqa: BLE001 - pydantic 검증 오류 graceful
+                except Exception:  # noqa: BLE001,S112 - pydantic 검증 graceful skip
                     continue
             if self._explain and self._llm is not None:
                 for step in steps:

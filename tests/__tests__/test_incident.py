@@ -4,11 +4,10 @@ import pytest
 
 from core.incident import (
     CaseManager,
-    IncidentState,
     InMemoryIncidentStore,
     _provisional_cat,
 )
-from core.models import Alert, Severity
+from core.models import Alert, IncidentState, Severity
 
 
 def _alert(

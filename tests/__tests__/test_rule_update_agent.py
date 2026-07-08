@@ -17,7 +17,7 @@ def _settings() -> Settings:
     return Settings()
 
 
-def _alert(remediation: dict[str, str] | None = None, **overrides: object) -> Alert:
+def _alert(remediation: dict[str, object] | None = None, **overrides: object) -> Alert:
     expected: dict[str, object] = {"sentinel_rule": "S1_GNSS_Spoofing"}
     if remediation is not None:
         expected["remediation"] = remediation
@@ -44,22 +44,21 @@ class TestTypeBException:
     async def test_builds_watchlist_exception_and_pr(self) -> None:
         # repo 의 GNSS 워치리스트는 ZoneId(지리 구역) 기준. 위경도 박스를 columns 로.
         agent = RuleUpdateAgent(_settings(), StubRulePublisher())
+        detection: dict[str, object] = {
+            "watchlist": "GNSS_Exception_List",
+            "search_key": "ZoneId",
+            "type": "B",
+            "value": "gnss-ex-003",
+            "columns": {
+                "MinLat": "36.70",
+                "MaxLat": "36.71",
+                "MinLon": "126.12",
+                "MaxLon": "126.13",
+            },
+        }
         out = await agent.run(
             {
-                "alert": _alert(
-                    {
-                        "watchlist": "GNSS_Exception_List",
-                        "search_key": "ZoneId",
-                        "type": "B",
-                        "value": "gnss-ex-003",
-                        "columns": {
-                            "MinLat": "36.70",
-                            "MaxLat": "36.71",
-                            "MinLon": "126.12",
-                            "MaxLon": "126.13",
-                        },
-                    }
-                )
+                "alert": _alert(detection),
             }
         )
         ru = out["rule_update"]

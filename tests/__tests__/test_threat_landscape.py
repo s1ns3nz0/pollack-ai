@@ -204,5 +204,5 @@ class TestThreatLandscapeAgent:
             publisher=None,  # PR proposed 모드
         )
         report = await agent.run()
-        # added=200 > cap=100 → 자동 적용 0 + PR 시도(publisher None 이라 url 빈값이지만 시도됨)
+        # added=200 > cap=100 → 자동적용 0 + PR 시도(publisher None → url 빈값)
         assert report.auto_applied == 0

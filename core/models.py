@@ -155,7 +155,7 @@ class SbomFinding(BaseModel):
 
     Attributes:
         component: 대상 컴포넌트명.
-        issue: "unregistered"(미승인) | "tampered"(해시 불일치) | "vulnerable"(악용 CVE).
+        issue: "unregistered"(미승인) | "tampered"(해시 불일치) | "vulnerable"(악용).
         detail: 사람이 읽을 위험 상세.
         cve: vulnerable 이면 해당 CVE(그 외 빈값).
     """
@@ -696,7 +696,7 @@ class CoaOption(BaseModel):
         status: "available"(우리 자산으로 실행 가능) | "gap"(방어 공백).
         action: 구체 UAV 방어 행동 서술(gap 이면 빈값).
         d3fend_id: 매핑된 D3FEND technique id(gap 이면 빈값).
-        stage: "current"(actor 도달 단계) | "predicted"(예측 다음 단계) — 대응/선제 구분.
+        stage: "current"(actor 도달 단계) | "predicted"(예측 다음 단계) — 대응/선제.
     """
 
     tactic: str
@@ -758,7 +758,7 @@ class CatoStatus(BaseModel):
     """지속 인가(cATO) 상태 — POA&M 집계 + 인가 판정(결정론).
 
     Attributes:
-        authorization: "authorized"(갭 없음)|"conditional"(중/저 갭)|"at_risk"(고위험 갭).
+        authorization: "authorized"(갭 없음)|"conditional"(중/저 갭)|"at_risk"(고위험).
         poam: 미충족 통제 목록.
         controls_evaluated: 평가한 통제 수.
         rationale: 판정 근거.
@@ -1127,11 +1127,11 @@ class SOCReport(BaseModel):
     hitl: str | None = None
     hunt_candidates: list[str] = Field(
         default_factory=list,
-        description="spec C1: SequencePredictor 예측 → 헌트 후보 technique 목록(legacy).",
+        description="spec C1: SequencePredictor 예측 → 헌트 후보 technique 목록.",
     )
     hunt_hypotheses: list[HuntHypothesis] = Field(
         default_factory=list,
-        description="Tier3 위협 헌팅 백로그 — 예측/campaign/gap 융합 우선순위 hunt 리드.",
+        description="Tier3 위협 헌팅 백로그 — 예측/campaign/gap 융합 우선순위 리드.",
     )
     staged_defenses: list[StagedDefense] = Field(
         default_factory=list,

@@ -41,9 +41,7 @@ class TestCat7:
     def test_fp_ignores_tamper(self) -> None:
         """CONFIRMED_FP → CAT3(악성로직 무관 — tamper 여도 CAT7 아님)."""
         assert (
-            _authoritative_cat(
-                EnvVerdict.CONFIRMED_FP, 11, is_malicious_logic=True
-            )
+            _authoritative_cat(EnvVerdict.CONFIRMED_FP, 11, is_malicious_logic=True)
             == "CAT3"
         )
 

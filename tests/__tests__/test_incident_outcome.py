@@ -2,11 +2,10 @@
 
 from core.incident import (
     CaseManager,
-    IncidentState,
     InMemoryIncidentStore,
     _authoritative_cat,
 )
-from core.models import Alert, EnvVerdict, Severity
+from core.models import Alert, EnvVerdict, IncidentState, Severity
 
 
 def _alert(

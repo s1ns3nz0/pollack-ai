@@ -79,9 +79,8 @@ class TestRagasMetricsUpdate:
         _METRICS._ragas_ans_rel_sum = 0.0
         _METRICS._ragas_ctx_rel_sum = 0.0
         agent = InvestigationAgent(Settings(), retriever=None, ragas=_FakeRagas())
-        state: SOCState = {"alert": _alert()}
         # 인위적으로 summary + trusted 가 있도록 retriever stub
-        await agent._evaluate_ragas(  # type: ignore[attr-defined]
+        await agent._evaluate_ragas(
             _alert(),
             "분석 요약",
             [RetrievedChunk(text="t", source="kb/x", score=0.9)],

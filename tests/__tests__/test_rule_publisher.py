@@ -79,7 +79,9 @@ def _arm_json(items_key: str, header: str, rows: list[str]) -> str:
 
 
 def _raw_of(json_text: str) -> str:
-    return json.loads(json_text)["resources"][0]["properties"]["rawContent"]
+    raw = json.loads(json_text)["resources"][0]["properties"]["rawContent"]
+    assert isinstance(raw, str)
+    return raw
 
 
 class TestApplyWatchlist:
