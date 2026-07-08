@@ -135,6 +135,7 @@ class OutcomeProbeAgent(BaseWorkerAgent):
                 fake_alert,
                 decision.env_verdict,  # type: ignore[attr-defined]
                 Provenance.ENV_VERIFIED,
+                engagement=decision.engagement,  # type: ignore[attr-defined]
             )
             return 1 if d.written else 0
         except SOCPlatformError as exc:

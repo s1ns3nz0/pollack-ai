@@ -1,0 +1,135 @@
+# Grafana G2 + AI 레드팀 게이트 대시보드.
+# - G2 게이트 통과/실패 추세 (test-engineer 합의)
+# - AI 레드팀 TTP별 실패 카운트·결정론 회귀
+# - 공급망 무결성 게이트 상태
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: soc-grafana-dashboard-gates
+  namespace: dah-soc
+  labels:
+    grafana_dashboard: "1"
+data:
+  uav-soc-gates.json: |
+    {
+      "title": "UAV AI SOC — Gates (G2 + AI Red Team + Supply Chain)",
+      "uid": "uav-soc-gates",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "1m",
+      "tags": ["uav", "soc", "g2", "redteam", "supply-chain"],
+      "templating": {
+        "list": [
+          {"name": "DS_PROMETHEUS", "type": "datasource", "query": "prometheus", "current": {}}
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "G2 게이트 통과/실패 (7d)",
+          "type": "stat",
+          "gridPos": {"h": 5, "w": 8, "x": 0, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "short"}},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "sum(increase(g2_gate_pass_total[7d]))", "legendFormat": "pass"},
+            {"expr": "sum(increase(g2_gate_fail_total[7d]))", "legendFormat": "fail"}
+          ]
+        },
+        {
+          "id": 2,
+          "title": "G2 실패 분포 (severity별, 7d)",
+          "type": "piechart",
+          "gridPos": {"h": 5, "w": 8, "x": 8, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "sum by (severity) (increase(g2_gate_fail_total[7d]))", "legendFormat": "{{severity}}"}
+          ]
+        },
+        {
+          "id": 3,
+          "title": "AI 레드팀 결정론 회귀 — 0 이어야 정상",
+          "type": "stat",
+          "gridPos": {"h": 5, "w": 8, "x": 16, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "short", "thresholds": {"mode": "absolute",
+            "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "sum(increase(ai_redteam_regression_block_total[7d]))", "legendFormat": "회귀 차단 7d"}
+          ]
+        },
+        {
+          "id": 4,
+          "title": "G2 게이트 값 (KPI 추세)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 5},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "g2_gate_value{name=\"kpi_precision\"}", "legendFormat": "precision"},
+            {"expr": "g2_gate_value{name=\"kpi_recall\"}", "legendFormat": "recall"},
+            {"expr": "g2_gate_value{name=\"fp_recurrence_rate\"}", "legendFormat": "FP 재발률"},
+            {"expr": "g2_gate_value{name=\"ragas_faithfulness\"}", "legendFormat": "RAGAS faithfulness"}
+          ]
+        },
+        {
+          "id": 5,
+          "title": "AI 레드팀 TTP별 실패 카운트",
+          "type": "bargauge",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 5},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "sum by (atlas_id) (increase(ai_redteam_ttp_fail_total[30d]))",
+             "legendFormat": "{{atlas_id}}"}
+          ]
+        },
+        {
+          "id": 6,
+          "title": "AI 레드팀 공격 성공률 — 벡터별",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 13},
+          "fieldConfig": {"defaults": {"unit": "percentunit", "max": 1,
+            "thresholds": {"mode": "absolute",
+              "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.05}, {"color": "red", "value": 0.10}]}}},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "ai_redteam_attack_success_rate", "legendFormat": "{{vector}}"}
+          ]
+        },
+        {
+          "id": 7,
+          "title": "Garak Probe Fail Rate",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 13},
+          "fieldConfig": {"defaults": {"unit": "percentunit", "max": 0.20,
+            "thresholds": {"mode": "absolute",
+              "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.05}, {"color": "red", "value": 0.10}]}}},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "garak_probe_fail_rate", "legendFormat": "{{probe}}"}
+          ]
+        },
+        {
+          "id": 8,
+          "title": "공급망 무결성 게이트",
+          "type": "table",
+          "gridPos": {"h": 6, "w": 12, "x": 0, "y": 21},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "supply_chain_unsigned_image_total", "legendFormat": "unsigned", "instant": true},
+            {"expr": "supply_chain_sbom_missing_total", "legendFormat": "sbom missing", "instant": true},
+            {"expr": "slsa_provenance_level", "legendFormat": "SLSA level", "instant": true}
+          ]
+        },
+        {
+          "id": 9,
+          "title": "플레이키 테스트 추세",
+          "type": "timeseries",
+          "gridPos": {"h": 6, "w": 12, "x": 12, "y": 21},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "increase(pytest_flaky_total[1d])", "legendFormat": "flaky/day"},
+            {"expr": "increase(pytest_quarantine_total[1d])", "legendFormat": "quarantine/day"}
+          ]
+        }
+      ]
+    }

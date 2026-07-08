@@ -1,0 +1,116 @@
+# Grafana DORA Dashboard — 배포 빈도/리드타임/변경 실패율/MTTR.
+# grafana_dashboard 라벨로 사이드카가 자동 적재.
+#
+# 출처:
+#   - deployment_frequency_total       — GitHub Actions workflow_run exporter (cd-prod 성공 카운트)
+#   - lead_time_for_changes_seconds    — 동일 exporter (commit_time → sync_time)
+#   - change_failure_total             — cd-prod 실패 + Argo Rollouts abort
+#   - mean_time_to_restore_seconds     — Alertmanager incident open → close
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: soc-grafana-dashboard-dora
+  namespace: dah-soc
+  labels:
+    grafana_dashboard: "1"
+data:
+  uav-soc-dora.json: |
+    {
+      "title": "UAV AI SOC — DORA",
+      "uid": "uav-soc-dora",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "1m",
+      "tags": ["uav", "soc", "dora", "cicd"],
+      "templating": {
+        "list": [
+          {"name": "DS_PROMETHEUS", "type": "datasource", "query": "prometheus", "current": {}},
+          {"name": "environment", "type": "query", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+           "query": "label_values(deployment_frequency_total, environment)", "current": {"text": "production", "value": "production"}}
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "배포 빈도 (24h)",
+          "type": "stat",
+          "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "short", "thresholds": {"mode": "absolute",
+            "steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 1}, {"color": "green", "value": 3}]}}},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "sum(increase(deployment_frequency_total{environment=\"$environment\"}[24h]))", "legendFormat": "배포/24h"}
+          ]
+        },
+        {
+          "id": 2,
+          "title": "변경 리드타임 (P50/P95)",
+          "type": "stat",
+          "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "s", "thresholds": {"mode": "absolute",
+            "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 86400}, {"color": "red", "value": 604800}]}}},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "histogram_quantile(0.50, sum by (le) (rate(lead_time_for_changes_seconds_bucket{environment=\"$environment\"}[24h])))", "legendFormat": "P50"},
+            {"expr": "histogram_quantile(0.95, sum by (le) (rate(lead_time_for_changes_seconds_bucket{environment=\"$environment\"}[24h])))", "legendFormat": "P95"}
+          ]
+        },
+        {
+          "id": 3,
+          "title": "변경 실패율 (7d)",
+          "type": "stat",
+          "gridPos": {"h": 6, "w": 6, "x": 12, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "percentunit", "max": 1, "thresholds": {"mode": "absolute",
+            "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.10}, {"color": "red", "value": 0.15}]}}},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "sum(increase(change_failure_total{environment=\"$environment\"}[7d])) / sum(increase(deployment_frequency_total{environment=\"$environment\"}[7d]))",
+             "legendFormat": "실패율"}
+          ]
+        },
+        {
+          "id": 4,
+          "title": "MTTR (24h 평균)",
+          "type": "stat",
+          "gridPos": {"h": 6, "w": 6, "x": 18, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "s", "thresholds": {"mode": "absolute",
+            "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 3600}, {"color": "red", "value": 7200}]}}},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "avg_over_time(mean_time_to_restore_seconds{environment=\"$environment\"}[24h])", "legendFormat": "MTTR"}
+          ]
+        },
+        {
+          "id": 5,
+          "title": "배포 추세 (일별)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "sum(increase(deployment_frequency_total{environment=\"$environment\"}[1d]))", "legendFormat": "성공"},
+            {"expr": "sum(increase(change_failure_total{environment=\"$environment\"}[1d]))", "legendFormat": "실패"}
+          ]
+        },
+        {
+          "id": 6,
+          "title": "Canary 자동 분석 abort 카운트",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "sum by (metric) (increase(analysis_run_metric_phase{phase=\"Failed\",rollout=~\"soc-hotpath.*\"}[1d]))",
+             "legendFormat": "{{metric}}"}
+          ]
+        },
+        {
+          "id": 7,
+          "title": "ArgoCD App Sync (성공/실패)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 14},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "sum by (phase) (rate(argocd_app_sync_total[5m]))", "legendFormat": "{{phase}}"}
+          ]
+        }
+      ]
+    }

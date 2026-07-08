@@ -1,0 +1,141 @@
+# =====================================================================
+# Argo Rollouts — soc-hotpath 트랙 A Canary
+#
+# 전환:
+#   기존: kind: Deployment (replicas=1, strategy: Recreate)
+#   신규: kind: Rollout    (replicas=2, strategy: canary)
+#
+# 카나리 단계 (설계서 4.2):
+#   10% → pause 10m → analysis → 50% → pause 30m → analysis → 100%
+#
+# ⚠️ 상태 분리 결정 (보류 → 권고):
+#   기존 hotpath 가 상태 보유(AlertCorrelator) 인 경우, replicas=2 카나리는
+#   상태 중복을 일으킨다. infra-engineer 권고 (cd-prod.yml 와 함께 PR):
+#     옵션 A) 상태부(AlertCorrelator) 를 별도 StatefulSet 으로 분리 후 stateless
+#              추론 부분만 Rollout (replicas=2+) — **권장**.
+#     옵션 B) Blue-Green 으로 전환 (active/preview, replicas=1, 양 슬롯 직렬 전환).
+#
+# 본 매니페스트는 옵션 A 가정. 옵션 B 채택 시 strategy.blueGreen 으로 교체.
+# =====================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: soc-hotpath
+  namespace: dah-soc
+  labels:
+    app: soc-hotpath
+    soc.role: hotpath
+    soc.deployment.strategy: canary
+spec:
+  replicas: 2 # 카나리 weight 계산 가능 최소치
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: soc-hotpath
+  strategy:
+    canary:
+      # 트래픽 분할 라우터 미사용(L4 Service 로 단순 replica weight).
+      # Istio/Gateway API 도입 후 trafficRouting 으로 정밀 분할 권장.
+      maxSurge: 1
+      maxUnavailable: 0
+      steps:
+        - setWeight: 10
+        - pause: { duration: 10m }
+        - analysis:
+            templates:
+              - templateName: hotpath-success-rate-latency
+            args:
+              - name: service-name
+                value: soc-hotpath
+              - name: namespace
+                value: dah-soc
+        - setWeight: 50
+        - pause: { duration: 30m }
+        - analysis:
+            templates:
+              - templateName: hotpath-success-rate-latency
+            args:
+              - name: service-name
+                value: soc-hotpath
+              - name: namespace
+                value: dah-soc
+        - setWeight: 100
+  template:
+    metadata:
+      labels:
+        app: soc-hotpath
+        soc.role: hotpath
+    spec:
+      # 보안 컨텍스트 — runAsUser 는 Dockerfile USER 10001 와 일치.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: hotpath
+          image: ghcr.io/s1ns3nz0/uav-ai-soc:latest # CI/CD 가 bump
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "app.hotpath"]
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: soc-config
+            - secretRef:
+                name: soc-secrets
+          # 모델 로드 ≤ 300s 허용.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 30 # 30 × 10s = 300s
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 15
+            failureThreshold: 3
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2"
+              memory: "1Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false # graphrag 임시 캐시 필요 → false 유지
+            capabilities:
+              drop: ["ALL"]
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: soc-hotpath
+  namespace: dah-soc
+  labels:
+    app: soc-hotpath
+    monitoring: enabled # ServiceMonitor 선택 라벨
+spec:
+  selector:
+    app: soc-hotpath
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

@@ -1,0 +1,196 @@
+# =====================================================================
+# ServiceMonitor — soc-hotpath / soc-learning / kagent-toolserver 의
+# Prometheus 스크레이프 설정 (강화 버전).
+#
+# 변경점(기존 deploy/monitoring/servicemonitor.yaml 대비):
+#   1) 단일 ServiceMonitor → 워크로드별 ServiceMonitor 3종으로 분리하여
+#      `track={hotpath|learning|toolserver}` 라벨 부여(카디널리티 통제).
+#   2) AnalysisTemplate(hotpath-success-rate-latency.yaml) 의 5종 메트릭
+#      (http_requests_total / http_request_duration_seconds_bucket /
+#       agent_latency_seconds_bucket / ragas_faithfulness_score /
+#       kube_pod_container_status_restarts_total) 라벨 정합성 보장.
+#   3) Pushgateway ServiceMonitor 추가(g2_summary.json/oscal/AI 레드팀 결과
+#      메트릭 수집 경로).
+#   4) ArgoCD metrics ServiceMonitor 추가(DORA 4지표 중 배포 빈도/실패율).
+#
+# 주의:
+#   - AnalysisTemplate Prometheus 쿼리의 `job="soc-hotpath"` 라벨과 정합되어야 함.
+#     (infra-engineer 산출물 _workspace/02_pipeline_config/deploy/k8s/
+#      analysistemplates/hotpath-success-rate-latency.yaml 참조)
+#   - 라벨 카디널리티 제어: 사용자/세션/alert-id 단위 라벨 부여 금지.
+#     `track`, `agent`, `phase`, `model`, `direction`, `component`, `severity`,
+#     `framework`, `status` 만 허용.
+# =====================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: soc-hotpath
+  namespace: dah-soc
+  labels:
+    release: kube-prometheus-stack # Prometheus 가 이 라벨로 선택
+    track: hotpath
+spec:
+  namespaceSelector:
+    matchNames: [dah-soc]
+  selector:
+    matchLabels:
+      monitoring: enabled
+      app.kubernetes.io/name: soc-hotpath
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      # job 라벨을 명시적으로 'soc-hotpath' 로 설정 — AnalysisTemplate 정합
+      relabelings:
+        - action: replace
+          targetLabel: job
+          replacement: soc-hotpath
+        - action: replace
+          targetLabel: track
+          replacement: hotpath
+      # 카디널리티 통제 — 허용 메트릭 화이트리스트 외 drop.
+      # ── Histogram 주의 ────────────────────────────────────────────────
+      # Prometheus Histogram 은 `<name>_bucket / <name>_count / <name>_sum`
+      # 3종 시리즈로 분리되어 노출된다. PrometheusRule/AnalysisTemplate 의
+      # `histogram_quantile(...)` 및 `rate(..._bucket[..])` 쿼리는 `_bucket`
+      # 시리즈가 keep 되어야 동작한다.
+      #   - mttt_seconds:        prometheusrule.yaml:301 가 _bucket 사용
+      #   - agent_latency_seconds: AnalysisTemplate/Grafana 가 _bucket 사용
+      #   - http_request_duration_seconds: AnalysisTemplate/Grafana 가 _bucket 사용
+      # F-020 정정: `mttt_seconds` 단독 매치 → `_bucket` drop 되어 알림
+      # 영구 no-data 였음. 동일 형식(`(_bucket|_count|_sum)?`)으로 통일.
+      metricRelabelings:
+        - sourceLabels: [__name__]
+          regex: "(http_requests_total|http_request_duration_seconds(_bucket|_count|_sum)?|agent_latency_seconds(_bucket|_count|_sum)?|llm_tokens_total|llm_cost_usd_total|triage_accuracy_ratio|ragas_faithfulness_score|ragas_relevancy_score|mttt_seconds(_bucket|_count|_sum)?|soc_alerts_total|soc_node_latency_avg_ms|soc_verdict_total|soc_attack_coverage_ratio|soc_attack_addressable_ratio|soc_attack_gap_total|soc_attack_tactic_uncovered)"
+          action: keep
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: soc-learning
+  namespace: dah-soc
+  labels:
+    release: kube-prometheus-stack
+    track: learning
+spec:
+  namespaceSelector:
+    matchNames: [dah-soc]
+  selector:
+    matchLabels:
+      monitoring: enabled
+      app.kubernetes.io/name: soc-learning
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 60s # learning 트랙 — 버스티 비동기. 30s → 60s 로 부담 절감
+      scrapeTimeout: 15s
+      relabelings:
+        - action: replace
+          targetLabel: job
+          replacement: soc-learning
+        - action: replace
+          targetLabel: track
+          replacement: learning
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: soc-kagent-toolserver
+  namespace: dah-soc
+  labels:
+    release: kube-prometheus-stack
+    track: toolserver
+spec:
+  namespaceSelector:
+    matchNames: [dah-soc]
+  selector:
+    matchLabels:
+      monitoring: enabled
+      app.kubernetes.io/name: kagent-toolserver
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      relabelings:
+        - action: replace
+          targetLabel: job
+          replacement: kagent-toolserver
+        - action: replace
+          targetLabel: track
+          replacement: toolserver
+---
+# Pushgateway — CI/CD 게이트(G2/OSCAL/AI 레드팀) 산출물 수집 경로.
+# CronJob(oscal-export-cronjob.yaml) 과 GitHub Actions 가 push.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: soc-pushgateway
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames: [monitoring]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus-pushgateway
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 60s
+      scrapeTimeout: 15s
+      # honorLabels: true — Pushgateway 가 push 한 job/instance 라벨 보존
+      honorLabels: true
+      metricRelabelings:
+        # CI 게이트 메트릭만 keep — push_time_seconds 등 메타 제외
+        - sourceLabels: [__name__]
+          regex: "(g2_gate_pass_total|g2_gate_fail_total|g2_gate_value|oscal_controls_total|oscal_poam_open_total|oscal_compliance_ratio|oscal_last_build_timestamp|ai_redteam_ttp_fail_total|ai_redteam_determinism_check|ai_redteam_regression_block_total|ai_redteam_attack_success_rate|garak_probe_fail_rate|supply_chain_unsigned_image_total|supply_chain_sbom_missing_total|slsa_provenance_level|deployment_frequency_total|change_failure_total|lead_time_for_changes_seconds|mean_time_to_restore_seconds|pytest_flaky_total|pytest_quarantine_total)"
+          action: keep
+---
+# ArgoCD metrics — 배포 빈도/sync 실패 (DORA 4지표 입력).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: soc-argocd-metrics
+  namespace: argocd
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames: [argocd]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-application-controller
+  endpoints:
+    - port: metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      metricRelabelings:
+        - sourceLabels: [__name__]
+          regex: "(argocd_app_sync_total|argocd_app_info|argocd_app_health_status|argocd_app_reconcile_count|argocd_app_reconcile_bucket)"
+          action: keep
+---
+# Argo Rollouts metrics — Canary 자동 분석/abort 이벤트 (변경 실패율).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: soc-argo-rollouts
+  namespace: argo-rollouts
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames: [argo-rollouts]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argo-rollouts
+  endpoints:
+    - port: metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      metricRelabelings:
+        - sourceLabels: [__name__]
+          regex: "(rollout_info|rollout_phase|rollout_reconcile|rollout_events_total|analysis_run_info|analysis_run_metric_phase|experiment_info)"
+          action: keep

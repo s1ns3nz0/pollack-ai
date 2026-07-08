@@ -1,0 +1,256 @@
+# ─────────────────────────────────────────
+# CI Quality Gate (강화 패치)
+#
+# 기존 .github/workflows/ci.yml 의 단일 `lint` 잡을 5개 잡으로 분해·강화한다:
+#   lint        — black + ruff check + ruff format --check
+#   typecheck   — mypy (strict + disallow_any_explicit)
+#   complexity  — xenon (ruff C90 보조)
+#   docstring   — interrogate (Google 스타일 ≥80%)
+#   convention  — 파일명/print/bare-except grep 게이트 (도구 미커버 잔여)
+#
+# 적용 방법(택1):
+#   (A) 본 워크플로를 그대로 추가하고 기존 ci.yml의 `lint` 잡은 제거
+#   (B) 본 파일의 잡 정의들을 ci.yml에 머지
+#
+# 라운드 B (옵션 1, 빌더 이미지 핀):
+#   - 모든 잡(lint/typecheck/complexity/docstring/convention)은 빌더 이미지에서 실행.
+#   - verify-builder 잡이 cosign 검증을 한 번 수행 → 모든 잡이 needs 로 의존.
+#   - quality-gate summary 잡만 화이트리스트(잡 result 평가만, 단순).
+#
+# SHA 핀: 라운드 A-2 정정 — 모든 action 을 02_infra_config.md §8 표 SHA 로 핀 완료.
+#   actions/checkout         @11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+#   actions/setup-python     @a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+#   sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
+# ─────────────────────────────────────────
+name: CI Quality
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+# 동일 PR/브랜치 중복 실행 취소 (러너 비용 절약)
+concurrency:
+  group: ci-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─────────────────────────────────────────
+  # 0. verify-builder — 빌더 이미지 cosign 서명 검증(공급망 게이트)
+  # ─────────────────────────────────────────
+  verify-builder:
+    name: Verify builder image (cosign keyless)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
+      - name: BUILDER_IMAGE_DIGEST 존재 검증
+        run: |
+          if [ -z "${{ vars.BUILDER_IMAGE_DIGEST }}" ]; then
+            echo "::error::vars.BUILDER_IMAGE_DIGEST 미설정 — build-builder.yml 부트스트랩 필요."
+            exit 1
+          fi
+      - name: cosign verify (uav-soc-builder)
+        run: |
+          cosign verify \
+            --certificate-identity-regexp '^https://github\.com/s1ns3nz0/pollack-ai/\.github/workflows/build-builder\.yml@refs/heads/main$' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            ghcr.io/s1ns3nz0/uav-soc-builder@${{ vars.BUILDER_IMAGE_DIGEST }}
+
+  # ─────────────────────────────────────────
+  # 1. Lint — black --check + ruff check + ruff format --check (빌더 이미지)
+  # ─────────────────────────────────────────
+  lint:
+    name: Lint (black + ruff)
+    runs-on: ubuntu-latest
+    needs: verify-builder
+    timeout-minutes: 5
+    container:
+      image: ghcr.io/s1ns3nz0/uav-soc-builder@${{ vars.BUILDER_IMAGE_DIGEST }}
+      options: --user 10001 --read-only --tmpfs /tmp:rw,nosuid,nodev,size=128m --cap-drop=ALL
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # 라운드 B: black/ruff 는 빌더 이미지에 핀(black==24.10.0, ruff==0.5.7) — pip install 단계 제거.
+
+      - name: black --check
+        run: black --check .
+
+      - name: ruff check (GitHub 어노테이션)
+        # --output-format=github 으로 PR Annotation 자동 생성
+        run: ruff check . --output-format=github
+
+      - name: ruff format --check
+        # ruff-format 결과와 black 결과가 호환되어야 함 (이중 방어)
+        run: ruff format --check .
+
+  # ─────────────────────────────────────────
+  # 2. Typecheck — mypy strict + disallow_any_explicit (빌더 이미지)
+  # ─────────────────────────────────────────
+  typecheck:
+    name: Type Check (mypy)
+    runs-on: ubuntu-latest
+    needs: verify-builder
+    timeout-minutes: 5
+    container:
+      image: ghcr.io/s1ns3nz0/uav-soc-builder@${{ vars.BUILDER_IMAGE_DIGEST }}
+      options: --user 10001 --read-only --tmpfs /tmp:rw,nosuid,nodev,size=256m --cap-drop=ALL
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      # mypy 는 빌더 이미지에 핀(mypy==1.11.2) — pip install 단계 제거.
+      - name: mypy (no-incremental, reproducible)
+        # mypy 캐시는 /tmp 사용(read-only rootfs 대응).
+        env:
+          MYPY_CACHE_DIR: /tmp/.mypy_cache
+        run: mypy . --no-incremental --show-error-codes
+
+  # ─────────────────────────────────────────
+  # 3. Complexity — xenon (빌더 이미지)
+  # ─────────────────────────────────────────
+  complexity:
+    name: Complexity (xenon)
+    runs-on: ubuntu-latest
+    needs: verify-builder
+    timeout-minutes: 3
+    container:
+      image: ghcr.io/s1ns3nz0/uav-soc-builder@${{ vars.BUILDER_IMAGE_DIGEST }}
+      options: --user 10001 --read-only --tmpfs /tmp:rw,nosuid,nodev,size=128m --cap-drop=ALL
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      # xenon 은 빌더 이미지에 핀(xenon==0.9.3) — pip install 단계 제거.
+      - name: xenon (함수≤B, 모듈≤A, 평균≤A)
+        # 방산 컨텍스트: 복잡도 등급 상한 — 함수 B(10), 모듈 A(6), 평균 A(5)
+        run: |
+          xenon \
+            --max-absolute B \
+            --max-modules A \
+            --max-average A \
+            --exclude projects,benchmarks,scripts \
+            .
+
+  # ─────────────────────────────────────────
+  # 4. Docstring — interrogate (Google ≥80%, 빌더 이미지)
+  # ─────────────────────────────────────────
+  docstring:
+    name: Docstring Coverage (interrogate)
+    runs-on: ubuntu-latest
+    needs: verify-builder
+    timeout-minutes: 3
+    container:
+      image: ghcr.io/s1ns3nz0/uav-soc-builder@${{ vars.BUILDER_IMAGE_DIGEST }}
+      options: --user 10001 --read-only --tmpfs /tmp:rw,nosuid,nodev,size=128m --cap-drop=ALL
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      # interrogate 는 빌더 이미지에 핀(interrogate==1.7.0) — pip install 단계 제거.
+      - name: interrogate (fail-under=80)
+        run: interrogate -c pyproject.toml -v .
+
+  # ─────────────────────────────────────────
+  # 5. Convention — 도구 미커버 잔여 규약 (파일명/print/bare-except, 빌더 이미지)
+  # ─────────────────────────────────────────
+  convention:
+    name: Convention Grep Gate
+    runs-on: ubuntu-latest
+    needs: verify-builder
+    timeout-minutes: 2
+    container:
+      image: ghcr.io/s1ns3nz0/uav-soc-builder@${{ vars.BUILDER_IMAGE_DIGEST }}
+      options: --user 10001 --read-only --tmpfs /tmp:rw,nosuid,nodev,size=64m --cap-drop=ALL
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: agents/ 파일명 규약 — {role}_agent.py
+        run: |
+          set -e
+          # __init__.py, base.py 외에는 *_agent.py 만 허용
+          bad=$(find agents -type f -name "*.py" \
+            ! -name "__init__.py" ! -name "base.py" ! -name "*_agent.py" 2>/dev/null || true)
+          if [ -n "$bad" ]; then
+            echo "::error::agents/ 하위는 {role}_agent.py 형식이어야 합니다:"
+            echo "$bad"
+            exit 1
+          fi
+
+      - name: tools/ 파일명 규약 — {service}_tool.py
+        run: |
+          set -e
+          bad=$(find tools -type f -name "*.py" \
+            ! -name "__init__.py" ! -name "base.py" ! -name "*_tool.py" 2>/dev/null || true)
+          if [ -n "$bad" ]; then
+            echo "::error::tools/ 하위는 {service}_tool.py 형식이어야 합니다:"
+            echo "$bad"
+            exit 1
+          fi
+
+      - name: print() 잔존 확인 (ruff T20 이중 방어)
+        run: |
+          set -e
+          # ruff T20과 중복이지만 ruff exclude 디렉토리 누락 방어
+          bad=$(grep -rEn --include="*.py" \
+            --exclude-dir=tests --exclude-dir=scripts --exclude-dir=benchmarks \
+            --exclude-dir=projects \
+            "^[[:space:]]*print\(" agents core tools utils app 2>/dev/null || true)
+          if [ -n "$bad" ]; then
+            echo "::error::print() 사용 금지 — get_logger() 사용:"
+            echo "$bad"
+            exit 1
+          fi
+
+      - name: bare except 잔존 확인 (ruff E722 이중 방어)
+        run: |
+          set -e
+          bad=$(grep -rEn --include="*.py" \
+            --exclude-dir=tests --exclude-dir=projects \
+            "except[[:space:]]*:" agents core tools utils app 2>/dev/null || true)
+          if [ -n "$bad" ]; then
+            echo "::error::bare except 금지 — 구체 예외 타입 명시:"
+            echo "$bad"
+            exit 1
+          fi
+
+      - name: 와일드카드 임포트 잔존 확인 (ruff F403 이중 방어)
+        run: |
+          set -e
+          bad=$(grep -rEn --include="*.py" \
+            --exclude-dir=tests --exclude-dir=projects \
+            "^from .* import \*$" agents core tools utils app 2>/dev/null || true)
+          if [ -n "$bad" ]; then
+            echo "::error::와일드카드 임포트 금지:"
+            echo "$bad"
+            exit 1
+          fi
+
+  # ─────────────────────────────────────────
+  # Quality Gate Summary — 위 5개 잡 모두 통과 시 성공
+  # downstream(test, build 등)은 본 잡을 needs로 참조
+  # (화이트리스트: 컨테이너 미적용 — 잡 result 평가만 수행, bash 분기)
+  # ─────────────────────────────────────────
+  quality-gate:
+    name: Quality Gate Summary
+    runs-on: ubuntu-latest
+    needs: [verify-builder, lint, typecheck, complexity, docstring, convention]
+    if: always()
+    steps:
+      - name: 게이트 결과 종합
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.typecheck.result }}" != "success" ] || \
+             [ "${{ needs.complexity.result }}" != "success" ] || \
+             [ "${{ needs.docstring.result }}" != "success" ] || \
+             [ "${{ needs.convention.result }}" != "success" ]; then
+            echo "::error::품질 게이트 실패"
+            echo "lint=${{ needs.lint.result }}"
+            echo "typecheck=${{ needs.typecheck.result }}"
+            echo "complexity=${{ needs.complexity.result }}"
+            echo "docstring=${{ needs.docstring.result }}"
+            echo "convention=${{ needs.convention.result }}"
+            exit 1
+          fi
+          echo "품질 게이트 통과 (black/ruff/mypy/complexity/docstring/convention)"

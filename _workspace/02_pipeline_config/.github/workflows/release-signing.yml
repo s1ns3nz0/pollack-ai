@@ -1,0 +1,180 @@
+# =====================================================================
+# release-signing.yml — 재사용 가능 워크플로(workflow_call).
+#
+# 역할:
+#   1) cosign keyless 서명 (Sigstore Fulcio + Rekor, OIDC)
+#   2) Syft SBOM 생성 + cosign attest 첨부 (SPDX-JSON)
+#   3) SLSA Provenance L3 generator 호출(별도 호출 워크플로에서 권장)
+#
+# 호출 예:
+#   jobs:
+#     sign:
+#       uses: ./.github/workflows/release-signing.yml
+#       with:
+#         image_ref: ghcr.io/s1ns3nz0/uav-ai-soc@sha256:<digest>
+#         image_tag: ghcr.io/s1ns3nz0/uav-ai-soc:sha-<git-sha>
+#         sbom_artifact_name: sbom-sha-<git-sha>
+#       permissions:
+#         id-token: write   # OIDC keyless 서명에 필수
+#         packages: write   # GHCR 메타데이터 push
+#         contents: read
+#
+# 보안 원칙:
+#   - 모든 third-party action 은 SHA 핀 + 버전 주석.
+#   - 시크릿 사용 없음(keyless). PAT/장기 자격증명 제거.
+#   - permissions 최소 — 본 워크플로는 id-token/packages 만 요구.
+# =====================================================================
+
+name: Release Signing (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      image_ref:
+        description: "다이제스트 참조(서명·attest 대상). 예: ghcr.io/.../uav-ai-soc@sha256:..."
+        required: true
+        type: string
+      image_tag:
+        description: "사람이 읽는 태그(메타데이터용). 예: ghcr.io/.../uav-ai-soc:sha-abc1234"
+        required: true
+        type: string
+      sbom_format:
+        description: "SBOM 포맷 (spdx-json | cyclonedx-json)"
+        required: false
+        type: string
+        default: "spdx-json"
+    outputs:
+      sbom_artifact_name:
+        description: "업로드된 SBOM artifact 이름(상위 워크플로에서 다운로드 가능)"
+        value: ${{ jobs.sign-and-attest.outputs.sbom_artifact_name }}
+
+# 호출 워크플로에서 permissions 를 명시해야 한다(workflow_call 은 상속).
+# 본 파일에서는 참고용으로 명시하지 않는다 — 호출 측이 책임.
+
+jobs:
+  # ─────────────────────────────────────────
+  # 1) SBOM 생성 → cosign keyless 서명 → SBOM attest
+  # ─────────────────────────────────────────
+  sign-and-attest:
+    name: Sign image & attest SBOM (cosign keyless)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      sbom_artifact_name: ${{ steps.sbom-name.outputs.name }}
+    steps:
+      - name: 체크아웃
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # cosign — Sigstore keyless 서명 도구.
+      - name: cosign 설치
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
+        with:
+          cosign-release: "v2.4.1"
+
+      # Syft — SBOM 생성기.
+      - name: Syft 설치
+        uses: anchore/sbom-action/download-syft@7b36ad622f042cab6f59a75c2ac24ccb256e9b45 # v0.20.4
+
+      # ──────────────────────────────────────
+      # SBOM 생성 (이미지 다이제스트 기준)
+      # ──────────────────────────────────────
+      - name: SBOM 생성 (Syft, ${{ inputs.sbom_format }})
+        id: sbom-gen
+        run: |
+          set -euo pipefail
+          syft "${{ inputs.image_ref }}" \
+            -o "${{ inputs.sbom_format }}=sbom.${{ inputs.sbom_format == 'spdx-json' && 'spdx.json' || 'cdx.json' }}"
+          ls -la sbom.*
+
+      - name: SBOM artifact 이름 산출
+        id: sbom-name
+        run: |
+          # 다이제스트 마지막 12자 + 포맷.
+          DIGEST_SHORT="${{ inputs.image_ref }}"
+          DIGEST_SHORT="${DIGEST_SHORT##*:}"
+          DIGEST_SHORT="${DIGEST_SHORT:0:12}"
+          echo "name=sbom-${DIGEST_SHORT}-${{ inputs.sbom_format }}" >> "$GITHUB_OUTPUT"
+
+      - name: SBOM artifact 업로드 (90일 보존)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.sbom-name.outputs.name }}
+          path: sbom.*
+          retention-days: 90
+          if-no-files-found: error
+
+      # ──────────────────────────────────────
+      # GHCR 인증 (OIDC가 아닌 GITHUB_TOKEN 사용 — packages:write 권한).
+      # cosign attest/sign 은 registry 인증이 필요하다.
+      # ──────────────────────────────────────
+      - name: GHCR 로그인 (GITHUB_TOKEN)
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ──────────────────────────────────────
+      # 1) cosign keyless 서명 (Fulcio short-lived 인증서 + Rekor 투명성 로그)
+      #    OIDC: id-token: write 권한 필요 (호출 측 잡에서 부여).
+      # ──────────────────────────────────────
+      - name: cosign keyless 서명
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          set -euo pipefail
+          echo "::group::cosign sign"
+          cosign sign --yes \
+            --output-signature cosign.sig \
+            --output-certificate cosign.pem \
+            "${{ inputs.image_ref }}"
+          echo "::endgroup::"
+
+      # ──────────────────────────────────────
+      # 2) SBOM attest — predicate 로 SBOM 첨부 (SPDX 표준 타입)
+      # ──────────────────────────────────────
+      - name: SBOM attest (predicate 첨부)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          set -euo pipefail
+          PREDICATE_TYPE="spdxjson"
+          SBOM_FILE="sbom.spdx.json"
+          if [ "${{ inputs.sbom_format }}" = "cyclonedx-json" ]; then
+            PREDICATE_TYPE="cyclonedx"
+            SBOM_FILE="sbom.cdx.json"
+          fi
+          cosign attest --yes \
+            --predicate "${SBOM_FILE}" \
+            --type "${PREDICATE_TYPE}" \
+            "${{ inputs.image_ref }}"
+
+      # ──────────────────────────────────────
+      # 3) 검증 (CI에서 즉시 확인 — 운영 환경 admission 정책 등가 검사)
+      # ──────────────────────────────────────
+      - name: 서명/attest 검증
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          set -euo pipefail
+          # Fulcio 인증서 + Rekor 로그 일치 검증.
+          cosign verify \
+            --certificate-identity-regexp "^https://github\.com/${{ github.repository }}/" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "${{ inputs.image_ref }}"
+
+          cosign verify-attestation \
+            --type "${{ inputs.sbom_format == 'spdx-json' && 'spdxjson' || 'cyclonedx' }}" \
+            --certificate-identity-regexp "^https://github\.com/${{ github.repository }}/" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "${{ inputs.image_ref }}"
+
+      - name: 서명 산출물 업로드 (감사용)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cosign-signature-${{ github.run_id }}
+          path: |
+            cosign.sig
+            cosign.pem
+          retention-days: 365 # 방산: 1년 보존
+          if-no-files-found: warn

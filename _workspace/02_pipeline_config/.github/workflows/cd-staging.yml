@@ -1,0 +1,370 @@
+# =====================================================================
+# cd-staging.yml — develop → staging AKS 자동 배포.
+#
+# 전략: Rolling Update (양 트랙). Argo Rollouts 카나리는 prod 전용.
+#
+# 스테이지 흐름:
+#   0) verify-builder     : 빌더 이미지 cosign 서명 검증(공급망 무결성 강제)
+#   1) g2-gate            : check_gates.py (test-engineer 신규 작성)
+#   2) build-push         : buildx → GHCR (OIDC + GITHUB_TOKEN, PAT 제거)
+#   3) container-scan     : Trivy (Critical 차단, High 경고)
+#   4) sign-attest        : release-signing.yml 호출 (cosign keyless + SBOM)
+#   5) oscal-warn         : POAM 임계 — 경고만 (staging 비차단)
+#   6) gitops-bump        : deploy/k8s 태그 bump → ArgoCD 폴링 자동 sync
+#   7) smoke              : staging /healthz /readyz 외부 호출(옵션)
+#
+# 라운드 B (옵션 1, 빌더 이미지 핀):
+#   - 적용: g2-gate, oscal-warn, smoke, dora-push-success, dora-push-failure
+#   - 화이트리스트(컨테이너 외부): build-push(docker daemon), container-scan(trivy-action),
+#     sign-attest(reusable workflow), gitops-bump(git push)
+#
+# 시크릿/OIDC:
+#   - GHCR push: GITHUB_TOKEN + packages:write (PAT 제거 완료)
+#   - cosign keyless: id-token:write (Sigstore Fulcio + Rekor)
+#   - Azure: 본 워크플로에서는 미사용 — Sentinel/OpenAI 평가는 ai-redteam.yml
+# =====================================================================
+
+name: CD Staging (develop → AKS)
+
+on:
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cd-staging-${{ github.ref }}
+  cancel-in-progress: false # 배포 중복 취소 금지 (롤백 안정성)
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: s1ns3nz0/uav-ai-soc
+  PYTHON_VERSION: "3.11"
+  STAGING_NAMESPACE: dah-soc-staging
+
+jobs:
+  # ─────────────────────────────────────────
+  # 0) verify-builder — 빌더 이미지 cosign 서명 검증(모든 컨테이너 잡의 부모)
+  # ─────────────────────────────────────────
+  verify-builder:
+    name: Verify builder image (cosign keyless)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
+      - name: BUILDER_IMAGE_DIGEST 존재 검증
+        run: |
+          if [ -z "${{ vars.BUILDER_IMAGE_DIGEST }}" ]; then
+            echo "::error::vars.BUILDER_IMAGE_DIGEST 미설정 — build-builder.yml 부트스트랩 필요."
+            exit 1
+          fi
+      - name: cosign verify (uav-soc-builder)
+        run: |
+          cosign verify \
+            --certificate-identity-regexp '^https://github\.com/s1ns3nz0/pollack-ai/\.github/workflows/build-builder\.yml@refs/heads/main$' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            ghcr.io/s1ns3nz0/uav-soc-builder@${{ vars.BUILDER_IMAGE_DIGEST }}
+
+  # ─────────────────────────────────────────
+  # 1) G2 회귀 게이트 — staging 임계 (prod 보다 완화, 빌더 이미지)
+  # ─────────────────────────────────────────
+  g2-gate:
+    name: G2 Regression Gate (staging)
+    runs-on: ubuntu-latest
+    needs: verify-builder
+    timeout-minutes: 15
+    container:
+      image: ghcr.io/s1ns3nz0/uav-soc-builder@${{ vars.BUILDER_IMAGE_DIGEST }}
+      # benchmark 산출물(json/md)을 /tmp 에 작성. 워크플로 산출물 업로드는 호스트가 처리.
+      options: --user 10001 --read-only --tmpfs /tmp:rw,nosuid,nodev,size=512m --cap-drop=ALL
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      # 라운드 B: pytest/eval 도구는 빌더 이미지에 핀(black/ruff/mypy/pytest/pytest-cov/pytest-asyncio 등).
+      # eval extras 가 추가 require 하는 패키지(예: ragas, datasets)는 빌더에 미포함 시
+      # 별도 PR 로 Dockerfile.builder 의 `RUN pip install` 블록에 추가해야 한다 — README §4 절차 참조.
+      - name: 결정론 benchmark (FP-재발률 + ATLAS)
+        run: |
+          python benchmarks/run_fp_recurrence.py
+          python benchmarks/run_atlas_redteam.py
+      - name: G2 게이트 임계 (staging 모드)
+        # check_gates.py 는 test-engineer 가 신규 작성. --profile=staging 으로 완화 임계.
+        # 라운드 A-1: --profile 인자 정식 추가됨.
+        run: |
+          python benchmarks/check_gates.py \
+            --profile staging \
+            --results-dir benchmarks/results \
+            --report-md gate_report.md \
+            --summary-json gate_summary.json \
+            --emit-poam failed_gates_poam.json
+      - name: G2 결과 artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: g2-results-staging-${{ github.run_id }}
+          path: benchmarks/results/
+          retention-days: 30
+          if-no-files-found: warn
+
+  # ─────────────────────────────────────────
+  # 2) build & push — sha-<git-sha> 태그 (불변)
+  #    (화이트리스트: 컨테이너 미적용 — 호스트 docker daemon 필요)
+  # ─────────────────────────────────────────
+  build-push:
+    name: Build & push image
+    runs-on: ubuntu-latest
+    needs: [verify-builder, g2-gate]
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      packages: write # GHCR push
+      id-token: write # 후속 cosign keyless
+    outputs:
+      image_tag: ${{ steps.tags.outputs.tag_sha }}
+      image_ref: ${{ steps.dig.outputs.image_ref }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: 태그 산출
+        id: tags
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          echo "tag_sha=${REGISTRY}/${IMAGE_NAME}:sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - name: GHCR 로그인 (GITHUB_TOKEN)
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: build & push
+        id: build
+        uses: docker/build-push-action@4f7cdeb0f1f2ac4233f0f24355a1838a86b54a9b # v6.10.0
+        with:
+          context: .
+          file: deploy/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.tags.outputs.tag_sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging
+          cache-from: type=gha,scope=cd-staging
+          cache-to: type=gha,mode=max,scope=cd-staging
+          provenance: true # buildx provenance(SLSA 보조)
+          sbom: true # buildx SBOM 메타데이터 attach
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.title=uav-ai-soc
+            org.opencontainers.image.licenses=Proprietary
+            soc.deployment.track=staging
+
+      - name: 다이제스트 참조 산출 (서명용)
+        id: dig
+        run: |
+          echo "image_ref=${REGISTRY}/${IMAGE_NAME}@${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+  # ─────────────────────────────────────────
+  # 3) container-scan — Trivy (화이트리스트: trivy-action 호스트 도커 모드)
+  # ─────────────────────────────────────────
+  container-scan:
+    name: Container Scan (Trivy)
+    runs-on: ubuntu-latest
+    needs: [verify-builder, build-push]
+    timeout-minutes: 7
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Trivy DB 캐시
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db-staging-${{ github.run_id }}
+          restore-keys: trivy-db-
+      - name: Trivy image scan (SARIF)
+        uses: aquasecurity/trivy-action@dc5a429b52fcf669ce959baa2c2dd26090d2a6c4 # v0.32.0
+        with:
+          image-ref: ${{ needs.build-push.outputs.image_ref }}
+          format: "sarif"
+          output: "trivy-staging.sarif"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+      - name: SARIF 업로드
+        if: always()
+        uses: github/codeql-action/upload-sarif@4e828ff8d448a8a6e532957b1811f387a63867e8 # v3.29.4
+        with:
+          sarif_file: trivy-staging.sarif
+          category: trivy-staging
+      - name: Critical 차단 게이트
+        uses: aquasecurity/trivy-action@dc5a429b52fcf669ce959baa2c2dd26090d2a6c4 # v0.32.0
+        with:
+          image-ref: ${{ needs.build-push.outputs.image_ref }}
+          severity: "CRITICAL"
+          exit-code: "1"
+          ignore-unfixed: true
+
+  # ─────────────────────────────────────────
+  # 4) sign-attest — 재사용 워크플로 호출 (cosign keyless + SBOM)
+  # ─────────────────────────────────────────
+  sign-attest:
+    name: Sign & SBOM attest
+    needs: [build-push, container-scan]
+    uses: ./.github/workflows/release-signing.yml
+    permissions:
+      contents: read
+      id-token: write # OIDC keyless 필수
+      packages: write # GHCR metadata push
+    with:
+      image_ref: ${{ needs.build-push.outputs.image_ref }}
+      image_tag: ${{ needs.build-push.outputs.image_tag }}
+      sbom_format: spdx-json
+
+  # ─────────────────────────────────────────
+  # 5) oscal-warn — POAM 임계 (staging 경고만, 차단 X) — 빌더 이미지
+  # ─────────────────────────────────────────
+  oscal-warn:
+    name: OSCAL POAM Threshold (warn-only)
+    runs-on: ubuntu-latest
+    needs: [verify-builder, g2-gate]
+    timeout-minutes: 5
+    continue-on-error: true # staging 은 차단하지 않음(사용자 결정)
+    container:
+      image: ghcr.io/s1ns3nz0/uav-soc-builder@${{ vars.BUILDER_IMAGE_DIGEST }}
+      options: --user 10001 --read-only --tmpfs /tmp:rw,nosuid,nodev,size=256m --cap-drop=ALL
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      # compliance-trestle / jsonschema 는 빌더에 핀 — pip install 단계 제거.
+      - name: OSCAL 빌드 & 스키마 검증
+        run: |
+          python compliance/oscal/build_oscal.py compliance/oscal
+          for f in compliance/oscal/{catalog,profile,component-definition,ssp,poam}/*.json; do
+            trestle validate -f "$f" || echo "::warning::trestle validate 실패: $f"
+          done
+      - name: POAM 임계 평가 (경고)
+        # check_poam_thresholds.py 는 security-scanner/test-engineer 협업 산출.
+        # 라운드 A-1 정정: POAM 경로 positional + --mode warn + --partial-warn 60.
+        run: |
+          python compliance/oscal/check_poam_thresholds.py \
+            compliance/oscal/poam/uav-soc-poam.json \
+            --critical-max 0 --high-max 5 \
+            --partial-warn 60 \
+            --mode warn || echo "::warning::POAM staging 임계 경고 — main 진입 전 해소 권장"
+
+  # ─────────────────────────────────────────
+  # 6) gitops-bump — deploy/k8s 태그 bump → ArgoCD 폴링
+  #    (화이트리스트: 컨테이너 미적용 — git push 시 호스트 GITHUB_TOKEN 전파 필요)
+  # ─────────────────────────────────────────
+  gitops-bump:
+    name: GitOps tag bump (staging overlay)
+    runs-on: ubuntu-latest
+    needs: [verify-builder, sign-attest, container-scan]
+    timeout-minutes: 5
+    permissions:
+      contents: write # 태그 bump 커밋 push
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: develop
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: develop 매니페스트 태그 bump
+        # staging 매니페스트는 deploy/k8s/overlays/staging/ 가 정해지면 그곳으로 교체.
+        # 현 상태: 동일 deploy/k8s 디렉터리. 네임스페이스만 dah-soc-staging Application 측에서 분리.
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          IMG="ghcr.io/s1ns3nz0/uav-ai-soc:sha-${SHORT_SHA}"
+          sed -i "s|ghcr.io/s1ns3nz0/uav-ai-soc:[^\"[:space:]]*|${IMG}|g" \
+            deploy/k8s/30-deployment-a-hotpath.yaml \
+            deploy/k8s/40-deployment-b-learning.yaml
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "no manifest change — skip commit"
+          else
+            # 라운드 A-2 F-024 정정: 본 커밋이 cd-staging 을 다시 트리거하면 무한 루프.
+            # [skip ci] 토큰으로 후속 GitHub Actions 트리거 회피.
+            git commit -am "ci(staging): bump image to sha-${SHORT_SHA} [skip ci]"
+            git push origin develop
+          fi
+
+  # ─────────────────────────────────────────
+  # 7) smoke — staging Ingress/Service /healthz 외부 호출(옵션) — 빌더 이미지
+  # ─────────────────────────────────────────
+  smoke:
+    name: Staging smoke (/healthz /readyz)
+    runs-on: ubuntu-latest
+    needs: [verify-builder, gitops-bump]
+    timeout-minutes: 10
+    if: vars.STAGING_HEALTH_URL != ''
+    container:
+      image: ghcr.io/s1ns3nz0/uav-soc-builder@${{ vars.BUILDER_IMAGE_DIGEST }}
+      options: --user 10001 --read-only --tmpfs /tmp:rw,nosuid,nodev,size=64m --cap-drop=ALL
+    steps:
+      - name: ArgoCD 동기화 대기 + smoke
+        # 외부 노출 엔드포인트가 있을 때만 수행. 변수는 GitHub Environment(staging) 에 정의.
+        run: |
+          set -e
+          # 단순 polling. monitoring-specialist 가 향후 ArgoCD CLI / probe 로 교체.
+          for i in 1 2 3 4 5 6; do
+            sleep 30
+            if curl -fsS "${{ vars.STAGING_HEALTH_URL }}/healthz" && \
+               curl -fsS "${{ vars.STAGING_HEALTH_URL }}/readyz"; then
+              echo "smoke OK"
+              exit 0
+            fi
+          done
+          echo "::error::smoke 실패 — 수동 조사 필요"
+          exit 1
+
+  # ─────────────────────────────────────────
+  # 8) DORA — 배포 메트릭 Pushgateway push (F-007 보강)
+  # success → deployment_frequency_total + deployment_duration_seconds
+  # failure → change_failure_total
+  # vars.PUSHGATEWAY_URL 미설정 시 잡 자체 skip.
+  # ─────────────────────────────────────────
+  dora-push-success:
+    name: DORA — 배포 성공 메트릭 push (staging)
+    runs-on: ubuntu-latest
+    needs: [verify-builder, gitops-bump, smoke]
+    if: success() && vars.PUSHGATEWAY_URL != ''
+    timeout-minutes: 3
+    container:
+      image: ghcr.io/s1ns3nz0/uav-soc-builder@${{ vars.BUILDER_IMAGE_DIGEST }}
+      options: --user 10001 --read-only --tmpfs /tmp:rw,nosuid,nodev,size=64m --cap-drop=ALL
+    steps:
+      - name: deployment_frequency_total / deployment_duration_seconds push
+        env:
+          PUSHGATEWAY_URL: ${{ vars.PUSHGATEWAY_URL }}
+        run: |
+          set -euo pipefail
+          cat <<EOF | curl -fsS --data-binary @- "${PUSHGATEWAY_URL}/metrics/job/cd-staging/instance/${{ github.run_id }}"
+          # TYPE deployment_frequency_total counter
+          deployment_frequency_total{environment="staging",track="hotpath"} 1
+          # TYPE deployment_duration_seconds gauge
+          deployment_duration_seconds{environment="staging"} ${SECONDS:-0}
+          EOF
+
+  dora-push-failure:
+    name: DORA — 변경 실패 메트릭 push (staging)
+    runs-on: ubuntu-latest
+    needs: [verify-builder, gitops-bump, smoke]
+    if: failure() && vars.PUSHGATEWAY_URL != ''
+    timeout-minutes: 3
+    container:
+      image: ghcr.io/s1ns3nz0/uav-soc-builder@${{ vars.BUILDER_IMAGE_DIGEST }}
+      options: --user 10001 --read-only --tmpfs /tmp:rw,nosuid,nodev,size=64m --cap-drop=ALL
+    steps:
+      - name: change_failure_total push
+        env:
+          PUSHGATEWAY_URL: ${{ vars.PUSHGATEWAY_URL }}
+        run: |
+          set -euo pipefail
+          cat <<EOF | curl -fsS --data-binary @- "${PUSHGATEWAY_URL}/metrics/job/cd-staging/instance/${{ github.run_id }}"
+          # TYPE change_failure_total counter
+          change_failure_total{environment="staging"} 1
+          EOF

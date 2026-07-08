@@ -17,8 +17,9 @@ from pathlib import Path
 
 import yaml
 
+from core.engage import EngageMatrix
 from core.exceptions import PolicyError
-from core.models import CoaOption
+from core.models import ActorEngagement, CoaOption, EngageGoal
 from tools.coverage import CoverageMatrix
 
 _POLICY = Path(__file__).resolve().parent / "policy" / "coa-matrix.yaml"
@@ -125,20 +126,29 @@ class CoaPlanner:
         coa: tactic × 7D 방어 옵션 매트릭스.
     """
 
-    def __init__(self, coverage: CoverageMatrix, coa: CoaMatrix) -> None:
+    def __init__(
+        self,
+        coverage: CoverageMatrix,
+        coa: CoaMatrix,
+        engage: EngageMatrix | None = None,
+    ) -> None:
         self._cov = coverage
         self._coa = coa
+        self._engage = engage
 
     def plan(
         self,
         current_tactics: list[str],
         predicted_techniques: list[str],
+        engagement: ActorEngagement | None = None,
     ) -> list[CoaOption]:
         """현재 최고 단계 + 예측 다음 단계들의 COA 옵션을 반환한다.
 
         Args:
             current_tactics: 공격자가 현재 도달한 tactic 목록(최고 order 를 채택).
             predicted_techniques: 예측된 다음 technique 목록(tactic 으로 환산).
+            engagement: 현 actor 의 Engage 교전 상태. 주입 시 current 단계 Deceive
+                셀에 권고 engagement 활동 + adversary_cost 를 주입(MITRE Engage 폐루프).
 
         Returns:
             current 단계 COA + 예측 tactic 별 COA(중복 tactic 제외). 없으면 빈 리스트.
@@ -148,7 +158,9 @@ class CoaPlanner:
         cur = self._highest_tactic(current_tactics)
         if cur is not None:
             seen.add(cur)
-            out.extend(self._coa.options_for(cur, "current"))
+            cur_opts = self._coa.options_for(cur, "current")
+            self._enrich_deceive(cur_opts, cur, engagement)
+            out.extend(cur_opts)
         for tech in predicted_techniques:
             tactic = self._cov.tactic_of(tech)
             if tactic is None or tactic in seen:
@@ -156,6 +168,31 @@ class CoaPlanner:
             seen.add(tactic)
             out.extend(self._coa.options_for(tactic, "predicted"))
         return out
+
+    def _enrich_deceive(
+        self,
+        options: list[CoaOption],
+        tactic: str,
+        engagement: ActorEngagement | None,
+    ) -> None:
+        """current 단계 Deceive 셀에 actor Engage 상태·권고활동·cost 를 주입한다."""
+        if (
+            self._engage is None
+            or engagement is None
+            or engagement.state == EngageGoal.NONE
+        ):
+            return
+        rec = self._engage.recommend(engagement.state, [tactic])
+        activity = (
+            f"{rec.activity}({rec.engage_id})" if rec is not None else "미정의 활동"
+        )
+        annotation = (
+            f"Engage[{engagement.state.value}] → {activity} · "
+            f"adv_cost={engagement.adversary_cost} · rounds={engagement.rounds}"
+        )
+        for opt in options:
+            if opt.defense == "Deceive":
+                opt.engage = annotation
 
     def _highest_tactic(self, tactics: list[str]) -> str | None:
         """order 가 매핑된 tactic 중 최고 order 를 반환한다(없으면 None)."""

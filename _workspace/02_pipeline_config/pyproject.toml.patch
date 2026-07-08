@@ -1,0 +1,199 @@
+# ═══════════════════════════════════════════════════════════════════
+# pyproject.toml 강화 패치 (라운드 B 갱신 — F-013 정정 반영)
+# ═══════════════════════════════════════════════════════════════════
+# 적용 절차 (머지 전 필수):
+#   1) git apply --check _workspace/02_pipeline_config/pyproject.toml.patch
+#      └─ 충돌 미발생 확인 후 git apply 로 본 적용
+#   2) pip install -e ".[dev]"           # interrogate/xenon 등 신규 dev deps 설치
+#   3) mypy --config-file pyproject.toml .   # numpy.* 스텁 충돌 회피 스모크
+#   4) black --check . && ruff check . && pytest -q
+#
+# 결정 사항 반영(라운드 B):
+#   - mypy python_version = "3.11" 로 통일 (black/ruff target=py311 정합)
+#   - [[tool.mypy.overrides]] 에 numpy.* / numpy._typing.* 명시 ignore
+#     (3.12 전용 `type` 문법을 쓰는 numpy 전이 스텁 파싱 충돌 회피)
+#   - F-025(interrogate 80%) → fail-under=80 유지하되 도입 노트는
+#     "실측 후 60→70→80 단계 적용" 으로 변경.
+#
+# ═══════════════════════════════════════════════════════════════════
+
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -42,15 +42,21 @@
+ [project.optional-dependencies]
+ dev = [
+-    "black>=24.0.0",
+-    "ruff>=0.4.0",
+-    "mypy>=1.10.0",
++    # 방산 reproducibility 관점에서 상한 핀 권고
++    "black>=24.0.0,<25",
++    "ruff>=0.5.0,<0.6",          # 0.5에서 ASYNC, PTH 안정화
++    "mypy>=1.10.0,<2",
+     "pytest>=8.0.0",
+     "pytest-asyncio>=0.23.0",
++    "pytest-cov>=5.0.0",         # test-engineer 영역과 공유 (커버리지 게이트)
+     "pre-commit>=3.7.0",
++    "interrogate>=1.7.0",        # 독스트링 커버리지 게이트
++    "xenon>=0.9.1",              # 복잡도 게이트 보조 (ruff C90 외)
+     # sim 작동기(MAVLink) 테스트까지 돌리려면 sim extra 동반 설치.
+     "pollack-ai[sim]",
+ ]
+@@ -66,7 +72,7 @@
+ # ─────────────────────────────────────────
+ [tool.black]
+ line-length = 88
+-target-version = ["py311"]
++target-version = ["py311"]       # mypy.python_version / ruff.target-version 과 정합 (라운드 B 통일)
+ # 큰따옴표 통일 (기본값)
+ # projects/ 는 별도 관리(gitignore)되는 관련 프로젝트 모음 — 팀 도구 검사 대상 아님
+ extend-exclude = "(projects|benchmarks|scripts)/"
+@@ -76,33 +82,77 @@
+ # ─────────────────────────────────────────
+ [tool.ruff]
+ line-length = 88
+-target-version = "py311"
++target-version = "py311"         # black/mypy 와 통일 (라운드 B)
+ # projects/ 제외 (별도 관리되는 관련 프로젝트 모음)
+ extend-exclude = ["projects", "benchmarks", "scripts"]
+
+ [tool.ruff.lint]
+ select = [
+-    "E",   # pycodestyle 오류
+-    "W",   # pycodestyle 경고
+-    "F",   # pyflakes (미사용 임포트 등)
+-    "I",   # isort (임포트 순서)
+-    "B",   # flake8-bugbear (잠재적 버그)
+-    "UP",  # pyupgrade (구식 문법 자동 업그레이드)
+-    "S",   # flake8-bandit (보안 이슈)
+-    "ANN", # flake8-annotations (타입 힌트 누락)
++    "E",     # pycodestyle 오류 (E722 bare except 포함)
++    "W",     # pycodestyle 경고
++    "F",     # pyflakes (F403/F405 wildcard import 포함)
++    "I",     # isort (임포트 순서)
++    "N",     # pep8-naming (snake/Pascal/UPPER)
++    "D",     # pydocstyle (Google 독스트링 강제)
++    "B",     # flake8-bugbear (잠재적 버그)
++    "UP",    # pyupgrade (구식 문법, %-format 금지)
++    "S",     # flake8-bandit (보안)
++    "ANN",   # flake8-annotations (타입힌트)
++    "T20",   # flake8-print (print 금지 — get_logger 사용)
++    "PT",    # flake8-pytest-style
++    "PTH",   # flake8-use-pathlib (os.path 회피)
++    "ASYNC", # flake8-async (동기 블로킹 in async 금지)
++    "SIM",   # flake8-simplify
++    "TID",   # flake8-tidy-imports (상대 임포트 금지)
++    "RUF",   # ruff 전용 규칙
++    "C90",   # mccabe 복잡도
++    "PL",    # pylint subset (PLR, PLW, PLE)
+ ]
+ ignore = [
+-    "ANN101", # self 타입 힌트 생략 허용
+-    "ANN102", # cls 타입 힌트 생략 허용
+-    "S101",   # assert 허용 (테스트 코드)
++    "ANN101",  # self 타입힌트 생략 허용
++    "ANN102",  # cls 타입힌트 생략 허용
++    "S101",    # assert 허용 (테스트 코드)
++    "D203",    # 1 blank line before class docstring (D211과 충돌)
++    "D213",    # Multi-line docstring summary 시작 위치 (D212 채택)
++    "PLR0913", # 인자 수 — Agent 생성자에 정당화 가능
+ ]
+
++[tool.ruff.lint.mccabe]
++max-complexity = 10              # 함수당 순환 복잡도 상한
++
++[tool.ruff.lint.pydocstyle]
++convention = "google"            # Google 스타일 강제 (Args/Returns/Raises)
++
++[tool.ruff.lint.flake8-tidy-imports]
++ban-relative-imports = "all"     # 상대 임포트 금지 (절대 임포트 강제)
++
++[tool.ruff.lint.pep8-naming]
++# 약어 클래스 대문자 유지 (SOCAgent, UAVTriageAgent 등)
++extend-ignore-names = ["SOC*", "UAV*", "TI*", "ML*", "AI*", "RAG*", "ATT*"]
++classmethod-decorators = ["classmethod", "pydantic.validator", "pydantic.root_validator"]
++
+ [tool.ruff.lint.per-file-ignores]
+-"tests/**" = ["ANN", "S"]   # 테스트 파일은 타입힌트·보안 룰 완화
+-"scripts/**" = ["ANN", "S"]
++"tests/**" = ["ANN", "S", "D", "PT004", "PLR2004"]   # 테스트 파일 완화
++"scripts/**" = ["ANN", "S", "D", "T20"]
++"compliance/**" = ["S"]                              # OSCAL 빌드 스크립트 완화
++"app/**" = ["D"]                                     # 진입점 docstring 면제 (필요 시 조정)
++"**/__init__.py" = ["D104"]                          # 패키지 docstring 미강제
+
+ # ─────────────────────────────────────────
+ # mypy — 타입 검사
+ # ─────────────────────────────────────────
+ [tool.mypy]
+-# 실제 런타임(3.12.x)에 맞춤. numpy 등 전이 의존 스텁이 3.12 전용 `type` 문법을
+-# 쓰므로 3.11 타깃이면 파싱 충돌. requires-python 은 런타임 호환을 위해 >=3.11 유지.
+-python_version = "3.12"
+-strict = true                    # 모든 strict 옵션 활성화
++# black/ruff(py311) 와 통일. 런타임은 3.11+ 양립 (requires-python = ">=3.11").
++# numpy 전이 스텁이 3.12 전용 `type` 문법을 사용해 파싱 충돌이 발생할 수 있으므로
++# 아래 [[tool.mypy.overrides]] 에서 numpy.* / numpy._typing.* 를 명시 차단한다.
++python_version = "3.11"
++strict = true                        # 모든 strict 옵션 활성화
+ exclude = "^(projects|benchmarks|scripts)/"           # 별도 관리되는 관련 프로젝트 모음 제외
+
+ # strict 세부 항목 (strict = true 와 동일하지만 명시)
+@@ -114,9 +164,28 @@
+ warn_unused_ignores = true
+ warn_return_any = true
+
++# ─── 추가 강화 — `.claude/rules/python-conventions.md` 자동 강제 ───
++# strict=true 에 포함되지 않는 항목 명시
++disallow_any_explicit = true        # `: Any` 명시적 사용 금지 (Unknown+TypeGuard 강제)
++disallow_any_decorated = true       # 데코레이트된 함수의 Any 금지
++disallow_any_unimported = true      # 임포트 실패한 타입의 암묵적 Any 금지
++warn_unreachable = true             # 도달 불가 코드 경고
++strict_equality = true              # 비교 시 타입 불일치 금지
++extra_checks = true                 # 추가 일관성 검사
++
+ # 서드파티 타입 스텁 없는 패키지 허용
+ [[tool.mypy.overrides]]
+ module = [
+@@ -125,7 +194,28 @@
+     "pyrit.*",
+     "ragas.*",
+     "yaml",
++    "langchain.*",
++    "langgraph.*",
++    "compliance_trestle.*",
++    "trestle.*",
++    "jsonschema",
++    "interrogate.*",
+ ]
+ ignore_missing_imports = true
++
++# ─── numpy 전이 스텁 충돌 회피 (라운드 B F-013 정정) ───
++# numpy 1.26+/2.x 스텁이 3.12 전용 `type` 문법 사용 → py311 타깃에서 SyntaxError.
++# follow_imports=skip 으로 스텁 본문 파싱 자체를 건너뛰어 typecheck 잡 차단 방지.
++[[tool.mypy.overrides]]
++module = ["numpy.*", "numpy._typing.*"]
++ignore_missing_imports = true
++follow_imports = "skip"
++
++# ─────────────────────────────────────────
++# interrogate — 독스트링 커버리지 게이트
++# ─────────────────────────────────────────
++# 도입 정책: 실측 후 60 → 70 → 80 단계 적용 (방산 점진 상향).
++# 현 fail-under=80 은 최종 목표값. 초기 도입 시 실측 베이스라인이 80 미만이면
++# CI 1회 측정 → 60 으로 가드 시작 → 스프린트마다 +10 으로 상향 권고.
++# (값 자체 변경은 사용자 결정 필요 — 현 패치에선 80 유지)
++[tool.interrogate]
++ignore-init-method = true
++ignore-init-module = false
++ignore-magic = false
++ignore-semiprivate = false
++ignore-private = false
++ignore-property-decorators = false
++ignore-module = false
++ignore-nested-functions = false
++ignore-nested-classes = false
++ignore-setters = false
++fail-under = 80                  # 최종 목표 (도입 시 실측 후 단계 상향 권고)
++exclude = ["projects", "benchmarks", "scripts", "tests"]
++verbose = 1
++quiet = false
++color = true

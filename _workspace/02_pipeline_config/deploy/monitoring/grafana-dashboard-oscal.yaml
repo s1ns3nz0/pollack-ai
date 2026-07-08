@@ -1,0 +1,133 @@
+# Grafana OSCAL 컴플라이언스 대시보드.
+# - 통제 상태(implemented/partial/planned) 도넛
+# - POAM open by severity
+# - 컴플라이언스 비율 시계열 + 트렌드
+# - 최근 변경 PR 링크 패널 (정적 텍스트)
+#
+# 데이터 출처: nightly CronJob (oscal-export-cronjob.yaml) 이 OSCAL JSON 을
+#   파싱해 Pushgateway 로 push 한 메트릭.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: soc-grafana-dashboard-oscal
+  namespace: dah-soc
+  labels:
+    grafana_dashboard: "1"
+data:
+  uav-soc-oscal.json: |
+    {
+      "title": "UAV AI SOC — OSCAL Compliance (AI RMF)",
+      "uid": "uav-soc-oscal",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "5m",
+      "tags": ["uav", "soc", "oscal", "ai-rmf", "compliance"],
+      "templating": {
+        "list": [
+          {"name": "DS_PROMETHEUS", "type": "datasource", "query": "prometheus", "current": {}},
+          {"name": "framework", "type": "custom", "query": "ai-rmf", "current": {"text": "ai-rmf", "value": "ai-rmf"}}
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "컴플라이언스 비율 (현재)",
+          "type": "stat",
+          "gridPos": {"h": 5, "w": 6, "x": 0, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1,
+            "thresholds": {"mode": "absolute",
+              "steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 0.40}, {"color": "green", "value": 0.50}]}}},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "oscal_compliance_ratio{framework=\"$framework\"}", "legendFormat": "ratio"}
+          ]
+        },
+        {
+          "id": 2,
+          "title": "통제 상태 분포 (도넛)",
+          "type": "piechart",
+          "gridPos": {"h": 8, "w": 9, "x": 6, "y": 0},
+          "options": {"pieType": "donut", "legend": {"placement": "right", "values": ["value"]}},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "oscal_controls_total{framework=\"$framework\",status=\"implemented\"}", "legendFormat": "implemented"},
+            {"expr": "oscal_controls_total{framework=\"$framework\",status=\"partial\"}", "legendFormat": "partial"},
+            {"expr": "oscal_controls_total{framework=\"$framework\",status=\"planned\"}", "legendFormat": "planned"}
+          ]
+        },
+        {
+          "id": 3,
+          "title": "POAM Open by Severity",
+          "type": "bargauge",
+          "gridPos": {"h": 8, "w": 9, "x": 15, "y": 0},
+          "options": {"orientation": "horizontal", "displayMode": "gradient"},
+          "fieldConfig": {"defaults": {"thresholds": {"mode": "absolute",
+            "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 3}, {"color": "red", "value": 5}]}}},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "oscal_poam_open_total{severity=\"critical\"}", "legendFormat": "critical (max 0)"},
+            {"expr": "oscal_poam_open_total{severity=\"high\"}", "legendFormat": "high (max 3)"},
+            {"expr": "oscal_poam_open_total{severity=\"medium\"}", "legendFormat": "medium"},
+            {"expr": "oscal_poam_open_total{severity=\"low\"}", "legendFormat": "low"}
+          ]
+        },
+        {
+          "id": 4,
+          "title": "컴플라이언스 비율 시계열 (30일)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+          "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1,
+            "thresholds": {"mode": "absolute",
+              "steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 0.40}, {"color": "green", "value": 0.50}]}}},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "oscal_compliance_ratio{framework=\"$framework\"}", "legendFormat": "compliance ratio"}
+          ]
+        },
+        {
+          "id": 5,
+          "title": "통제 상태 추세 (status별 카운트)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "oscal_controls_total{framework=\"$framework\",status=\"implemented\"}", "legendFormat": "implemented"},
+            {"expr": "oscal_controls_total{framework=\"$framework\",status=\"partial\"}", "legendFormat": "partial"},
+            {"expr": "oscal_controls_total{framework=\"$framework\",status=\"planned\"}", "legendFormat": "planned"}
+          ]
+        },
+        {
+          "id": 6,
+          "title": "POAM Open 추세 (severity)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "oscal_poam_open_total{severity=\"critical\"}", "legendFormat": "critical"},
+            {"expr": "oscal_poam_open_total{severity=\"high\"}", "legendFormat": "high"},
+            {"expr": "oscal_poam_open_total{severity=\"medium\"}", "legendFormat": "medium"}
+          ]
+        },
+        {
+          "id": 7,
+          "title": "OSCAL 산출물 빌드 상태",
+          "type": "stat",
+          "gridPos": {"h": 8, "w": 6, "x": 12, "y": 16},
+          "fieldConfig": {"defaults": {"unit": "dateTimeFromNow"}},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "oscal_last_build_timestamp * 1000", "legendFormat": "마지막 빌드"}
+          ]
+        },
+        {
+          "id": 8,
+          "title": "관련 링크",
+          "type": "text",
+          "gridPos": {"h": 8, "w": 6, "x": 18, "y": 16},
+          "options": {
+            "mode": "markdown",
+            "content": "## 컴플라이언스 자산\n- [OSCAL 디렉터리](https://github.com/s1ns3nz0/pollack-ai/tree/main/compliance/oscal)\n- [POAM JSON](https://github.com/s1ns3nz0/pollack-ai/blob/main/compliance/oscal/poam/uav-soc-poam.json)\n- [SSP JSON](https://github.com/s1ns3nz0/pollack-ai/blob/main/compliance/oscal/ssp/uav-soc-ssp.json)\n- [최근 PR](https://github.com/s1ns3nz0/pollack-ai/pulls?q=is%3Apr+label%3Acompliance)\n- [Runbook: POAM 차단](https://github.com/s1ns3nz0/pollack-ai/blob/main/docs/runbooks/oscal-poam-block.md)\n\n## SLO\n- 컴플라이언스 비율 ≥ 50%\n- POAM critical = 0 (절대)\n- POAM high ≤ 3"
+          }
+        }
+      ]
+    }

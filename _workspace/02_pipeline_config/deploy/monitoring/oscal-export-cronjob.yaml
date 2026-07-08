@@ -1,0 +1,111 @@
+# =====================================================================
+# OSCAL 컴플라이언스 메트릭 nightly Export CronJob.
+#
+# 동작:
+#   1. 02:00 KST (17:00 UTC) 매일 실행.
+#   2. compliance/oscal/build_oscal.py 실행 → 산출물 갱신 (저장소 clone 후)
+#   3. oscal_to_metrics.py 실행 → Pushgateway 로 4종 메트릭 전송:
+#      - oscal_controls_total{status,framework}
+#      - oscal_poam_open_total{severity,framework}
+#      - oscal_compliance_ratio{framework}
+#      - oscal_last_build_timestamp{framework}
+#
+# 주의:
+#   - 저장소 코드/스크립트는 ConfigMap 으로 마운트하는 대신 ghcr.io 의 uav-ai-soc
+#     이미지(이미 compliance 디렉터리 포함)를 재사용한다.
+#   - 푸시 실패는 재시도 1회 후 backoff. CronJob 의 successfulJobsHistoryLimit/
+#     failedJobsHistoryLimit 로 감사 추적.
+#   - 시크릿 불요 — Pushgateway 클러스터 내부 호출만.
+# =====================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: oscal-metrics-export
+  namespace: dah-soc
+  labels:
+    app.kubernetes.io/name: oscal-metrics-export
+    app.kubernetes.io/component: compliance
+spec:
+  schedule: "0 17 * * *" # 02:00 KST nightly
+  timeZone: UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  startingDeadlineSeconds: 600
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 600 # 10분 타임아웃
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: oscal-metrics-export
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: oscal-exporter # 별도 RBAC — 노출 권한 최소
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: exporter
+              image: ghcr.io/s1ns3nz0/uav-ai-soc:prod # release-signing 서명 이미지
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  set -euo pipefail
+                  cd /app
+
+                  echo "[1/2] OSCAL 산출물 갱신 (build_oscal.py)"
+                  python compliance/oscal/build_oscal.py compliance/oscal
+
+                  echo "[2/2] 메트릭 → Pushgateway 전송"
+                  python scripts/oscal_to_metrics.py \
+                    --oscal-dir compliance/oscal \
+                    --push-url "${PUSHGATEWAY_URL}" \
+                    --job oscal-export \
+                    --log-level INFO
+              env:
+                - name: PUSHGATEWAY_URL
+                  value: "http://prometheus-pushgateway.monitoring.svc.cluster.local:9091"
+                - name: PYTHONUNBUFFERED
+                  value: "1"
+                - name: PYTHONHASHSEED
+                  value: "42" # 결정론 (POAM UUID 일관성)
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+                - name: oscal-build
+                  mountPath: /app/compliance/oscal/_build
+          volumes:
+            - name: tmp
+              emptyDir: {}
+            - name: oscal-build
+              emptyDir: {}
+---
+# 최소 ServiceAccount + RBAC — 본 잡은 클러스터 자원 조회 권한 불요.
+# 서비스 어카운트만 분리해 audit log 식별성을 확보한다.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: oscal-exporter
+  namespace: dah-soc
+  labels:
+    app.kubernetes.io/name: oscal-metrics-export
+automountServiceAccountToken: false
