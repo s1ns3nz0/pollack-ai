@@ -366,9 +366,46 @@ class InvestigationAgent(BaseSOCAgent):
             flags.insert(0, "RAG 검색 불가 — 빈 컨텍스트로 강등(대응 계속)")
         if dropped:
             flags.append(f"미신뢰 컨텍스트 {dropped}건 격리")
+        # 인젝션 텔레메트리 — 요약 LLM 이 있을 때만(LlmJudge 미배선 구성서도 누락 방지).
+        if self._llm is not None:
+            inj = self._scan_injection(alert, trusted)
+            if inj:
+                flags.append(inj)
         if flags:
             result["guardrail_flags"] = flags
         return result
+
+    def _scan_injection(
+        self, alert: Alert, trusted: list[RetrievedChunk]
+    ) -> str | None:
+        """요약 LLM 에 들어가는 untrusted 텍스트 스캔 → guardrail 신호(판정 비구동).
+
+        LlmJudge 미배선 구성에서도 인젝션 텔레메트리 누락을 막는다(Codex diff). metric
+        부수효과. 판정/요약은 바꾸지 않는다 — 펜싱이 실보호.
+
+        Args:
+            alert: 경보(untrusted title/signals).
+            trusted: 요약에 쓰는 신뢰 컨텍스트 청크.
+
+        Returns:
+            인젝션 의심/가드 강등 신호 문자열. 없으면 None.
+        """
+        from app.metrics import metrics
+
+        texts = [alert.title, ", ".join(alert.signals)]
+        texts.extend(f"{c.source}: {c.text}" for c in trusted[:5])
+        atlas: list[str] = []
+        for text in texts:
+            for a in self._guard.scan(text).atlas_ids:
+                if a not in atlas:
+                    atlas.append(a)
+        if atlas:
+            metrics().record_prompt_injection()
+            return f"프롬프트 인젝션 의심(ATLAS {','.join(atlas)})"
+        if self._guard.degraded:
+            metrics().record_prompt_injection()
+            return "prompt_guard_degraded"
+        return None
 
     def _resolve_coords(self, alert: Alert) -> tuple[float, float] | None:
         """좌표 해결 — alert.lat/lon 우선, 없으면 asset-tiers fallback.
