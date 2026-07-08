@@ -16,6 +16,7 @@ from core.campaign import CampaignDetector
 from core.causal import CausalReasoner
 from core.coa import CoaPlanner
 from core.coerce import opt_str
+from core.commander import IncidentCommander
 from core.degradation import DegradationAssessor
 from core.diamond import DiamondAnalyzer
 from core.hunt import HuntPlanner
@@ -142,6 +143,12 @@ class ReportAgent(BaseSOCAgent):
             if self._case_mgr is not None
             else None
         )
+        # Incident Commander: provisional case 기반 자문 지시(무상태·읽기전용).
+        incident_directive = (
+            IncidentCommander().direct(incident_case)
+            if incident_case is not None
+            else None
+        )
 
         report = SOCReport(
             alert_id=alert.id,
@@ -162,6 +169,7 @@ class ReportAgent(BaseSOCAgent):
             mission_risk=mission_risk,
             diamond=diamond,
             incident_case=incident_case,
+            incident_directive=incident_directive,
             recovery_plan=recovery_plan,
             mission_continuity=mission_continuity,
             stride_threats=stride_threats,

@@ -834,6 +834,31 @@ class IncidentCase(BaseModel):
     updated_at: str = ""
 
 
+class IncidentDirective(BaseModel):
+    """Incident Commander 지시(자문·읽기전용) — 생명주기 오케스트레이션.
+
+    Case 신호를 읽어 산출하는 결정론 권고. COA·hunt 와 동일하게 자문뿐 — 자동
+    에스컬레이션/태스킹 실행 없음. HITL/tier3 하드게이트는 권위 신호에만 걸린다.
+
+    Attributes:
+        escalation: 에스컬레이션 등급(low/medium/high).
+        hitl_required: 인적 개입 필수 여부(권위 신호에만 True — 포이즈닝 봉인).
+        assigned_tier: 태스킹 대상 티어(tier2/tier3).
+        recommended_action: 현재 state 기반 권고 조치.
+        report_overdue: 상급 보고 시한 초과 여부(now 미가용 시 False).
+        provisional: 원본 case 미확증 여부 — 지시 신뢰도 명시.
+        rationale: 판단 근거 목록(감사·설명용).
+    """
+
+    escalation: str = "low"
+    hitl_required: bool = False
+    assigned_tier: str = "tier2"
+    recommended_action: str = ""
+    report_overdue: bool = False
+    provisional: bool = True
+    rationale: list[str] = Field(default_factory=list)
+
+
 class DiamondEvent(BaseModel):
     """침입분석 다이아몬드 한 건 — 4 정점(Adversary·Capability·Infrastructure·Victim).
 
@@ -1150,6 +1175,10 @@ class SOCReport(BaseModel):
     incident_case: IncidentCase | None = Field(
         default=None,
         description="Incident Case(생명주기·CAT) — actor 봉합 사건(provisional).",
+    )
+    incident_directive: IncidentDirective | None = Field(
+        default=None,
+        description="Incident Commander 지시(에스컬레이션·티어·HITL) — 자문.",
     )
 
 
