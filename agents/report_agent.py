@@ -38,6 +38,7 @@ from core.settings import Settings
 from core.severity import SeverityEngine
 from core.staging import DefenseStager
 from core.stride import StrideClassifier
+from core.terrain import MissionRiskAssessor
 
 
 def _scenario_prefix(scenario_id: str) -> str:
@@ -63,9 +64,11 @@ class ReportAgent(BaseSOCAgent):
         sbom: SBOMVerifier | None = None,
         vuln: VulnLookup | None = None,
         campaign_detector: CampaignDetector | None = None,
+        mission_risk: MissionRiskAssessor | None = None,
     ) -> None:
         super().__init__(settings)
         self._engine = engine
+        self._mission_risk = mission_risk
         self._coa_planner = coa_planner
         self._recovery_planner = recovery_planner
         self._degradation = degradation
@@ -114,6 +117,9 @@ class ReportAgent(BaseSOCAgent):
                 alert.sbom_components, vuln=self._vuln
             )
         campaign_matches = await self._build_campaign(alert)
+        mission_risk = (
+            self._mission_risk.assess(alert) if self._mission_risk is not None else None
+        )
 
         report = SOCReport(
             alert_id=alert.id,
@@ -130,6 +136,7 @@ class ReportAgent(BaseSOCAgent):
             hunt_candidates=hunt_candidates,
             staged_defenses=staged_defenses,
             coa_options=coa_options,
+            mission_risk=mission_risk,
             recovery_plan=recovery_plan,
             mission_continuity=mission_continuity,
             stride_threats=stride_threats,

@@ -284,7 +284,8 @@ class TestSimBridge:
         assert len(events) == 1
         ev = events[0]
         assert ev.alert.scenario_id == "AI-ONBOARD-EVADE-008"
-        assert ev.report.severity == Severity.MEDIUM
+        # MBCRA: PAYLOAD_EOIR 는 on-station 핵심지형(KT-C) → key_terrain +1 격상 → HIGH.
+        assert ev.report.severity == Severity.HIGH
         assert ev.report.verdict == Verdict.TRUE_POSITIVE
 
 

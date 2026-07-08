@@ -246,6 +246,9 @@ class Alert(BaseModel):
     # deception: 이 alert 이 decoy 자산/canary 토큰을 건드림.
     # DecoyDetector(읽기 전용)가 채움 — dynamics 격상 입력. TP 승격은 아님(untrusted).
     decoy_hit: bool = False
+    # MBCRA: 이 alert 의 자산이 현 임무단계의 사이버 핵심지형(key terrain).
+    # KeyTerrainDetector(읽기 전용)가 채움 — dynamics 격상 입력(JP 3-12 KT-C).
+    key_terrain: bool = False
     # 지리 컨텍스트(외부 GNSS/Airspace 도구 조회용; 없으면 asset-tiers.yaml fallback)
     lat: float | None = None
     lon: float | None = None
@@ -638,6 +641,31 @@ class CoaOption(BaseModel):
     engage: str = ""
 
 
+class MissionRisk(BaseModel):
+    """임무 기반 사이버 위험평가(MBCRA) 결과 한 건 — METT-TC 융합(DoD).
+
+    정적 asset tier 를 넘어 "이 자산이 현 임무단계의 핵심지형인가 + 무엇이 이것에
+    의존하는가 + 적 진행도·체류·태세" 를 결정론 융합해 임무위험 점수를 산출한다.
+
+    Attributes:
+        asset_id: 평가 대상 자산.
+        mission_phase: 현 임무 단계.
+        score: 융합 위험 점수(높을수록 임무 위협 큼).
+        is_key_terrain: 현 단계에서 핵심지형 여부.
+        dependents: 이 자산 손상 시 영향받는(의존) 자산 목록.
+        factors: METT-TC 요소별 기여(라벨→기여값).
+        rationale: 산정 근거 문자열.
+    """
+
+    asset_id: str = ""
+    mission_phase: str = ""
+    score: int = 0
+    is_key_terrain: bool = False
+    dependents: list[str] = Field(default_factory=list)
+    factors: dict[str, int] = Field(default_factory=dict)
+    rationale: list[str] = Field(default_factory=list)
+
+
 class CampaignMatch(BaseModel):
     """진행 중 캠페인 체인 매칭 한 건(2층 상관 — 시나리오 시퀀스).
 
@@ -876,6 +904,10 @@ class SOCReport(BaseModel):
     )
     causal_summary: CausalChain | None = Field(
         default=None, description="spec A1: 결정론 인과 체인 요약."
+    )
+    mission_risk: MissionRisk | None = Field(
+        default=None,
+        description="MBCRA: METT-TC 융합 임무위험(사이버 핵심지형·의존·적진행도).",
     )
 
 

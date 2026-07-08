@@ -162,6 +162,10 @@ class SeverityEngine:
                 inc = _as_int(rule.get("action", 0))
                 total += inc
                 rationale.append(f"dyn[decoy_hit]={inc:+d}")
+            elif name == "key_terrain" and alert.key_terrain:
+                inc = _as_int(rule.get("action", 0))
+                total += inc
+                rationale.append(f"dyn[key_terrain]={inc:+d}")
 
         for raw in self._rules("de_escalation"):
             rule = _as_dict(raw, where="de_escalation rule")

@@ -62,6 +62,7 @@ from core.settings import Settings, get_settings
 from core.severity import SeverityEngine
 from core.staging import DefenseStager
 from core.stride import StrideClassifier, StrideModel
+from core.terrain import KeyTerrainDetector, KeyTerrainMap, MissionRiskAssessor
 from tools.coverage import CoverageMatrix
 from tools.rule_publisher import RulePublisher
 from utils.logging import get_logger
@@ -242,6 +243,13 @@ def build_soc_graph(
         decoy_detector: DecoyDetector | None = DecoyDetector.from_yaml()
     except SOCPlatformError:
         decoy_detector = None
+    # MBCRA: asset-tiers.yaml 있으면 사이버 핵심지형 탐지기 배선(읽기전용 enrich).
+    try:
+        terrain_detector: KeyTerrainDetector | None = KeyTerrainDetector(
+            KeyTerrainMap.from_yaml()
+        )
+    except SOCPlatformError:
+        terrain_detector = None
     # spec A1: causal-rules.yaml 존재 시 reasoner 자동 배선.
     if reasoner is None:
         rules_path = Path(settings.causal_rules_path)
@@ -330,6 +338,13 @@ def build_soc_graph(
         )
     except SOCPlatformError:
         campaign_detector = None
+    # MBCRA: asset-tiers.yaml 있으면 METT-TC 임무위험 산정기 배선(report 노출).
+    try:
+        _mission_risk_assessor: MissionRiskAssessor | None = MissionRiskAssessor(
+            KeyTerrainMap.from_yaml()
+        )
+    except SOCPlatformError:
+        _mission_risk_assessor = None
     report = ReportAgent(
         settings,
         engine,
@@ -344,6 +359,7 @@ def build_soc_graph(
         sbom=sbom,
         vuln=vuln,  # SBOM CVE 검증에 vuln 컨텍스트 전달(Codex #1)
         campaign_detector=campaign_detector,
+        mission_risk=_mission_risk_assessor,
     )
 
     graph: StateGraph[SOCState] = StateGraph(SOCState)
@@ -369,6 +385,9 @@ def build_soc_graph(
         if decoy_detector is not None:
             alert = await decoy_detector.enrich(alert)
             changed = changed or alert.decoy_hit
+        if terrain_detector is not None:
+            alert = await terrain_detector.enrich(alert)
+            changed = changed or alert.key_terrain
         if changed:
             state = cast(SOCState, {**state, "alert": alert})
         out = dict(await triage.run(state))
