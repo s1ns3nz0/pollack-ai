@@ -1075,6 +1075,10 @@ class SOCReport(BaseModel):
         default=None,
         description="MBCRA: METT-TC 융합 임무위험(사이버 핵심지형·의존·적진행도).",
     )
+    diamond: DiamondEvent | None = Field(
+        default=None,
+        description="침입분석 다이아몬드 4정점(actor·능력·인프라·피해).",
+    )
 
 
 class LineageSnapshot(BaseModel):

@@ -48,6 +48,7 @@ from core.causal import CausalReasoner
 from core.coa import CoaMatrix, CoaPlanner
 from core.deception import DecoyDetector
 from core.degradation import DegradationAssessor, DegradationMatrix
+from core.diamond import DiamondAnalyzer
 from core.engage import EngageAdvancer, EngageMatrix
 from core.exceptions import SOCPlatformError
 from core.experience import MemoryReadGate
@@ -368,6 +369,7 @@ def build_soc_graph(
         vuln=vuln,  # SBOM CVE 검증에 vuln 컨텍스트 전달(Codex #1)
         campaign_detector=campaign_detector,
         mission_risk=_mission_risk_assessor,
+        diamond=DiamondAnalyzer(),
     )
 
     graph: StateGraph[SOCState] = StateGraph(SOCState)

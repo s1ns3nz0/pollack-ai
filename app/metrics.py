@@ -197,7 +197,35 @@ def render_text() -> str:
 
     out.extend(_coverage_metrics())
     out.extend(_bas_metrics())
+    out.extend(_cato_metrics())
     return "\n".join(out) + "\n"
+
+
+_CATO_AUTH_CODE = {"authorized": 0, "conditional": 1, "at_risk": 2}
+
+
+def _cato_metrics() -> list[str]:
+    """cATO 지속 인가 게이지 — BAS 커버리지 + SLO 위반 합성(정책 없으면 빈 목록)."""
+    try:
+        from core.bas import BASRunner
+        from core.cato import CatoAssessor, CatoControls
+        from core.monitoring import SLOMonitor, collect_snapshot
+
+        bas = BASRunner.from_yaml().run()
+        breaches = SLOMonitor.from_yaml().evaluate(collect_snapshot())
+        status = CatoAssessor(CatoControls.from_yaml()).assess(
+            bas=bas, slo_breaches=breaches
+        )
+    except Exception:  # noqa: BLE001 - 메트릭 조회 실패가 스크레이프를 깨지 않게
+        return []
+    return [
+        "# HELP soc_cato_authorization cATO 인가(0=auth/1=cond/2=at_risk)",
+        "# TYPE soc_cato_authorization gauge",
+        _line("soc_cato_authorization", _CATO_AUTH_CODE.get(status.authorization, 1)),
+        "# HELP soc_cato_poam_total 미충족 통제(POA&M) 수",
+        "# TYPE soc_cato_poam_total gauge",
+        _line("soc_cato_poam_total", len(status.poam)),
+    ]
 
 
 def _bas_metrics() -> list[str]:
