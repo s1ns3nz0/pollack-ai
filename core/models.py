@@ -702,6 +702,45 @@ class CatoStatus(BaseModel):
     rationale: list[str] = Field(default_factory=list)
 
 
+class DiamondEvent(BaseModel):
+    """침입분석 다이아몬드 한 건 — 4 정점(Adversary·Capability·Infrastructure·Victim).
+
+    actor_fingerprint 를 침입분석 다이아몬드(교리)로 정형화한다. 정점 간 피벗으로
+    "같은 인프라/능력을 쓰는 다른 사건" 을 상관한다.
+
+    Attributes:
+        adversary: 공격자 식별(actor_id 또는 fingerprint).
+        capabilities: 능력 정점 — MITRE technique 목록.
+        infrastructure: 인프라 정점 — IOC 값(ip_24/도메인 등).
+        victim: 피해 정점 — 대상 자산 id.
+        victim_tier: 피해 자산 tier.
+        mission_phase: 메타피처 — 임무 단계.
+    """
+
+    adversary: str = ""
+    capabilities: list[str] = Field(default_factory=list)
+    infrastructure: list[str] = Field(default_factory=list)
+    victim: str = ""
+    victim_tier: str = ""
+    mission_phase: str = ""
+
+
+class DiamondPivot(BaseModel):
+    """정점 공유 피벗 결과 한 건 — 같은 정점값을 쓰는 사건 상관.
+
+    Attributes:
+        vertex: 정점 종류("capability"|"infrastructure"|"victim").
+        value: 공유된 정점 값.
+        adversaries: 이 정점을 공유한 공격자 집합(정렬).
+        count: 공유 사건 수.
+    """
+
+    vertex: str
+    value: str
+    adversaries: list[str] = Field(default_factory=list)
+    count: int = 0
+
+
 class CampaignMatch(BaseModel):
     """진행 중 캠페인 체인 매칭 한 건(2층 상관 — 시나리오 시퀀스).
 
