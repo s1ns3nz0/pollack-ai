@@ -741,6 +741,29 @@ class DiamondPivot(BaseModel):
     count: int = 0
 
 
+class BdaReport(BaseModel):
+    """사이버 교전피해평가(BDA) 한 건 — 교전 후 피해·임무영향·복구권고(JP 3-60).
+
+    방어 효과(effect: 1=완전차단·0=완전실패)의 역을 기능피해로 환산하고, 복구 성공
+    여부와 임무 지속성으로 재교전(복구) 필요성을 판정한다.
+
+    Attributes:
+        damage_level: "none"|"light"|"moderate"|"severe" — 기능피해 등급.
+        effect: 방어 효과(0~1). 낮을수록 피해 큼.
+        mission_impact: 임무영향 서술(MissionContinuity 연계).
+        restore_recommended: 복구/재교전 권고 여부(복구 미완·잔존 시 True).
+        confidence: "high"|"low" — 관측 충분도 기반 평가 확신도.
+        rationale: 산정 근거.
+    """
+
+    damage_level: str = "none"
+    effect: float = 1.0
+    mission_impact: str = ""
+    restore_recommended: bool = False
+    confidence: str = "low"
+    rationale: list[str] = Field(default_factory=list)
+
+
 class CampaignMatch(BaseModel):
     """진행 중 캠페인 체인 매칭 한 건(2층 상관 — 시나리오 시퀀스).
 
