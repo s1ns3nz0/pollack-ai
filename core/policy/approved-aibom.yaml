@@ -1,0 +1,16 @@
+# 승인 AIBOM — 인가된 AI 컴포넌트 기준(version/digest/source).
+# 매니페스트(ai-components.yaml) 선언분을 이 목록과 대조해 거버넌스 위험을 판정한다.
+# digest 는 인프라가 실측 서명을 채우기 전까지 공란(→ integrity_unverifiable, tampered 아님).
+components:
+  "qwen2.5:14b":
+    version: "qwen2.5:14b"
+    digest: ""
+    source: "http://192.168.64.1:11443"
+  "ragflow-default-embedding":
+    version: "bge-large-1.5"
+    digest: ""
+    source: "ragflow"
+  "ragas-eval":
+    version: "0.2"
+    digest: ""
+    source: "ragas-lib"

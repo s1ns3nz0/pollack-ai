@@ -1,0 +1,19 @@
+# AI 컴포넌트 매니페스트 — 플랫폼이 쓰는 AI 자산 선언(AIBOM 관측 인벤토리).
+# silent under-coverage 방지: 실제 쓰는 모든 AI 컴포넌트(chat_llm·embedding·ragflow·
+# graphrag·ragas)를 여기 선언한다. settings 로 기대되나 미선언 시 coverage_gap.
+components:
+  - name: "qwen2.5:14b"
+    type: chat_llm
+    version: "qwen2.5:14b"
+    digest: ""
+    source: "http://192.168.64.1:11443"
+  - name: "ragflow-default-embedding"
+    type: embedding
+    version: "bge-large-1.5"
+    digest: ""
+    source: "ragflow"
+  - name: "ragas-eval"
+    type: ragas
+    version: "0.2"
+    digest: ""
+    source: "ragas-lib"
