@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 import yaml
 
 from core.bas import BASReport
@@ -79,11 +79,21 @@ class CatoControls:
             floor_f = float(floor)
         except (TypeError, ValueError) as exc:
             raise PolicyError(f"bas_detection_floor 형식 오류: {exc}") from exc
-        controls = [
-            ControlMapping.model_validate(c)
-            for c in (cato.get("controls") or [])
-            if isinstance(c, dict) and c.get("id")
-        ]
+        raw_controls = cato.get("controls") or []
+        if not isinstance(raw_controls, list):
+            raise PolicyError("cATO 통제 구조 오류(controls 가 리스트 아님).")
+        # id 누락/의미오류를 조용히 skip 하지 않고 PolicyError — 부분로딩 은폐 차단
+        # (Codex M-3). model_validate 도 PolicyError 경로 안(Codex H-1).
+        controls: list[ControlMapping] = []
+        try:
+            for c in raw_controls:
+                if not isinstance(c, dict):
+                    raise PolicyError(f"cATO 통제 항목이 dict 아님: {c!r}")
+                if not c.get("id"):
+                    raise PolicyError(f"cATO 통제 id 누락: {c!r}")
+                controls.append(ControlMapping.model_validate(c))
+        except ValidationError as exc:
+            raise PolicyError(f"cATO 통제 항목 검증 실패: {exc}") from exc
         if not controls:
             raise PolicyError("cATO 통제가 비어있음.")
         return cls(controls, floor_f)
@@ -154,11 +164,13 @@ class CatoAssessor:
         ctrl = self._controls.by_source("slo")
         if ctrl is None:
             return []
+        # 미지 severity 는 default(medium)로 강등하지 않고 high 로 상향(fail-safe) —
+        # "critical" 등 미인식 문자열이 조용히 인가 강등을 우회하는 것 차단(Codex H-2).
         return [
             PoamItem(
                 control_id=ctrl.id,
                 family=ctrl.family,
-                severity=b.severity if b.severity in _SEV_RANK else ctrl.severity,
+                severity=b.severity if b.severity in _SEV_RANK else "high",
                 source="slo",
                 gap=f"SLO 위반 {b.metric}: {b.message}",
             )
@@ -173,7 +185,7 @@ class CatoAssessor:
             PoamItem(
                 control_id=ctrl.id,
                 family=ctrl.family,
-                severity=_SBOM_SEVERITY.get(f.issue, ctrl.severity),
+                severity=_SBOM_SEVERITY.get(f.issue, "high"),  # 미지 issue → fail-safe
                 source="sbom",
                 gap=f"SBOM {f.issue}: {f.component} {f.detail}".strip(),
             )
@@ -185,7 +197,8 @@ class CatoAssessor:
         """POA&M 최고 심각도 → 인가태세(고=at_risk / 중·저=conditional / 무=ok)."""
         if not poam:
             return "authorized"
-        worst = max(_SEV_RANK.get(p.severity, 2) for p in poam)
+        # 미지 severity 는 high(3)로 — 인가 판정에서 조용한 하향 강등 차단(Codex H-2/3).
+        worst = max(_SEV_RANK.get(p.severity, _SEV_RANK["high"]) for p in poam)
         if worst >= _SEV_RANK["high"]:
             return "at_risk"
         return "conditional"
