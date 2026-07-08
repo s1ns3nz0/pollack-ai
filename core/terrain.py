@@ -90,13 +90,22 @@ class KeyTerrainMap:
             raise PolicyError(f"자산 지형 적재 실패: {exc}") from exc
         if not isinstance(raw, dict):
             raise PolicyError("자산 지형 구조 오류(최상위 dict 아님).")
-        weights = {
-            str(name): int(meta.get("weight", 0))
-            for name, meta in (raw.get("tiers") or {}).items()
-            if isinstance(meta, dict)
-        } or dict(_TIER_WEIGHT_FALLBACK)
+        tiers_raw = raw.get("tiers") or {}
+        if not isinstance(tiers_raw, dict):
+            raise PolicyError("자산 지형 구조 오류(tiers 가 dict 아님).")
+        try:
+            weights = {
+                str(name): int(meta.get("weight", 0))
+                for name, meta in tiers_raw.items()
+                if isinstance(meta, dict)
+            } or dict(_TIER_WEIGHT_FALLBACK)
+        except (TypeError, ValueError) as exc:
+            raise PolicyError(f"자산 지형 tier weight 형식 오류: {exc}") from exc
+        assets_raw = raw.get("assets") or []
+        if not isinstance(assets_raw, list):
+            raise PolicyError("자산 지형 구조 오류(assets 가 리스트 아님).")
         assets: dict[str, _AssetTerrain] = {}
-        for item in raw.get("assets") or []:
+        for item in assets_raw:
             if not isinstance(item, dict) or not item.get("id"):
                 continue
             aid = str(item["id"])
@@ -130,12 +139,15 @@ class KeyTerrainDetector:
             alert: 파이프라인 진입 알람(asset_id·mission_phase 참조).
 
         Returns:
-            핵심지형 접촉 시 `key_terrain=True` 사본, 아니면 원본.
+            정책 파생값으로 `key_terrain` 을 **항상 덮어쓴** 사본(무변화 시 원본).
+            inbound alert 위조 플래그를 신뢰하지 않기 위함(Codex M-1).
         """
-        if alert.asset_id and self._terrain.is_key_terrain(
-            alert.asset_id, alert.mission_phase
-        ):
-            return alert.model_copy(update={"key_terrain": True})
+        derived = bool(
+            alert.asset_id
+            and self._terrain.is_key_terrain(alert.asset_id, alert.mission_phase)
+        )
+        if derived != alert.key_terrain:
+            return alert.model_copy(update={"key_terrain": derived})
         return alert
 
 

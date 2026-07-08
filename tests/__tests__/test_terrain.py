@@ -53,6 +53,23 @@ class TestKeyTerrainMap:
         with pytest.raises(PolicyError):
             KeyTerrainMap.from_yaml(p)
 
+    def test_malformed_tiers_raises_policy_error(self, tmp_path) -> None:  # type: ignore[no-untyped-def] # noqa: E501
+        """tiers 가 list → PolicyError(AttributeError 아님, 크래시 방지 Codex H)."""
+        p = tmp_path / "m.yaml"
+        p.write_text("tiers: []\nassets: []\n", encoding="utf-8")
+        with pytest.raises(PolicyError):
+            KeyTerrainMap.from_yaml(p)
+
+    def test_non_int_weight_raises_policy_error(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        """비정수 weight → PolicyError(ValueError 승격, Codex H)."""
+        p = tmp_path / "w.yaml"
+        p.write_text(
+            "tiers:\n  T1:\n    weight: abc\nassets:\n  - id: X\n    tier: T1\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(PolicyError):
+            KeyTerrainMap.from_yaml(p)
+
 
 class TestKeyTerrainDetector:
     """읽기전용 enrich."""
@@ -76,6 +93,15 @@ class TestKeyTerrainDetector:
         """지원자산(TELEMETRY)은 어느 단계도 핵심지형 아님."""
         det = KeyTerrainDetector(KeyTerrainMap.from_yaml())
         out = await det.enrich(_alert(asset_id="TELEMETRY", phase="on-station"))
+        assert out.key_terrain is False
+
+    @pytest.mark.asyncio
+    async def test_forged_flag_cleared_on_non_hit(self) -> None:
+        """inbound 위조 key_terrain=True 라도 비핵심이면 False 로 덮어씀(Codex M-1)."""
+        det = KeyTerrainDetector(KeyTerrainMap.from_yaml())
+        forged = _alert(asset_id="TELEMETRY", phase="on-station")
+        forged.key_terrain = True  # 위조
+        out = await det.enrich(forged)
         assert out.key_terrain is False
 
 

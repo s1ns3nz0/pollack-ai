@@ -10,6 +10,7 @@
 실행: python benchmarks/run_benchmarks.py
 출력: 콘솔 표 + benchmarks/results/bench_results.json
 """
+
 import asyncio
 import json
 import os
@@ -30,20 +31,23 @@ from core.llm import OllamaLLMClient, get_llm_client  # noqa: E402
 from core.models import Alert, Severity, Verdict  # noqa: E402
 from tools.ragflow_tool import KbCategory, RagflowRetrievalTool  # noqa: E402
 
-_JUDGE_SYSTEM = (
-    "당신은 RAG 평가자다. 아래 기준을 1~5 정수로만 답하라(숫자 하나만)."
-)
+_JUDGE_SYSTEM = "당신은 RAG 평가자다. 아래 기준을 1~5 정수로만 답하라(숫자 하나만)."
 
 
-async def _judge_score(llm: OllamaLLMClient, criterion: str, ctx: str, answer: str) -> float:
+async def _judge_score(
+    llm: OllamaLLMClient, criterion: str, ctx: str, answer: str
+) -> float:
     """LLM-as-Judge 1~5 점수(파싱 실패 시 0)."""
-    user = f"평가기준: {criterion}\n\n[컨텍스트]\n{ctx}\n\n[답변]\n{answer}\n\n점수(1~5):"
+    user = (
+        f"평가기준: {criterion}\n\n[컨텍스트]\n{ctx}\n\n[답변]\n{answer}\n\n점수(1~5):"
+    )
     try:
         out = await llm.acomplete(_JUDGE_SYSTEM, user)
     except LLMError:
         return 0.0
     m = re.search(r"[1-5]", out)
     return float(m.group()) if m else 0.0
+
 
 SCEN_DIR = ROOT / "projects" / "dah2026" / "scenarios"
 POC = ROOT / "projects" / "uav_soc_rag_poc"
@@ -62,6 +66,7 @@ def _alert_from_scenario(path: Path, ground_truth: Verdict) -> Alert:
         id=f"BENCH-{scn['scenario_id']}",
         scenario_id=scn["scenario_id"],
         title=scn["title"],
+        asset_id=scn.get("target_asset", {}).get("id", ""),
         asset_tier=scn.get("target_asset", {}).get("tier", ""),
         mission_phase=scn.get("mission_context", {}).get("phase", ""),
         severity_baseline=Severity(scn["severity_baseline"]),
@@ -85,7 +90,8 @@ def _golden_scenario_docs() -> dict[str, list[str]]:
     while True:
         d = requests.get(
             f"{base}/api/v1/datasets/{kb}/documents?page={page}&page_size=100",
-            headers=h, timeout=60,
+            headers=h,
+            timeout=60,
         ).json()["data"]
         docs += d["docs"]
         if len(docs) >= d["total"] or not d["docs"]:
@@ -101,14 +107,19 @@ def _golden_scenario_docs() -> dict[str, list[str]]:
 
 async def main() -> None:
     _load_env()
-    scenarios = sorted(SCEN_DIR.glob("S*.yaml"), key=lambda p: int(p.name[1:].split("-")[0]))
+    scenarios = sorted(
+        SCEN_DIR.glob("S*.yaml"), key=lambda p: int(p.name[1:].split("-")[0])
+    )
     retriever = RagflowRetrievalTool()
 
     # --- 1) 라우팅 정확도 ---
     route_ok = 0
     route_total = 0
     for path in scenarios:
-        for gt, expected in [(Verdict.TRUE_POSITIVE, "response"), (Verdict.FALSE_POSITIVE, "rule_update")]:
+        for gt, expected in [
+            (Verdict.TRUE_POSITIVE, "response"),
+            (Verdict.FALSE_POSITIVE, "rule_update"),
+        ]:
             graph = build_soc_graph(retriever=None)
             s = await graph.ainvoke({"alert": _alert_from_scenario(path, gt)})
             route_total += 1
@@ -120,8 +131,12 @@ async def main() -> None:
         alert = _alert_from_scenario(path, Verdict.TRUE_POSITIVE)
         baseline_graph = build_soc_graph(retriever=None)
         clean = await baseline_graph.ainvoke({"alert": alert})
-        poisoned_alert = alert.model_copy(update={"llm_suggested_severity": Severity.INFO})
-        poisoned = await build_soc_graph(retriever=None).ainvoke({"alert": poisoned_alert})
+        poisoned_alert = alert.model_copy(
+            update={"llm_suggested_severity": Severity.INFO}
+        )
+        poisoned = await build_soc_graph(retriever=None).ainvoke(
+            {"alert": poisoned_alert}
+        )
         resist_ok += int(clean["severity"] == poisoned["severity"])
 
     # --- 3) 검색 Recall@5 / MRR ---
@@ -137,10 +152,16 @@ async def main() -> None:
         if not gold:
             continue
         recall_total += 1
-        query = f"{scn['title']} {' '.join(scn.get('telemetry', {}).get('signals', []))}"
+        query = (
+            f"{scn['title']} {' '.join(scn.get('telemetry', {}).get('signals', []))}"
+        )
         hits = await retriever.aretrieve(query, k=5, category=KbCategory.INCIDENT_CASES)
         rank = next(
-            (i + 1 for i, c in enumerate(hits) if any(c.source.endswith(g) for g in gold)),
+            (
+                i + 1
+                for i, c in enumerate(hits)
+                if any(c.source.endswith(g) for g in gold)
+            ),
             0,
         )
         recall_hits += int(rank > 0)
@@ -156,9 +177,13 @@ async def main() -> None:
         judge = OllamaLLMClient()
         for path in scenarios:
             graph = build_soc_graph(retriever=retriever, llm=llm)
-            s = await graph.ainvoke({"alert": _alert_from_scenario(path, Verdict.TRUE_POSITIVE)})
+            s = await graph.ainvoke(
+                {"alert": _alert_from_scenario(path, Verdict.TRUE_POSITIVE)}
+            )
             inv = s["investigation"]
-            ctx = "\n".join(f"[{c.source}] {c.text[:400]}" for c in inv.similar_cases[:5])
+            ctx = "\n".join(
+                f"[{c.source}] {c.text[:400]}" for c in inv.similar_cases[:5]
+            )
             if not ctx:
                 continue
             f = await _judge_score(
@@ -191,19 +216,31 @@ async def main() -> None:
     }
     out = ROOT / "benchmarks" / "results"
     out.mkdir(parents=True, exist_ok=True)
-    (out / "bench_results.json").write_text(json.dumps(results, ensure_ascii=False, indent=2))
+    (out / "bench_results.json").write_text(
+        json.dumps(results, ensure_ascii=False, indent=2)
+    )
 
     print("=" * 56)
     print("SOC / RAG 벤치마크 결과")
     print("=" * 56)
     print("[LLM 불필요 지표]")
-    print(f"  라우팅 정확도(TP→response/FP→rule_update): {results['routing_accuracy']} ({results['routing_detail']})")
-    print(f"  S5 포이즈닝 저항성(적대주입 시 등급 유지)  : {results['s5_resistance_rate']} ({results['s5_detail']})")
-    print(f"  검색 Recall@5                              : {results['recall_at_5']} ({results['recall_detail']})")
+    print(
+        f"  라우팅 정확도(TP→response/FP→rule_update): {results['routing_accuracy']} ({results['routing_detail']})"
+    )
+    print(
+        f"  S5 포이즈닝 저항성(적대주입 시 등급 유지)  : {results['s5_resistance_rate']} ({results['s5_detail']})"
+    )
+    print(
+        f"  검색 Recall@5                              : {results['recall_at_5']} ({results['recall_detail']})"
+    )
     print(f"  검색 MRR                                   : {results['mrr']}")
     print("[LLM-as-Judge (실 Ollama, 1~5점)]")
-    print(f"  Investigation 요약 Faithfulness            : {results['llm_judge_faithfulness']}")
-    print(f"  Investigation 요약 Relevancy               : {results['llm_judge_relevancy']}  ({results['llm_judge_detail']})")
+    print(
+        f"  Investigation 요약 Faithfulness            : {results['llm_judge_faithfulness']}"
+    )
+    print(
+        f"  Investigation 요약 Relevancy               : {results['llm_judge_relevancy']}  ({results['llm_judge_detail']})"
+    )
     print(f"\n저장: {out / 'bench_results.json'}")
 
 
