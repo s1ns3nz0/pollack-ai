@@ -166,6 +166,41 @@ class SbomFinding(BaseModel):
     cve: str = ""
 
 
+class AibomComponent(BaseModel):
+    """AIBOM 컴포넌트 한 건 — 플랫폼이 쓰는 AI 자산(모델/데이터셋/어댑터).
+
+    Attributes:
+        name: 컴포넌트 식별자(예: "qwen2.5:14b").
+        component_type: 유형(chat_llm|embedding|ragflow|graphrag|ragas|dataset).
+        version: 선언 버전/태그.
+        digest: 선언 무결성 digest(있으면 승인값과 대조). 없으면 검증 불가.
+        source: 출처(레지스트리/URL/제공자).
+    """
+
+    name: str
+    component_type: str = ""
+    version: str = ""
+    digest: str = ""
+    source: str = ""
+
+
+class AibomFinding(BaseModel):
+    """AIBOM 거버넌스 위험 한 건(AI 공급망·출처).
+
+    Attributes:
+        component: 대상 컴포넌트명(coverage_gap 은 기대 유형명).
+        component_type: 컴포넌트 유형.
+        issue: "unregistered"|"untrusted_source"|"unpinned"|"version_mismatch"|
+            "tampered"|"integrity_unverifiable"|"coverage_gap".
+        detail: 사람이 읽을 위험 상세.
+    """
+
+    component: str
+    component_type: str = ""
+    issue: str
+    detail: str = ""
+
+
 class Severity(StrEnum):
     """심각도 등급(정책 엔진 산정값)."""
 
@@ -1179,6 +1214,10 @@ class SOCReport(BaseModel):
     incident_directive: IncidentDirective | None = Field(
         default=None,
         description="Incident Commander 지시(에스컬레이션·티어·HITL) — 자문.",
+    )
+    aibom_findings: list[AibomFinding] = Field(
+        default_factory=list,
+        description="AIBOM 거버넌스 위험(AI 공급망·출처) — 정적 posture(캐시).",
     )
 
 

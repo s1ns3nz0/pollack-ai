@@ -12,6 +12,12 @@ from agents.base import BaseSOCAgent
 from app.metrics import metrics
 from core import oscal
 from core.actors import ActorReadGate
+from core.aibom import (
+    AibomInventory,
+    AIBOMVerifier,
+    ApprovedAibom,
+    expected_component_types,
+)
 from core.campaign import CampaignDetector
 from core.causal import CausalReasoner
 from core.coa import CoaPlanner
@@ -19,11 +25,13 @@ from core.coerce import opt_str
 from core.commander import IncidentCommander
 from core.degradation import DegradationAssessor
 from core.diamond import DiamondAnalyzer
+from core.exceptions import SOCPlatformError
 from core.hunt import HuntPlanner
 from core.incident import CaseManager
 from core.lineage import LineageCollector
 from core.models import (
     ActorProfile,
+    AibomFinding,
     Alert,
     CampaignMatch,
     CoaOption,
@@ -46,6 +54,30 @@ from core.severity import SeverityEngine
 from core.staging import DefenseStager
 from core.stride import StrideClassifier
 from core.terrain import MissionRiskAssessor
+
+
+def _load_aibom_findings(settings: Settings) -> list[AibomFinding]:
+    """AIBOM 정적 검증 1회 실행 → 위반 findings. 정책 실패 시 빈 목록(graceful).
+
+    위반 수는 metric 으로 1회 계상한다(per-alert 재계상 금지 — 정적 posture).
+
+    Args:
+        settings: 플랫폼 설정(기대 컴포넌트 유형 도출용).
+
+    Returns:
+        AIBOM 거버넌스 위험 목록(정상/정책실패 시 빈 목록).
+    """
+    try:
+        approved = ApprovedAibom.from_yaml()
+        components = AibomInventory.from_manifest()
+    except SOCPlatformError:
+        return []
+    findings = AIBOMVerifier(approved).verify(
+        components, expected_component_types(settings)
+    )
+    if findings:
+        metrics().record_aibom_violation(len(findings))
+    return findings
 
 
 def _scenario_prefix(scenario_id: str) -> str:
@@ -93,6 +125,8 @@ class ReportAgent(BaseSOCAgent):
         self._actor_read = actor_read
         self._lineage = lineage
         self._stager = stager
+        # AIBOM 은 정적 posture — 로드 시 1회 계산·캐시(per-alert 재계산·재계상 금지).
+        self._aibom_findings = _load_aibom_findings(settings)
 
     async def run(self, state: SOCState) -> SOCState:
         """리포트 + OSCAL 증거 구성."""
@@ -170,6 +204,7 @@ class ReportAgent(BaseSOCAgent):
             diamond=diamond,
             incident_case=incident_case,
             incident_directive=incident_directive,
+            aibom_findings=self._aibom_findings,
             recovery_plan=recovery_plan,
             mission_continuity=mission_continuity,
             stride_threats=stride_threats,
@@ -187,6 +222,11 @@ class ReportAgent(BaseSOCAgent):
             metrics().record_decoy_hit()
         if alert.key_terrain:
             metrics().record_key_terrain()
+        # AIBOM 정적 posture — 위반 시 report 당 1개 guardrail(캐시 참조, 재계상 없음).
+        if self._aibom_findings:
+            report.guardrail_flags = list(report.guardrail_flags) + [
+                f"AIBOM 거버넌스 위반 {len(self._aibom_findings)}건(AI 공급망·출처)"
+            ]
 
         # spec A1: 인과 체인 매핑
         if self._reasoner is not None:
