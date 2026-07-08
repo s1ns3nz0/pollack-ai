@@ -159,6 +159,11 @@ class ReportAgent(BaseSOCAgent):
                 "kill chain 후반단계(C2 이후) 도달 — 진행 중 캠페인, 심각도 격상됨"
             ]
             metrics().record_killchain_advanced()
+        # deception/MBCRA 격상 신호 계측(killchain 과 동형 관측성).
+        if alert.decoy_hit:
+            metrics().record_decoy_hit()
+        if alert.key_terrain:
+            metrics().record_key_terrain()
 
         # spec A1: 인과 체인 매핑
         if self._reasoner is not None:
