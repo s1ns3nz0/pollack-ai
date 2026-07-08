@@ -1,0 +1,111 @@
+# =====================================================================
+# Deployment A — SOC 핫패스 (지연민감, 상태 보유)
+#
+# ⚠️ 이 파일의 운명 (설계서 §10 #1 상태 분리 결정):
+#   - 옵션 A (권고): 본 Deployment 폐기 → argo-rollout-hotpath.yaml 로 대체.
+#                    상태부(AlertCorrelator) 만 별도 StatefulSet 으로 분리.
+#   - 옵션 B (대안): 본 Deployment 유지 + strategy 만 Recreate → Blue-Green 으로
+#                    전환 (Rollout 의 strategy.blueGreen). 단일 레플리카 유지 가능.
+#
+# 본 파일은 **옵션 B 대안** 형태로 강화한 버전이다.
+# argo-rollout-hotpath.yaml 채택 시 본 파일은 git rm 한다.
+#
+# 강화 포인트:
+#   - startupProbe 추가 (모델 로드 ≤ 300s)
+#   - securityContext (runAsNonRoot, seccompProfile, capabilities drop)
+#   - readinessProbe failureThreshold 명시
+#   - 라벨에 deployment.strategy 명시 — GitOps 가시성
+# =====================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: soc-hotpath
+  namespace: dah-soc
+  labels:
+    app: soc-hotpath
+    soc.role: hotpath
+    soc.deployment.strategy: recreate-or-bluegreen-migration
+spec:
+  replicas: 1 # 상태 보유 → 단일 레플리카 (옵션 B 유지)
+  strategy:
+    type: Recreate # Canary 전환 시 본 매니페스트는 폐기 (argo-rollout-hotpath.yaml 사용)
+  selector:
+    matchLabels:
+      app: soc-hotpath
+  template:
+    metadata:
+      labels:
+        app: soc-hotpath
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: hotpath
+          image: ghcr.io/s1ns3nz0/uav-ai-soc:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "app.hotpath"]
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: soc-config
+            - secretRef:
+                name: soc-secrets
+          # 모델 로드 ≤ 300s 허용 (startupProbe 신규).
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 30
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 15
+            failureThreshold: 3
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2"
+              memory: "1Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: soc-hotpath
+  namespace: dah-soc
+  labels:
+    app: soc-hotpath
+    monitoring: enabled # ServiceMonitor 선택 라벨
+spec:
+  selector:
+    app: soc-hotpath
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

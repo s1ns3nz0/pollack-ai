@@ -48,6 +48,7 @@ from core.causal import CausalReasoner
 from core.coa import CoaMatrix, CoaPlanner
 from core.deception import DecoyDetector
 from core.degradation import DegradationAssessor, DegradationMatrix
+from core.engage import EngageAdvancer, EngageMatrix
 from core.exceptions import SOCPlatformError
 from core.experience import MemoryReadGate
 from core.killchain import KillChainProgressor
@@ -221,10 +222,16 @@ def build_soc_graph(
 
         _store = InMemoryActorStore()
         actor_read = ActorReadGate(_store)
+        # MITRE Engage 폐루프: 커버리지 있으면 상태 전진기 배선(신뢰 canary→TP 전용).
+        try:
+            _advancer: EngageAdvancer | None = EngageAdvancer()
+        except SOCPlatformError:
+            _advancer = None
         actor_write = ActorWriteGate(
             _store,
             predictor=predictor,  # type: ignore[arg-type]
             on_settle=lambda hit: _metrics().record_prediction(hit=hit),
+            engage_advancer=_advancer,
         )
     # 예측 폐루프: 읽기 전용 pending 대조기 — triage 진입 전 alert enrich.
     matcher = PredictionMatcher(actor_read) if actor_read is not None else None
@@ -278,8 +285,13 @@ def build_soc_graph(
     except SOCPlatformError:
         stager = None
     try:
+        # engage-matrix.yaml 있으면 Deceive 셀 enrich 용 EngageMatrix 동반(graceful).
+        try:
+            _engage_matrix: EngageMatrix | None = EngageMatrix.from_yaml()
+        except SOCPlatformError:
+            _engage_matrix = None
         coa_planner: CoaPlanner | None = CoaPlanner(
-            CoverageMatrix.from_yaml(), CoaMatrix.from_yaml()
+            CoverageMatrix.from_yaml(), CoaMatrix.from_yaml(), engage=_engage_matrix
         )
     except SOCPlatformError:
         coa_planner = None

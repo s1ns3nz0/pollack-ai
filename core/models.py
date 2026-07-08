@@ -428,6 +428,37 @@ class PendingPrediction(BaseModel):
     age_alerts: int = Field(default=0, ge=0)
 
 
+class EngageGoal(StrEnum):
+    """MITRE Engage 교전 목표(3 코어). Prepare 정적/Affect 권고전용은 제외."""
+
+    NONE = "none"
+    EXPOSE = "expose"  # 접촉 성립·수집 개시
+    ELICIT = "elicit"  # 적을 끌어냄(추가 TTP 노출)
+    UNDERSTAND = "understand"  # 적 충분히 특성화(종단)
+
+
+class ActorEngagement(BaseModel):
+    """actor 별 MITRE Engage 교전 상태(폐루프).
+
+    canary 접촉(신뢰 관측이 유발한 CONFIRMED_TP)에서만 전진한다 — untrusted
+    decoy_hit 은 전진시키지 않는다(포이즈닝 면역). 전진은 alert_id 멱등 처리해
+    replay 이중계상을 막는다.
+
+    Attributes:
+        state: 현재 Engage 목표.
+        rounds: 신뢰 교전 라운드 수(멱등 처리된 canary 접촉 수).
+        adversary_cost: kill-chain 지연 대리지표 — Σ(교전 시점 stage-order).
+        last_activity: 마지막 권고 engagement 활동(EngagePlanner 산출).
+        seen_alert_ids: 이미 전진에 반영한 alert_id(멱등키, 슬라이딩 cap).
+    """
+
+    state: EngageGoal = EngageGoal.NONE
+    rounds: int = Field(default=0, ge=0)
+    adversary_cost: int = Field(default=0, ge=0)
+    last_activity: str = ""
+    seen_alert_ids: list[str] = Field(default_factory=list)
+
+
 class ActorProfile(BaseModel):
     """공격자 동적 프로필(spec #2).
 
@@ -458,6 +489,10 @@ class ActorProfile(BaseModel):
     )
     prediction_hits: int = Field(default=0, ge=0)
     prediction_misses: int = Field(default=0, ge=0)
+    engagement: ActorEngagement = Field(
+        default_factory=ActorEngagement,
+        description="MITRE Engage 교전 상태(폐루프). 신뢰 canary→TP 경로만 전진.",
+    )
     content_hash: str = ""
     signature: str = ""
 
@@ -483,6 +518,10 @@ class ActorProfile(BaseModel):
             "prediction_hits": self.prediction_hits,
             "prediction_misses": self.prediction_misses,
         }
+        # Engage 교전 상태 — 변조 시 서명 불일치. 단 기본값(미교전)일 땐 payload 에서
+        # 생략해 레거시(engagement 이전) 서명 프로필과 해시 호환 유지(마이그레이션).
+        if self.engagement != ActorEngagement():
+            payload["engagement"] = self.engagement.model_dump()
         canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
@@ -595,6 +634,8 @@ class CoaOption(BaseModel):
     action: str = ""
     d3fend_id: str = ""
     stage: str = "current"
+    # Deceive 셀 한정 — 현 actor 의 Engage 교전 상태·권고활동·adversary_cost 주입.
+    engage: str = ""
 
 
 class CampaignMatch(BaseModel):

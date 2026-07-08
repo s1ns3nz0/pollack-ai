@@ -198,15 +198,17 @@ class ReportAgent(BaseSOCAgent):
             return []
         raw = alert.mitre.get("tactics", [])
         tactics = [str(t) for t in raw] if isinstance(raw, list) else []
-        # actor 누적 tactic 이력 합류(진행도 반영).
+        # actor 누적 tactic 이력 합류(진행도 반영) + Engage 교전 상태(Deceive enrich).
+        engagement = None
         if self._actor_read is not None and alert.actor_id:
             profile = await self._actor_read.recall(alert.actor_id.strip())
             if profile is not None:
                 tactics.extend(s.tactic for s in profile.ttp_stats)
+                engagement = profile.engagement
         predicted = (
             [p.next_technique for p in inv.predictions] if inv is not None else []
         )
-        return self._coa_planner.plan(tactics, predicted)
+        return self._coa_planner.plan(tactics, predicted, engagement)
 
     async def _build_campaign(self, alert: Alert) -> list[CampaignMatch]:
         """actor 시나리오 이력 + 현 alert → 진행 중 캠페인 체인을 식별한다.

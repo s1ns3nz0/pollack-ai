@@ -1,0 +1,578 @@
+# =====================================================================
+# cd-prod.yml — main → production AKS 배포 (Argo Rollouts Canary).
+#
+# 전략:
+#   - 트랙 A (hotpath) : Argo Rollouts Canary 10% → 50% → 100% (자동 분석)
+#   - 트랙 B (learning): Rolling Update + HPA(1-4)
+#
+# 게이트 순서 (모두 차단):
+#   0) verify-builder   : 빌더 이미지 cosign 서명 검증(공급망 무결성 강제)
+#   1) g2-gate          : check_gates.py --profile=prod
+#   2) ai-redteam-check : 최근 24h 내 ai-redteam.yml 통과 워크플로 존재 확인
+#   3) oscal-gate       : POAM 임계 강제 (critical=0, high≤3) — **차단**
+#   4) build-push       : buildx → GHCR (OIDC + GITHUB_TOKEN)
+#   5) container-scan   : Trivy Critical 차단 + High 경고
+#   6) sign-attest      : release-signing.yml (cosign keyless + SBOM)
+#   7) slsa-provenance  : SLSA L3 generator (slsa-github-generator)
+#   8) prod-approval    : environment=production 수동 승인 (2인 권장)
+#   9) gitops-bump      : Rollout 매니페스트 image 태그 bump + 커밋
+#  10) argocd-wait      : ArgoCD CLI sync 대기 (10분 타임아웃)
+#  11) rollouts-promote : Argo Rollouts 분석 통과 시 자동 승격, 실패 시 git revert
+#  12) post-deploy-smoke: /healthz /readyz /metrics
+#
+# 라운드 B (옵션 1, 빌더 이미지 핀):
+#   - 적용: g2-gate, ai-redteam-check, oscal-gate, post-deploy-smoke, dora-push-*
+#   - 화이트리스트(컨테이너 외부):
+#       build-push        — 호스트 docker daemon
+#       container-scan    — trivy-action 호스트 도커
+#       sign-attest       — reusable workflow 호출
+#       provenance        — slsa-github-generator reusable workflow
+#       prod-approval     — environment 승인만 수행(무의미)
+#       gitops-bump       — git push
+#       argocd-wait       — ArgoCD CLI 외부 download + auth
+#       rollouts-monitor  — kubectl + azure CLI + git revert
+#
+# 자동 롤백 트리거 (AnalysisTemplate):
+#   - HTTP 5xx > 1% (2분), p99 > 2s (5분), agent_latency p99 > 5s (5분)
+#   - Pod restarts > 3 (10분), RAGAS faithfulness < 0.75 (10분 평균)
+# =====================================================================
+
+name: CD Production (main → AKS Canary)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # 핫픽스/수동 재배포 대비
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cd-prod-${{ github.ref }}
+  cancel-in-progress: false # prod 중복 취소 금지
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: s1ns3nz0/uav-ai-soc
+  PYTHON_VERSION: "3.11"
+  PROD_NAMESPACE: dah-soc
+
+jobs:
+  # ─────────────────────────────────────────
+  # 0) verify-builder — 빌더 이미지 cosign 서명 검증(모든 컨테이너 잡의 부모)
+  # ─────────────────────────────────────────
+  verify-builder:
+    name: Verify builder image (cosign keyless)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
+      - name: BUILDER_IMAGE_DIGEST 존재 검증
+        run: |
+          if [ -z "${{ vars.BUILDER_IMAGE_DIGEST }}" ]; then
+            echo "::error::vars.BUILDER_IMAGE_DIGEST 미설정 — build-builder.yml 부트스트랩 필요."
+            exit 1
+          fi
+      - name: cosign verify (uav-soc-builder)
+        run: |
+          cosign verify \
+            --certificate-identity-regexp '^https://github\.com/s1ns3nz0/pollack-ai/\.github/workflows/build-builder\.yml@refs/heads/main$' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            ghcr.io/s1ns3nz0/uav-soc-builder@${{ vars.BUILDER_IMAGE_DIGEST }}
+
+  # ─────────────────────────────────────────
+  # 1) G2 회귀 게이트 (prod 임계) — 빌더 이미지
+  # ─────────────────────────────────────────
+  g2-gate:
+    name: G2 Regression Gate (prod)
+    runs-on: ubuntu-latest
+    needs: verify-builder
+    timeout-minutes: 20
+    container:
+      image: ghcr.io/s1ns3nz0/uav-soc-builder@${{ vars.BUILDER_IMAGE_DIGEST }}
+      options: --user 10001 --read-only --tmpfs /tmp:rw,nosuid,nodev,size=512m --cap-drop=ALL
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      # 라운드 B: pytest/eval 도구는 빌더 이미지에 핀(black/ruff/mypy/pytest/pytest-cov/pytest-asyncio).
+      # eval extras 가 추가 require 하는 패키지는 빌더에 미포함 시 별도 PR 로 추가(README §4).
+      - name: 결정론 benchmark (FP + ATLAS + KPI)
+        run: |
+          python benchmarks/run_fp_recurrence.py
+          python benchmarks/run_atlas_redteam.py
+          python benchmarks/run_kpi.py
+      - name: G2 게이트 임계 (prod)
+        # 라운드 A-1: check_gates.py 에 --profile 인자 추가됨.
+        # 산출물: gate_report.md / gate_summary.json (F-008 Pushgateway push 입력)
+        #         failed_gates_poam.json (POAM append 후보).
+        run: |
+          python benchmarks/check_gates.py \
+            --profile prod \
+            --results-dir benchmarks/results \
+            --report-md gate_report.md \
+            --summary-json gate_summary.json \
+            --emit-poam failed_gates_poam.json
+
+      - name: G2 summary 산출물 업로드
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: g2-results-prod-${{ github.run_id }}
+          path: |
+            gate_report.md
+            gate_summary.json
+            failed_gates_poam.json
+            benchmarks/results/
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: G2 summary → Pushgateway (F-008)
+        # gate_summary.json 의 gates[] 순회하며 메트릭 push.
+        # vars.PUSHGATEWAY_URL 미설정 시 skip — 환경 미준비 시 push 회피.
+        if: always() && vars.PUSHGATEWAY_URL != ''
+        env:
+          PUSHGATEWAY_URL: ${{ vars.PUSHGATEWAY_URL }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json, os, pathlib, urllib.request
+          summary_path = pathlib.Path('gate_summary.json')
+          if not summary_path.exists():
+              print('[WARN] gate_summary.json 부재 — push 건너뜀')
+              raise SystemExit(0)
+          summary = json.loads(summary_path.read_text())
+          lines: list[str] = []
+          for gate in summary.get('gates', []):
+              name = gate.get('name', 'unknown')
+              severity = gate.get('severity', 'unknown')
+              if gate.get('passed'):
+                  lines.append(f'g2_gate_pass_total{{name="{name}"}} 1')
+              else:
+                  lines.append(
+                      f'g2_gate_fail_total{{name="{name}",severity="{severity}"}} 1'
+                  )
+              value = gate.get('value')
+              if value is not None:
+                  lines.append(f'g2_gate_value{{name="{name}"}} {value}')
+          if not lines:
+              print('[INFO] push 대상 메트릭 0건')
+              raise SystemExit(0)
+          body = ('\n'.join(lines) + '\n').encode('utf-8')
+          url = (
+              f"{os.environ['PUSHGATEWAY_URL']}"
+              f"/metrics/job/g2-gate/instance/{os.environ['RUN_ID']}"
+          )
+          req = urllib.request.Request(url, data=body, method='POST')
+          with urllib.request.urlopen(req, timeout=10) as resp:
+              print(f'[OK] Pushgateway status={resp.status} push={len(lines)}')
+          PY
+
+  # ─────────────────────────────────────────
+  # 2) ai-redteam 24h 통과 이력 확인 — 빌더 이미지(gh CLI 핀)
+  # ─────────────────────────────────────────
+  ai-redteam-check:
+    name: AI Red Team 24h Check
+    runs-on: ubuntu-latest
+    needs: verify-builder
+    timeout-minutes: 5
+    container:
+      image: ghcr.io/s1ns3nz0/uav-soc-builder@${{ vars.BUILDER_IMAGE_DIGEST }}
+      options: --user 10001 --read-only --tmpfs /tmp:rw,nosuid,nodev,size=64m --cap-drop=ALL
+    steps:
+      - name: 최근 24h ai-redteam.yml 통과 워크플로 존재 확인
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # 24h 내, status=completed, conclusion=success 인 ai-redteam workflow run 검색.
+          SINCE=$(date -u -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
+                  || date -u -v-24H '+%Y-%m-%dT%H:%M:%SZ')
+          COUNT=$(gh run list \
+                    --workflow=ai-redteam.yml \
+                    --status=success \
+                    --limit=20 \
+                    --json createdAt,conclusion \
+                    -q "[.[] | select(.createdAt >= \"$SINCE\")] | length")
+          echo "최근 24h 성공 ai-redteam 실행: $COUNT"
+          if [ "$COUNT" -lt 1 ]; then
+            echo "::error::24h 내 ai-redteam.yml 통과 이력 없음 — prod 배포 차단"
+            exit 1
+          fi
+
+  # ─────────────────────────────────────────
+  # 3) OSCAL 임계 강제 (POAM critical=0, high≤3) — 차단, 빌더 이미지
+  # ─────────────────────────────────────────
+  oscal-gate:
+    name: OSCAL POAM Threshold (prod block)
+    runs-on: ubuntu-latest
+    needs: verify-builder
+    timeout-minutes: 5
+    container:
+      image: ghcr.io/s1ns3nz0/uav-soc-builder@${{ vars.BUILDER_IMAGE_DIGEST }}
+      options: --user 10001 --read-only --tmpfs /tmp:rw,nosuid,nodev,size=128m --cap-drop=ALL
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      # compliance-trestle / jsonschema 는 빌더에 핀 — pip install 단계 제거.
+      - name: OSCAL 빌드
+        run: python compliance/oscal/build_oscal.py compliance/oscal
+      - name: trestle validate 5종 (스키마)
+        run: |
+          set -e
+          for f in \
+            compliance/oscal/catalog/nist-ai-rmf-catalog.json \
+            compliance/oscal/profile/uav-soc-ai-rmf-profile.json \
+            compliance/oscal/component-definition/uav-soc-components.json \
+            compliance/oscal/ssp/uav-soc-ssp.json \
+            compliance/oscal/poam/uav-soc-poam.json
+          do
+            trestle validate -f "$f"
+          done
+      - name: POAM 임계 강제 (prod)
+        # critical=0, high≤3 위반 시 비정상 종료.
+        # 라운드 A-1 정정: POAM 경로는 positional, --mode/--partial-warn 적용.
+        run: |
+          python compliance/oscal/check_poam_thresholds.py \
+            compliance/oscal/poam/uav-soc-poam.json \
+            --critical-max 0 --high-max 3 \
+            --partial-warn 25 \
+            --mode block
+
+  # ─────────────────────────────────────────
+  # 4) build & push (화이트리스트: 컨테이너 미적용 — 호스트 docker daemon)
+  # ─────────────────────────────────────────
+  build-push:
+    name: Build & push (prod)
+    runs-on: ubuntu-latest
+    needs: [verify-builder, g2-gate, ai-redteam-check, oscal-gate]
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    outputs:
+      image_tag: ${{ steps.tags.outputs.tag_sha }}
+      image_ref: ${{ steps.dig.outputs.image_ref }}
+      image_digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: 태그 산출
+        id: tags
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          echo "tag_sha=${REGISTRY}/${IMAGE_NAME}:sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+      - uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@4f7cdeb0f1f2ac4233f0f24355a1838a86b54a9b # v6.10.0
+        with:
+          context: .
+          file: deploy/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.tags.outputs.tag_sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:prod
+          cache-from: type=gha,scope=cd-prod
+          cache-to: type=gha,mode=max,scope=cd-prod
+          provenance: true
+          sbom: true
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.title=uav-ai-soc
+            org.opencontainers.image.licenses=Proprietary
+            soc.deployment.track=prod
+      - id: dig
+        run: |
+          echo "image_ref=${REGISTRY}/${IMAGE_NAME}@${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+  # ─────────────────────────────────────────
+  # 5) Trivy 컨테이너 스캔 (Critical 차단) — 화이트리스트: trivy-action 호스트
+  # ─────────────────────────────────────────
+  container-scan:
+    name: Container Scan (Trivy)
+    runs-on: ubuntu-latest
+    needs: [verify-builder, build-push]
+    timeout-minutes: 7
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db-prod-${{ github.run_id }}
+          restore-keys: trivy-db-
+      - name: Trivy image scan (SARIF)
+        uses: aquasecurity/trivy-action@dc5a429b52fcf669ce959baa2c2dd26090d2a6c4 # v0.32.0
+        with:
+          image-ref: ${{ needs.build-push.outputs.image_ref }}
+          format: "sarif"
+          output: "trivy-prod.sarif"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+      - if: always()
+        uses: github/codeql-action/upload-sarif@4e828ff8d448a8a6e532957b1811f387a63867e8 # v3.29.4
+        with:
+          sarif_file: trivy-prod.sarif
+          category: trivy-prod
+      - name: Critical 차단 게이트
+        uses: aquasecurity/trivy-action@dc5a429b52fcf669ce959baa2c2dd26090d2a6c4 # v0.32.0
+        with:
+          image-ref: ${{ needs.build-push.outputs.image_ref }}
+          severity: "CRITICAL"
+          exit-code: "1"
+          ignore-unfixed: true
+
+  # ─────────────────────────────────────────
+  # 6) cosign keyless 서명 + SBOM attest (재사용 워크플로 호출 — 화이트리스트)
+  # ─────────────────────────────────────────
+  sign-attest:
+    name: Sign & SBOM attest (prod)
+    needs: [verify-builder, build-push, container-scan]
+    uses: ./.github/workflows/release-signing.yml
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    with:
+      image_ref: ${{ needs.build-push.outputs.image_ref }}
+      image_tag: ${{ needs.build-push.outputs.image_tag }}
+      sbom_format: spdx-json
+
+  # ─────────────────────────────────────────
+  # 7) SLSA L3 Provenance — 재사용 워크플로 (화이트리스트)
+  # ─────────────────────────────────────────
+  provenance:
+    name: SLSA L3 Provenance
+    needs: [verify-builder, build-push, container-scan]
+    # 공식 SLSA generator (GitHub-hosted, OIDC keyless). 호출 측은 inputs 만 제공.
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.0.0
+    permissions:
+      id-token: write
+      packages: write
+      contents: read
+      actions: read
+    with:
+      image: ${{ needs.build-push.outputs.image_tag }}
+      digest: ${{ needs.build-push.outputs.image_digest }}
+      registry-username: ${{ github.actor }}
+    secrets:
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─────────────────────────────────────────
+  # 8) 수동 승인 게이트 — environment=production
+  # ─────────────────────────────────────────
+  prod-approval:
+    name: Production Approval (manual)
+    runs-on: ubuntu-latest
+    needs: [sign-attest, provenance]
+    environment:
+      name: production
+      url: https://dah-soc.example.com
+    timeout-minutes: 1440 # 24h 대기 허용
+    steps:
+      - name: 승인 게이트 통과 표식
+        run: echo "production 승인 완료 — gitops-bump 단계로 진행"
+
+  # ─────────────────────────────────────────
+  # 9) GitOps bump — Rollout 매니페스트 태그 + 커밋
+  # ─────────────────────────────────────────
+  gitops-bump:
+    name: GitOps tag bump (Rollout + Deployment)
+    runs-on: ubuntu-latest
+    needs: prod-approval
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      bump_sha: ${{ steps.commit.outputs.bump_sha }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: 태그 bump
+        id: commit
+        run: |
+          set -e
+          SHORT_SHA="${GITHUB_SHA::7}"
+          IMG="ghcr.io/s1ns3nz0/uav-ai-soc:sha-${SHORT_SHA}"
+          # 트랙 A: Rollout 매니페스트 (신규).
+          # 트랙 B: 기존 Deployment 유지.
+          sed -i "s|ghcr.io/s1ns3nz0/uav-ai-soc:[^\"[:space:]]*|${IMG}|g" \
+            deploy/k8s/argo-rollout-hotpath.yaml \
+            deploy/k8s/40-deployment-b-learning.yaml
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "no manifest change"
+            echo "bump_sha=" >> "$GITHUB_OUTPUT"
+          else
+            git commit -am "ci(prod): bump image to sha-${SHORT_SHA}"
+            git push origin main
+            echo "bump_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ─────────────────────────────────────────
+  # 10) ArgoCD sync 대기 — CLI (선택)
+  # ─────────────────────────────────────────
+  argocd-wait:
+    name: ArgoCD Sync Wait
+    runs-on: ubuntu-latest
+    needs: gitops-bump
+    timeout-minutes: 12
+    if: vars.ARGOCD_SERVER != ''
+    steps:
+      - name: ArgoCD CLI 설치
+        run: |
+          curl -sSL -o /usr/local/bin/argocd \
+            https://github.com/argoproj/argo-cd/releases/download/v2.13.2/argocd-linux-amd64
+          chmod +x /usr/local/bin/argocd
+      - name: dah-soc-workloads 동기화 대기
+        env:
+          ARGOCD_SERVER: ${{ vars.ARGOCD_SERVER }}
+          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+        run: |
+          argocd app wait dah-soc-workloads \
+            --health --sync --timeout 600 \
+            --grpc-web
+
+  # ─────────────────────────────────────────
+  # 11) Rollouts 분석 모니터링 + 자동 롤백 트리거
+  # ─────────────────────────────────────────
+  rollouts-monitor:
+    name: Argo Rollouts Canary Monitor
+    runs-on: ubuntu-latest
+    needs: argocd-wait
+    timeout-minutes: 60
+    if: vars.ARGOCD_SERVER != ''
+    permissions:
+      contents: write # 실패 시 git revert 권한
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: kubectl + rollouts plugin 설치
+        run: |
+          curl -sSL -o /usr/local/bin/kubectl \
+            https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl
+          chmod +x /usr/local/bin/kubectl
+          curl -sSL -o /usr/local/bin/kubectl-argo-rollouts \
+            https://github.com/argoproj/argo-rollouts/releases/download/v1.7.2/kubectl-argo-rollouts-linux-amd64
+          chmod +x /usr/local/bin/kubectl-argo-rollouts
+      # AKS 자격 — Azure OIDC 우선. 환경변수가 없으면 ArgoCD 측 sync 결과만 신뢰.
+      - name: Azure 로그인 (OIDC)
+        if: vars.AZURE_CLIENT_ID != ''
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: AKS 자격 가져오기
+        if: vars.AZURE_CLIENT_ID != ''
+        run: |
+          az aks get-credentials \
+            --resource-group "${{ vars.AKS_RESOURCE_GROUP }}" \
+            --name "${{ vars.AKS_CLUSTER_NAME }}" \
+            --overwrite-existing
+      - name: Rollout 상태 모니터링 (단계별 분석 자동)
+        if: vars.AZURE_CLIENT_ID != ''
+        run: |
+          # Argo Rollouts 의 AnalysisTemplate 가 메트릭 위반 시 자동 abort.
+          # 본 잡은 status 폴링하여 Degraded 발생 시 git revert 로 자동 복구.
+          set -e
+          if ! kubectl argo rollouts status soc-hotpath \
+                -n "${PROD_NAMESPACE}" --timeout 50m --watch; then
+            echo "::error::Rollout 분석 실패/타임아웃 — 자동 롤백 진행"
+            # gitops bump 커밋 revert → ArgoCD 자동 sync → Rollout 이전 버전 복귀.
+            BUMP_SHA="${{ needs.gitops-bump.outputs.bump_sha }}"
+            if [ -n "$BUMP_SHA" ]; then
+              git config user.name "ci-bot"
+              git config user.email "ci-bot@users.noreply.github.com"
+              git revert --no-edit "$BUMP_SHA"
+              git push origin main
+              echo "revert 커밋 push 완료 — ArgoCD 폴링으로 자동 롤백"
+            fi
+            exit 1
+          fi
+
+  # ─────────────────────────────────────────
+  # 12) post-deploy smoke — 빌더 이미지(curl 핀)
+  # ─────────────────────────────────────────
+  post-deploy-smoke:
+    name: Post-deploy smoke
+    runs-on: ubuntu-latest
+    needs: rollouts-monitor
+    timeout-minutes: 10
+    if: vars.PROD_HEALTH_URL != ''
+    container:
+      image: ghcr.io/s1ns3nz0/uav-soc-builder@${{ vars.BUILDER_IMAGE_DIGEST }}
+      options: --user 10001 --read-only --tmpfs /tmp:rw,nosuid,nodev,size=64m --cap-drop=ALL
+    steps:
+      - name: /healthz /readyz /metrics 검증
+        run: |
+          set -e
+          for path in healthz readyz metrics; do
+            if ! curl -fsS "${{ vars.PROD_HEALTH_URL }}/${path}"; then
+              echo "::error::/${path} 실패 — 운영팀 즉시 확인"
+              exit 1
+            fi
+          done
+          echo "smoke OK"
+
+  # ─────────────────────────────────────────
+  # 13) DORA — 배포 메트릭 Pushgateway push (F-007 보강)
+  # success → deployment_frequency_total + deployment_duration_seconds
+  # failure → change_failure_total
+  # vars.PUSHGATEWAY_URL 미설정 시 잡 자체 skip.
+  # ─────────────────────────────────────────
+  dora-push-success:
+    name: DORA — 배포 성공 메트릭 push
+    runs-on: ubuntu-latest
+    needs: [gitops-bump, post-deploy-smoke]
+    if: success() && vars.PUSHGATEWAY_URL != ''
+    timeout-minutes: 3
+    container:
+      image: ghcr.io/s1ns3nz0/uav-soc-builder@${{ vars.BUILDER_IMAGE_DIGEST }}
+      options: --user 10001 --read-only --tmpfs /tmp:rw,nosuid,nodev,size=64m --cap-drop=ALL
+    steps:
+      - name: deployment_frequency_total / deployment_duration_seconds push
+        env:
+          PUSHGATEWAY_URL: ${{ vars.PUSHGATEWAY_URL }}
+        run: |
+          set -euo pipefail
+          # SECONDS 는 잡 시작 이후 경과 초. cd-prod 전체 경과는 별도 워크플로_run API 필요(향후).
+          cat <<EOF | curl -fsS --data-binary @- "${PUSHGATEWAY_URL}/metrics/job/cd-prod/instance/${{ github.run_id }}"
+          # TYPE deployment_frequency_total counter
+          deployment_frequency_total{environment="production",track="hotpath"} 1
+          # TYPE deployment_duration_seconds gauge
+          deployment_duration_seconds{environment="production"} ${SECONDS:-0}
+          EOF
+
+  dora-push-failure:
+    name: DORA — 변경 실패 메트릭 push
+    runs-on: ubuntu-latest
+    # gitops-bump 후 어느 잡이라도 실패하면 카운트.
+    needs: [gitops-bump, post-deploy-smoke]
+    if: failure() && vars.PUSHGATEWAY_URL != ''
+    timeout-minutes: 3
+    container:
+      image: ghcr.io/s1ns3nz0/uav-soc-builder@${{ vars.BUILDER_IMAGE_DIGEST }}
+      options: --user 10001 --read-only --tmpfs /tmp:rw,nosuid,nodev,size=64m --cap-drop=ALL
+    steps:
+      - name: change_failure_total push
+        env:
+          PUSHGATEWAY_URL: ${{ vars.PUSHGATEWAY_URL }}
+        run: |
+          set -euo pipefail
+          cat <<EOF | curl -fsS --data-binary @- "${PUSHGATEWAY_URL}/metrics/job/cd-prod/instance/${{ github.run_id }}"
+          # TYPE change_failure_total counter
+          change_failure_total{environment="production"} 1
+          EOF

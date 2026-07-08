@@ -92,6 +92,15 @@ class SequencePredictorProto(Protocol):
         ...
 
 
+@runtime_checkable
+class EngageAdvancerProto(Protocol):
+    """게이트가 의존하는 Engage 상태 전진기 계약(core.engage.EngageAdvancer 호환)."""
+
+    def advance(self, profile: ActorProfile, alert: Alert) -> bool:
+        """신뢰 교전 1건 반영 — 상태 전진 + cost 누적(alert_id 멱등)."""
+        ...
+
+
 class Sha256ActorSigner:
     """비밀키 없는 기본 서명기(MVP). 운영 시 HMAC 으로 교체."""
 
@@ -212,12 +221,14 @@ class ActorWriteGate:
         predictor: SequencePredictorProto | None = None,
         prediction_ttl_alerts: int = 5,
         on_settle: Callable[[bool], None] | None = None,
+        engage_advancer: EngageAdvancerProto | None = None,
     ) -> None:
         self._store = store
         self._signer = signer or Sha256ActorSigner()
         self._predictor = predictor
         self._prediction_ttl = prediction_ttl_alerts
         self._on_settle = on_settle
+        self._engage_advancer = engage_advancer
         self._logger = get_logger("ActorWriteGate")
 
     async def submit(
@@ -225,8 +236,15 @@ class ActorWriteGate:
         alert: Alert,
         env_verdict: EnvVerdict,
         provenance: Provenance | None = None,  # 호환 — actors 측은 미사용
+        engagement: bool = False,
     ) -> ActorWriteDecision:
-        """alert + env_verdict 로부터 actor 프로필을 머지·서명·저장."""
+        """alert + env_verdict 로부터 actor 프로필을 머지·서명·저장.
+
+        `engagement` 은 신뢰 관측이 산출한 `ProbeDecision.engagement`(canary→TP)만
+        전달돼야 한다 — 이 플래그가 True 이고 actor 가 explicit 일 때만 Engage 상태를
+        전진시킨다. hotpath(untrusted HTTP)는 이 메서드를 호출하지 않으며(그래프는
+        enrich 만), 기본값 False 라 기존 호출은 무영향.
+        """
         del provenance
         if env_verdict != EnvVerdict.CONFIRMED_TP:
             return ActorWriteDecision(
@@ -253,6 +271,11 @@ class ActorWriteGate:
         merged = _merge_profile(existing, alert, actor_id, is_explicit)
         self._settle_predictions(merged, alert)
         self._issue_predictions(merged, alert, candidates)
+        # MITRE Engage 폐루프: 신뢰 canary→TP(engagement=True) + explicit actor 한정
+        # 상태 전진(멱등). auto-fingerprint 신원은 적립은 되나 engage 전진 안 함 —
+        # attacker-influenced IOC 로 교전상태 조작 차단(Codex High-2).
+        if engagement and is_explicit and self._engage_advancer is not None:
+            self._engage_advancer.advance(merged, alert)
         merged.content_hash = merged.fingerprint()
         merged.signature = self._signer.sign(merged.content_hash)
         try:

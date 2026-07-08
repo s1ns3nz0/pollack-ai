@@ -1,0 +1,25 @@
+# =============================================================================
+# MITRE Engage 매트릭스 — (Engage 목표 × kill-chain 단계) → 권고 engagement 활동
+# 3 코어 목표(EXPOSE/ELICIT/UNDERSTAND). tactic 키는 COA 매트릭스와 동일(PascalCase),
+# "*" 는 폴백. engage_id 는 MITRE Engage 활동 id(EGA00xx).
+# 권고 전용 — 자동 외향행동 없음(Affect 는 HITL 고정). Detection-as-Code.
+# Spec: docs/superpowers/specs/2026-07-08-mitre-engage-adversary-loop-design.md
+# =============================================================================
+
+engage:
+  # EXPOSE — 접촉 성립·수집 개시: 미끼를 더 노출해 교전 유지
+  expose:
+    Reconnaissance: { activity: "Lures", engage_id: "EGA0002" }
+    InitialAccess:  { activity: "Decoy Credential", engage_id: "EGA0001" }
+    CommandAndControl: { activity: "Network Manipulation", engage_id: "EGA0005" }
+    "*": { activity: "Decoy System", engage_id: "EGA0001" }
+
+  # ELICIT — 적을 끌어냄: 반응 유도해 추가 TTP 노출
+  elicit:
+    CommandAndControl: { activity: "Malware Detonation", engage_id: "EGA0007" }
+    Exfiltration: { activity: "Peripheral Management", engage_id: "EGA0006" }
+    "*": { activity: "Application Diversity", engage_id: "EGA0003" }
+
+  # UNDERSTAND — 적 특성화(종단): 관측 분석·귀속
+  understand:
+    "*": { activity: "Threat Analysis", engage_id: "EGA0008" }

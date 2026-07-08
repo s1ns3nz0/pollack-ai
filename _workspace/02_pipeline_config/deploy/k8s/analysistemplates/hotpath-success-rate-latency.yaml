@@ -1,0 +1,103 @@
+# =====================================================================
+# AnalysisTemplate — Argo Rollouts Canary 자동 분석 (hotpath 트랙 A 전용)
+#
+# 5종 메트릭 (설계서 4.2):
+#   1) HTTP 5xx 비율          > 1%   (2분 연속) → 자동 롤백
+#   2) p99 응답시간            > 2초  (5분 연속) → 자동 롤백
+#   3) agent_latency p99      > 5초  (5분 연속) → 자동 롤백
+#   4) Pod 재시작              > 3회  (10분)    → 자동 롤백
+#   5) RAGAS faithfulness     < 0.75 (10분 평균) → 자동 롤백
+#
+# Prometheus 주소는 kube-prometheus-stack(monitoring 네임스페이스) 기본값 가정.
+# monitoring-specialist 의 ServiceMonitor·메트릭 라벨 규약과 정합 유지.
+# =====================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: hotpath-success-rate-latency
+  namespace: dah-soc
+spec:
+  args:
+    # rollout 에서 templateName 호출 시 자동 주입(canary service 이름).
+    - name: service-name
+      value: soc-hotpath
+    - name: namespace
+      value: dah-soc
+
+  metrics:
+    # ────────────────────────────
+    # 1) HTTP 5xx 비율 < 1%
+    # ────────────────────────────
+    - name: http-5xx-rate
+      interval: 30s
+      count: 4 # 2분 연속(30s × 4) 위반 시 실패
+      consecutiveErrorLimit: 2
+      successCondition: result[0] <= 0.01
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus-operated.monitoring.svc.cluster.local:9090
+          query: |
+            sum(rate(http_requests_total{job="{{args.service-name}}", code=~"5.."}[2m]))
+              /
+            sum(rate(http_requests_total{job="{{args.service-name}}"}[2m]))
+
+    # ────────────────────────────
+    # 2) p99 응답시간 < 2s
+    # ────────────────────────────
+    - name: p99-latency
+      interval: 1m
+      count: 5 # 5분 연속
+      successCondition: result[0] <= 2.0
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus-operated.monitoring.svc.cluster.local:9090
+          query: |
+            histogram_quantile(0.99,
+              sum by (le) (rate(http_request_duration_seconds_bucket{job="{{args.service-name}}"}[5m]))
+            )
+
+    # ────────────────────────────
+    # 3) agent_latency p99 < 5s
+    # ────────────────────────────
+    - name: agent-latency-p99
+      interval: 1m
+      count: 5
+      successCondition: result[0] <= 5.0
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus-operated.monitoring.svc.cluster.local:9090
+          query: |
+            histogram_quantile(0.99,
+              sum by (le) (rate(agent_latency_seconds_bucket{job="{{args.service-name}}"}[5m]))
+            )
+
+    # ────────────────────────────
+    # 4) Pod 재시작 ≤ 3 (10분)
+    # ────────────────────────────
+    - name: pod-restarts
+      interval: 2m
+      count: 5 # 10분 윈도우
+      successCondition: result[0] <= 3
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus-operated.monitoring.svc.cluster.local:9090
+          query: |
+            sum(increase(kube_pod_container_status_restarts_total{namespace="{{args.namespace}}", pod=~"{{args.service-name}}-.*"}[10m]))
+
+    # ────────────────────────────
+    # 5) RAGAS faithfulness ≥ 0.75 (10분 평균)
+    # ────────────────────────────
+    - name: ragas-faithfulness
+      interval: 2m
+      count: 5
+      successCondition: result[0] >= 0.75
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus-operated.monitoring.svc.cluster.local:9090
+          query: |
+            avg_over_time(ragas_faithfulness_score{job="{{args.service-name}}"}[10m])

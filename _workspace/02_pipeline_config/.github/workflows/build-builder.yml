@@ -1,0 +1,310 @@
+# =====================================================================
+# build-builder.yml — UAV AI SOC 공통 빌더 이미지 빌드·서명·다이제스트 반영
+#
+# 산출 이미지: ghcr.io/s1ns3nz0/uav-soc-builder
+#   - 태그 :latest (이동), :sha-<git-sha> (불변)
+#   - 모든 CI/CD 워크플로의 `container:` 핀 대상.
+#
+# 트리거:
+#   - push to main when deploy/Dockerfile.builder 또는 pyproject.toml(dev extras) 변경
+#   - schedule: monthly (베이스 이미지·CVE 자동 갱신)
+#   - workflow_dispatch (수동 부트스트랩 / 핫픽스)
+#
+# 잡 흐름:
+#   1) build-builder   : buildx → GHCR push, digest output
+#   2) sign-attest     : release-signing.yml 호출 (cosign keyless + Syft SBOM)
+#   3) smoke-test      : 새 이미지 pull + 도구 버전 검증
+#   4) update-digest   : repo variable BUILDER_IMAGE_DIGEST 갱신 PR 자동 생성
+#
+# 보안:
+#   - 모든 third-party action SHA 핀(02_infra_config.md §8 표).
+#   - cosign keyless(Sigstore Fulcio + Rekor) → 다운스트림 워크플로가 첫 step 에서 검증.
+#   - GHCR push 는 GITHUB_TOKEN + packages:write (PAT 제거 완료).
+# =====================================================================
+
+name: Build Builder Image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "deploy/Dockerfile.builder"
+      - "deploy/Dockerfile.builder.README.md"
+      - "pyproject.toml"
+      - ".github/workflows/build-builder.yml"
+  schedule:
+    # 매월 1일 04:00 UTC = 13:00 KST. 베이스 이미지/CVE 정기 갱신.
+    - cron: "0 4 1 * *"
+  workflow_dispatch:
+    inputs:
+      force_tag:
+        description: "강제 태그(부트스트랩 시 사용, 기본 sha-<git-sha>)"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+# 동일 trigger 중복 실행 취소(빌드 비용 절약). 단 schedule/push 충돌 회피.
+concurrency:
+  group: build-builder-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  BUILDER_IMAGE: s1ns3nz0/uav-soc-builder
+
+jobs:
+  # ─────────────────────────────────────────
+  # 0) ref-guard — workflow_dispatch ref 강제 검증(F-038 정합 강화)
+  #    다운스트림 5개 워크플로의 cosign verify regex 는 `@refs/heads/main$` 앵커이므로,
+  #    main 외 ref 로 빌더 빌드 시 OIDC subject 가 regex 와 불일치 → 검증 실패.
+  #    여기서 미리 차단해 GHCR 에 무효 서명 이미지가 push 되는 것을 방지.
+  # ─────────────────────────────────────────
+  ref-guard:
+    name: Enforce ref == refs/heads/main (F-038 정합)
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: ref 검증
+        run: |
+          set -euo pipefail
+          REF="${GITHUB_REF:-}"
+          if [ "$REF" != "refs/heads/main" ]; then
+            echo "::error::빌더 이미지는 main 브랜치에서만 빌드 가능합니다 (현재 ref=$REF)."
+            echo "::error::다운스트림 cosign verify regex 는 '@refs/heads/main\$' 앵커 — 다른 ref 빌드는 검증 실패합니다."
+            exit 1
+          fi
+
+  # ─────────────────────────────────────────
+  # 1) build-builder — buildx → GHCR
+  # ─────────────────────────────────────────
+  build-builder:
+    name: Build builder image (buildx → GHCR)
+    needs: ref-guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write       # GHCR push
+      id-token: write       # 다운스트림 cosign keyless 토큰 발급(서명 잡과 연동)
+      attestations: write   # actions/attest-build-provenance 가용 시 사용(현재 미사용)
+    outputs:
+      image_ref: ${{ steps.dig.outputs.image_ref }}
+      image_tag_sha: ${{ steps.tags.outputs.tag_sha }}
+      image_tag_latest: ${{ steps.tags.outputs.tag_latest }}
+      image_digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: 태그 산출
+        id: tags
+        run: |
+          set -euo pipefail
+          SHORT_SHA="${GITHUB_SHA::7}"
+          if [ -n "${{ inputs.force_tag }}" ]; then
+            SHORT_SHA="${{ inputs.force_tag }}"
+          fi
+          echo "tag_sha=${REGISTRY}/${BUILDER_IMAGE}:sha-${SHORT_SHA}"  >> "$GITHUB_OUTPUT"
+          echo "tag_latest=${REGISTRY}/${BUILDER_IMAGE}:latest"          >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHORT_SHA}"                                  >> "$GITHUB_OUTPUT"
+
+      - name: buildx 설치
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - name: GHCR 로그인 (GITHUB_TOKEN)
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: build & push (linux/amd64)
+        id: build
+        uses: docker/build-push-action@4f7cdeb0f1f2ac4233f0f24355a1838a86b54a9b # v6.10.0
+        with:
+          context: .
+          file: deploy/Dockerfile.builder
+          # ARM 러너 도입 전까지 amd64 단일 — buildx 매트릭스 확장 여지 보존.
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.tags.outputs.tag_sha }}
+            ${{ steps.tags.outputs.tag_latest }}
+          cache-from: type=gha,scope=build-builder
+          cache-to: type=gha,mode=max,scope=build-builder
+          provenance: true   # buildx provenance(SLSA 보조)
+          sbom: true         # buildx SBOM 메타데이터 attach(release-signing 가 본격 처리)
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+            org.opencontainers.image.title=uav-soc-builder
+            org.opencontainers.image.licenses=Proprietary
+
+      - name: 다이제스트 참조 산출
+        id: dig
+        run: |
+          set -euo pipefail
+          echo "image_ref=${REGISTRY}/${BUILDER_IMAGE}@${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+          echo "[builder digest] ${{ steps.build.outputs.digest }}"
+
+  # ─────────────────────────────────────────
+  # 2) sign-attest — release-signing.yml (cosign keyless + Syft SBOM)
+  # ─────────────────────────────────────────
+  sign-attest:
+    name: Sign & SBOM attest (builder)
+    needs: build-builder
+    uses: ./.github/workflows/release-signing.yml
+    permissions:
+      contents: read
+      id-token: write    # OIDC keyless 필수
+      packages: write    # GHCR attestation push
+    with:
+      image_ref: ${{ needs.build-builder.outputs.image_ref }}
+      image_tag: ${{ needs.build-builder.outputs.image_tag_sha }}
+      sbom_format: spdx-json
+
+  # ─────────────────────────────────────────
+  # 3) smoke-test — 새 이미지 pull 후 도구 버전 자기진단
+  # ─────────────────────────────────────────
+  smoke-test:
+    name: Smoke test (tool versions)
+    runs-on: ubuntu-latest
+    needs: [build-builder, sign-attest]
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: GHCR 로그인 (pull 권한)
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 이미지 pull (digest 핀)
+        env:
+          IMAGE_REF: ${{ needs.build-builder.outputs.image_ref }}
+        run: |
+          set -euo pipefail
+          docker pull "$IMAGE_REF"
+
+      - name: 도구 풀스택 self-check
+        env:
+          IMAGE_REF: ${{ needs.build-builder.outputs.image_ref }}
+        run: |
+          set -euo pipefail
+          # 비루트 + 읽기전용 rootfs + cap-drop 환경 가정 — CI 잡과 동일 옵션.
+          docker run --rm \
+            --user 10001 \
+            --read-only \
+            --tmpfs /tmp:rw,nosuid,nodev,size=64m \
+            --cap-drop=ALL \
+            "$IMAGE_REF" \
+            bash -lc '
+              set -euo pipefail
+              black --version
+              ruff --version
+              mypy --version
+              pytest --version
+              pip-audit --version
+              semgrep --version
+              trestle --version || true
+              gitleaks version
+              syft version
+              trivy --version
+              cosign version
+              gh --version
+              jq --version
+              git --version
+              tini --version
+            '
+
+  # ─────────────────────────────────────────
+  # 4) update-digest — repo variable BUILDER_IMAGE_DIGEST 자동 갱신 PR
+  #    설명: `vars.BUILDER_IMAGE_DIGEST` 는 다운스트림 워크플로의 `container:` 핀.
+  #          본 잡은 산출 이미지 digest 를 신규 README 부속 파일에 기록하고,
+  #          peter-evans/create-pull-request 로 PR 자동 생성한다. (admin 이 머지 시 반영)
+  #    repo variable 직접 갱신은 권한·감사 이슈로 회피 — PR 머지 후 사람이 GitHub UI 또는
+  #    `gh variable set` 으로 반영(README 절차 참고).
+  # ─────────────────────────────────────────
+  update-digest:
+    name: Update BUILDER_IMAGE_DIGEST (PR)
+    runs-on: ubuntu-latest
+    needs: [build-builder, smoke-test]
+    if: github.event_name != 'workflow_dispatch' || inputs.force_tag == ''
+    timeout-minutes: 5
+    permissions:
+      contents: write       # 브랜치 push
+      pull-requests: write  # PR 생성
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: digest 기록 파일 갱신
+        env:
+          DIGEST: ${{ needs.build-builder.outputs.image_digest }}
+          IMAGE_REF: ${{ needs.build-builder.outputs.image_ref }}
+        run: |
+          set -euo pipefail
+          mkdir -p deploy
+          # builder 이미지 digest 진실 원본(human-readable). 워크플로는 vars 를 읽지만,
+          # PR 본문에 변경 이력을 남기기 위해 파일도 갱신한다.
+          cat > deploy/.builder-image-digest <<EOF
+          # uav-soc-builder digest (자동 갱신)
+          # 갱신 워크플로: .github/workflows/build-builder.yml
+          # 갱신 시각: $(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          # 갱신 SHA: ${GITHUB_SHA}
+          BUILDER_IMAGE_REF=${IMAGE_REF}
+          BUILDER_IMAGE_DIGEST=${DIGEST}
+          EOF
+
+      - name: PR 자동 생성
+        uses: peter-evans/create-pull-request@6d6857d36972b65feb161a90e484f2984215f83e # v6.0.5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ci-bot/builder-digest-${{ github.run_id }}
+          title: "chore(ci): bump uav-soc-builder digest (run ${{ github.run_id }})"
+          commit-message: |
+            chore(ci): uav-soc-builder digest 갱신
+
+            - 신규 digest: ${{ needs.build-builder.outputs.image_digest }}
+            - 이미지 ref : ${{ needs.build-builder.outputs.image_ref }}
+            - 산출 워크플로: build-builder.yml run ${{ github.run_id }}
+          body: |
+            ## uav-soc-builder 이미지 다이제스트 갱신
+
+            ### 신규 산출
+            - **digest**: `${{ needs.build-builder.outputs.image_digest }}`
+            - **ref**: `${{ needs.build-builder.outputs.image_ref }}`
+            - **tag(불변)**: `${{ needs.build-builder.outputs.image_tag_sha }}`
+            - **tag(이동)**: `${{ needs.build-builder.outputs.image_tag_latest }}`
+
+            ### 검토 가이드
+            - [ ] `deploy/Dockerfile.builder` 변경 사유가 release note 에 반영되었는가
+            - [ ] cosign verify 가 `sign-attest` 잡에서 통과되었는가 (필수)
+            - [ ] smoke-test 잡의 도구 버전 출력이 예상 핀과 일치하는가
+
+            ### 머지 후 수행(중요)
+            머지만으로는 다운스트림 워크플로의 `container:` 핀이 갱신되지 않습니다.
+            아래 명령으로 **repo variable `BUILDER_IMAGE_DIGEST`** 를 갱신해야 합니다.
+
+            ```bash
+            gh variable set BUILDER_IMAGE_DIGEST \
+              --body "${{ needs.build-builder.outputs.image_digest }}" \
+              --repo s1ns3nz0/pollack-ai
+            ```
+
+            또는 GitHub UI:
+            `Settings > Secrets and variables > Actions > Variables > BUILDER_IMAGE_DIGEST`
+
+            > 초기 부트스트랩 절차는 `deploy/Dockerfile.builder.README.md` 참고.
+          labels: |
+            ci
+            builder-image
+            ci-bot
+          delete-branch: true

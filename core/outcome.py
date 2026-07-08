@@ -51,11 +51,17 @@ class Observation(BaseModel):
 
 
 class ProbeDecision(BaseModel):
-    """ProbeEngine 결과."""
+    """ProbeEngine 결과.
+
+    `engagement` 은 신뢰 관측(`Observation.canary_hit`)이 CONFIRMED_TP 를 유발했을
+    때만 True — ProbeEngine 이 유일 생산자다(호출자 주장 아님). Engage 상태 전진의
+    유일 트리거로, untrusted alert 본문으론 절대 세워지지 않는다(포이즈닝 면역).
+    """
 
     env_verdict: EnvVerdict
     effect: float = Field(ge=0.0, le=1.0)
     rationale: str = ""
+    engagement: bool = False
 
 
 @runtime_checkable
@@ -93,24 +99,29 @@ class ProbeEngine:
         self._min_window_fp = min_window_for_fp
 
     def decide(self, obs: Observation) -> ProbeDecision:
-        """관측 → (env_verdict, effect)."""
+        """관측 → (env_verdict, effect, engagement)."""
+        # engagement 은 canary 접촉이면 항상 True — mission_effect 와 co-occur 해도
+        # 떨어지지 않게 effect 분기와 독립 산출(Codex M-a: 루프 정지 방지).
         if obs.mission_effect_observed:
             if obs.reoccurred:
                 return ProbeDecision(
                     env_verdict=EnvVerdict.CONFIRMED_TP,
                     effect=0.0,
                     rationale="mission_effect + reoccurred → PB 완전 실패",
+                    engagement=obs.canary_hit,
                 )
             return ProbeDecision(
                 env_verdict=EnvVerdict.CONFIRMED_TP,
                 effect=0.3,
                 rationale="mission_effect 단발 → PB 부분 효과",
+                engagement=obs.canary_hit,
             )
         if obs.canary_hit:
             return ProbeDecision(
                 env_verdict=EnvVerdict.CONFIRMED_TP,
                 effect=0.3,
                 rationale="canary 접촉 관측 → 고신뢰 정탐(미끼는 정상 접근 이유 없음)",
+                engagement=True,  # 신뢰 canary → Engage 상태 전진 트리거(유일 생산자)
             )
         if obs.no_effect_sustained and obs.window_min >= self._min_window_fp:
             return ProbeDecision(
