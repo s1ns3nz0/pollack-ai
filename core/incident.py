@@ -210,17 +210,22 @@ def _is_dos_scenario(scenario_id: str) -> bool:
 
 
 def _authoritative_cat(
-    env_verdict: EnvVerdict, kill_chain_stage: int, is_dos: bool = False
+    env_verdict: EnvVerdict,
+    kill_chain_stage: int,
+    is_dos: bool = False,
+    is_malicious_logic: bool = False,
 ) -> str:
     """확증 CAT(CJCSM 6510) 순서 결정표(첫 매치·무중첩).
 
-    CONFIRMED_FP → CAT3(unsuccessful). CONFIRMED_TP:
-      DoS→CAT4 / order≥11→CAT1(root) / order≥3→CAT2(user) / order 1~2→CAT6(recon)
-      / order 0→CAT2. (CAT7 SBOM 은 확정 SbomFinding plumbing 필요 → 후속.)
+    CONFIRMED_FP → CAT3. CONFIRMED_TP: 악성로직→CAT7 / DoS→CAT4 / order≥11→CAT1(root)
+    / order≥3→CAT2(user) / order 1~2→CAT6(recon) / order 0→CAT2.
+    악성로직(아티팩트 기반)이 가장 특정 — malware 유발 DoS 도 근원이라 CAT7 지배.
     """
     # CONFIRMED_FP 우선(무중첩) — 이하 분기는 CONFIRMED_TP 에만 적용(Codex H4).
     if env_verdict != EnvVerdict.CONFIRMED_TP:
         return "CAT3"  # CONFIRMED_FP → unsuccessful (INCONCLUSIVE 는 호출 전 차단)
+    if is_malicious_logic:
+        return "CAT7"  # 악성 로직(SBOM/펌웨어 변조) — 아티팩트 기반, 최우선
     if is_dos:
         return "CAT4"  # DoS 는 효과유형 — 단계보다 우선
     if kill_chain_stage >= _ROOT_ORDER:
@@ -315,6 +320,7 @@ class CaseManager:
         recovery_applied: bool = False,
         reoccurred: bool = False,
         no_effect_sustained: bool = False,
+        sbom_tampered: bool = False,
     ) -> IncidentCase | None:
         """신뢰 관측(OutcomeProbe)으로 case 후반 생명주기를 전진시킨다.
 
@@ -370,6 +376,7 @@ class CaseManager:
                 env_verdict,
                 case.kill_chain_stage,
                 _is_dos_scenario(alert.scenario_id),
+                sbom_tampered,
             )
         self._set_report_due(case)  # CAT 강화 시 시한 재계산(opened_at 앵커)
         case.updated_at = _now_iso()

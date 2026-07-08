@@ -119,6 +119,7 @@ class OutcomeProbeAgent(BaseWorkerAgent):
                 recovery_applied=obs.recovery_applied,
                 reoccurred=obs.reoccurred,
                 no_effect_sustained=obs.no_effect_sustained,
+                sbom_tampered=obs.sbom_tampered,
             )
         except SOCPlatformError as exc:
             errors.append(f"case[{obs.alert_id}]: {exc}")
