@@ -1,0 +1,18 @@
+# =============================================================================
+# 인시던트 보고시한 SLA — CJCSM 6510.01B CAT 별 상급 보고 데드라인(분)
+# Case CAT 산정 시 opened_at + SLA(cat) 로 report_due_at 세팅. 초과 = 보고 지연.
+# CAT1/2/4/7(root·user·DoS·악성로직)=1시간, 정찰·조사중 등=24시간. Detection-as-Code.
+# Spec: docs/superpowers/specs/2026-07-08-incident-reporting-sla-design.md
+# =============================================================================
+
+reporting_sla:
+  default_minutes: 1440        # 미매핑 CAT 기본(24시간)
+  sla_minutes:
+    CAT1: 60                   # root/admin 침입 — 1시간
+    CAT2: 60                   # user 침입 — 1시간
+    CAT4: 60                   # DoS — 1시간
+    CAT7: 60                   # 악성 로직 — 1시간
+    CAT3: 1440                 # unsuccessful — 24시간
+    CAT5: 1440                 # 정책 위반 — 24시간
+    CAT6: 1440                 # 정찰 — 24시간
+    CAT8: 1440                 # 조사중 — 24시간

@@ -828,6 +828,8 @@ class IncidentCase(BaseModel):
     member_alert_ids: list[str] = Field(default_factory=list)
     provisional: bool = True
     reopen_count: int = Field(default=0, ge=0)  # 재범(CLOSED 재확정) 횟수
+    report_sla_min: int = 0  # CJCSM 6510 CAT별 보고 SLA(분)
+    report_due_at: str = ""  # 상급 보고 데드라인(opened_at + SLA, ISO)
     opened_at: str = ""
     updated_at: str = ""
 

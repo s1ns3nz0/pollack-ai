@@ -17,7 +17,8 @@ Spec: docs/superpowers/specs/2026-07-08-incident-case-lifecycle-design.md
 from __future__ import annotations
 
 from collections import OrderedDict
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from core.actor_fingerprint import (
@@ -25,8 +26,15 @@ from core.actor_fingerprint import (
     is_empty_fingerprint,
     resolve_actor_id,
 )
+from core.exceptions import PolicyError
 from core.models import Alert, EnvVerdict, IncidentCase, IncidentState, Severity
+from core.policy_loader import load_policy_mapping, require_mapping
 from tools.coverage import CoverageMatrix
+
+# 타임스탬프 포맷 — _now_iso 와 동일(UTC Z).
+_TS_FMT = "%Y-%m-%dT%H:%M:%SZ"
+_SLA_POLICY = Path(__file__).resolve().parent / "policy" / "incident-reporting-sla.yaml"
+_DEFAULT_SLA_MIN = 1440
 
 # open case 하드캡(H3 DoS 봉인) — 초과 시 LRU eviction.
 _CASE_CAP = 1000
@@ -49,7 +57,74 @@ _REPORT_EDGES: dict[IncidentState, IncidentState] = {
 
 
 def _now_iso() -> str:
-    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime(_TS_FMT)
+
+
+def _int_or(val: object, default: int) -> int:
+    """object 값을 int 로 안전 변환(int/숫자문자열만, 그 외 default)."""
+    if isinstance(val, bool):
+        return default
+    if isinstance(val, int):
+        return val
+    if isinstance(val, str):
+        try:
+            return int(val)
+        except ValueError:
+            return default
+    return default
+
+
+class IncidentReportingSla:
+    """CJCSM 6510 CAT별 보고 SLA(분) — 공유 정책로더 사용(graceful)."""
+
+    def __init__(self, sla_minutes: dict[str, int], default_minutes: int) -> None:
+        self._sla = sla_minutes
+        self._default = default_minutes
+
+    def minutes_for(self, cat: str) -> int:
+        """CAT 의 보고 SLA(분). 미매핑 → 기본값."""
+        return self._sla.get(cat, self._default)
+
+    @classmethod
+    def from_yaml(cls, path: str | Path | None = None) -> IncidentReportingSla:
+        """incident-reporting-sla.yaml 적재(공유 로더로 malformed graceful)."""
+        raw = load_policy_mapping(path, _SLA_POLICY, label="보고 SLA")
+        sla = require_mapping(raw.get("reporting_sla"), label="보고 SLA reporting_sla")
+        if not sla:
+            raise PolicyError("보고 SLA reporting_sla 섹션 없음/빈값.")
+        default_min = _int_or(sla.get("default_minutes"), _DEFAULT_SLA_MIN)
+        mapping = require_mapping(sla.get("sla_minutes"), label="보고 SLA sla_minutes")
+        if not mapping:
+            raise PolicyError("보고 SLA sla_minutes 없음/빈값.")
+        out: dict[str, int] = {}
+        for cat, mins in mapping.items():
+            val = _int_or(mins, -1)
+            if val >= 0:
+                out[str(cat)] = val
+        return cls(out, default_min)
+
+
+def _report_due(opened_at: str, minutes: int) -> str:
+    """opened_at(ISO) + minutes → 보고 데드라인(ISO). 파싱 실패/빈값 → 빈 문자열."""
+    if not opened_at:
+        return ""
+    try:
+        dt = datetime.strptime(opened_at, _TS_FMT).replace(tzinfo=UTC)
+    except (ValueError, TypeError):
+        return ""
+    return (dt + timedelta(minutes=minutes)).strftime(_TS_FMT)
+
+
+def is_case_overdue(case: IncidentCase, now_iso: str) -> bool:
+    """보고 데드라인 초과 여부(결정론·읽기전용). now 는 호출자 주입."""
+    if not case.report_due_at or not now_iso:
+        return False
+    try:
+        due = datetime.strptime(case.report_due_at, _TS_FMT)
+        now = datetime.strptime(now_iso, _TS_FMT)
+    except (ValueError, TypeError):
+        return False
+    return now > due
 
 
 @runtime_checkable
@@ -172,6 +247,19 @@ class CaseManager:
         self._store = store or incident_store()
         # kill-chain stage 산정용(잠정 CAT6/CAT8 구분). 미주입 시 지연 로드 시도.
         self._coverage = coverage
+        self._sla: IncidentReportingSla | None = None  # 지연 로드
+
+    def _set_report_due(self, case: IncidentCase) -> None:
+        """현 CAT 로 보고 데드라인 갱신(opened_at 앵커 — CAT 강화 시 시한 단축)."""
+        if self._sla is None:
+            from core.exceptions import SOCPlatformError
+
+            try:
+                self._sla = IncidentReportingSla.from_yaml()
+            except SOCPlatformError:
+                self._sla = IncidentReportingSla({}, _DEFAULT_SLA_MIN)
+        case.report_sla_min = self._sla.minutes_for(case.cat)
+        case.report_due_at = _report_due(case.opened_at, case.report_sla_min)
 
     def observe_alert(self, alert: Alert, severity: Severity) -> IncidentCase | None:
         """alert 을 actor case 에 봉합하고 PROVISIONAL 상태를 전진시킨다.
@@ -214,6 +302,7 @@ class CaseManager:
         if _sev_rank(severity) > _sev_rank(case.severity_peak):
             case.severity_peak = severity
         case.cat = _provisional_cat(case.kill_chain_stage)
+        self._set_report_due(case)
         case.updated_at = now
         self._store.save(case)
         return case
@@ -282,6 +371,7 @@ class CaseManager:
                 case.kill_chain_stage,
                 _is_dos_scenario(alert.scenario_id),
             )
+        self._set_report_due(case)  # CAT 강화 시 시한 재계산(opened_at 앵커)
         case.updated_at = _now_iso()
         self._store.save(case)
         return case
