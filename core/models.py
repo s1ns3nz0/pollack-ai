@@ -243,6 +243,9 @@ class Alert(BaseModel):
     # kill chain: 이 actor 가 누적으로 후반 단계(C2 이후)에 도달.
     # KillChainProgressor(읽기 전용)가 채움 — 진행 중 캠페인 판단 → dynamics 격상.
     kill_chain_advanced: bool = False
+    # deception: 이 alert 이 decoy 자산/canary 토큰을 건드림.
+    # DecoyDetector(읽기 전용)가 채움 — dynamics 격상 입력. TP 승격은 아님(untrusted).
+    decoy_hit: bool = False
     # 지리 컨텍스트(외부 GNSS/Airspace 도구 조회용; 없으면 asset-tiers.yaml fallback)
     lat: float | None = None
     lon: float | None = None

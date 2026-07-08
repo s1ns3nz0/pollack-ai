@@ -30,6 +30,10 @@ class Observation(BaseModel):
     mission_effect_observed: bool = False
     no_effect_sustained: bool = False
     reoccurred: bool = False
+    # deception: 신뢰 decoy 센서가 canary 토큰 접촉을 관측(자기인증 고신뢰 신호).
+    # 이 신뢰 관측 채널만 CONFIRMED_TP 승격권을 가진다 — untrusted alert 본문의
+    # canary 매칭(DecoyDetector)은 enrich 까지만이라 위조로 TP 를 만들 수 없다.
+    canary_hit: bool = False
     # 검증 폐루프: 이 관측 이전에 RecoveryPlan(축출/복구)이 실행됐는지.
     # True + reoccurred → 축출 실패(공격자 잔존) 판정(RecoveryVerifier).
     recovery_applied: bool = False
@@ -101,6 +105,12 @@ class ProbeEngine:
                 env_verdict=EnvVerdict.CONFIRMED_TP,
                 effect=0.3,
                 rationale="mission_effect 단발 → PB 부분 효과",
+            )
+        if obs.canary_hit:
+            return ProbeDecision(
+                env_verdict=EnvVerdict.CONFIRMED_TP,
+                effect=0.3,
+                rationale="canary 접촉 관측 → 고신뢰 정탐(미끼는 정상 접근 이유 없음)",
             )
         if obs.no_effect_sustained and obs.window_min >= self._min_window_fp:
             return ProbeDecision(

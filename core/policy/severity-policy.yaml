@@ -85,6 +85,8 @@ dynamics:
       action: +1
     - rule: kill_chain_advanced         # actor 누적 kill chain 후반단계(C2 이후) 도달 → 등급↑
       action: +1
+    - rule: decoy_hit                   # decoy 자산/canary 미끼 접촉(고신뢰 공격 신호) → 등급↑
+      action: +1
   de_escalation:
     - rule: no_effect_sustained         # 무영향 지속 → 등급↓ (단 posture lock 시 금지)
       window_min: 60

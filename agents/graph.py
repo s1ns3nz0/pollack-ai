@@ -46,6 +46,7 @@ from core.actors import ActorReadGate, ActorWriteGate, InMemoryActorStore
 from core.campaign import CampaignChains, CampaignDetector
 from core.causal import CausalReasoner
 from core.coa import CoaMatrix, CoaPlanner
+from core.deception import DecoyDetector
 from core.degradation import DegradationAssessor, DegradationMatrix
 from core.exceptions import SOCPlatformError
 from core.experience import MemoryReadGate
@@ -229,6 +230,11 @@ def build_soc_graph(
     matcher = PredictionMatcher(actor_read) if actor_read is not None else None
     # kill chain: 읽기 전용 진행도 산정기 — actor 누적 후반단계 도달 시 격상 플래그.
     progressor = KillChainProgressor(actor_read) if actor_read is not None else None
+    # deception: decoy-assets/canary-tokens.yaml 있으면 읽기전용 미끼 접촉 탐지기 배선.
+    try:
+        decoy_detector: DecoyDetector | None = DecoyDetector.from_yaml()
+    except SOCPlatformError:
+        decoy_detector = None
     # spec A1: causal-rules.yaml 존재 시 reasoner 자동 배선.
     if reasoner is None:
         rules_path = Path(settings.causal_rules_path)
@@ -335,9 +341,10 @@ def build_soc_graph(
     async def _triage_with_match(state: SOCState) -> SOCState:
         """triage 진입 전 읽기전용 enrich — 예측 적중 + kill chain 진행도.
 
-        matcher(예측 pending 대조) → progressor(actor 누적 진행도)를 순차 적용해
-        prediction_match·kill_chain_advanced 플래그를 alert 에 반영한다(둘 다 정책
-        dynamics 격상 입력). enrich 로 alert 가 바뀌면 상태에 실어 downstream 공유.
+        matcher(예측 pending 대조) → progressor(actor 누적 진행도) → decoy_detector
+        (미끼 접촉)를 순차 적용해 prediction_match·kill_chain_advanced·decoy_hit
+        플래그를 alert 에 반영한다(모두 정책 dynamics 격상 입력). enrich 로 alert 가
+        바뀌면 상태에 실어 downstream 공유.
         """
         alert = state["alert"]
         changed = False
@@ -347,6 +354,9 @@ def build_soc_graph(
         if progressor is not None:
             alert = await progressor.enrich(alert)
             changed = changed or alert.kill_chain_advanced
+        if decoy_detector is not None:
+            alert = await decoy_detector.enrich(alert)
+            changed = changed or alert.decoy_hit
         if changed:
             state = cast(SOCState, {**state, "alert": alert})
         out = dict(await triage.run(state))
