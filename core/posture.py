@@ -14,8 +14,9 @@ Spec: docs/superpowers/specs/2026-07-08-cpcon-posture-design.md
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 import yaml
 
 from core.exceptions import PolicyError
@@ -32,7 +33,9 @@ class CpconLevel(BaseModel):
 
     level: int = Field(ge=1, le=5)
     name: str = ""  # 국정원 표기(정상/관심/주의/경계/심각)
-    posture: str = "normal"  # 기존 severity posture 어휘로 매핑
+    # posture 는 severity 어휘로 제약 — 오타(예 "critical")가 unknown→rank0 로 조용히
+    # de-escalation 되는 것을 차단(Codex High-2).
+    posture: Literal["normal", "elevated", "high"] = "normal"
     description: str = ""
 
 
@@ -65,11 +68,19 @@ class PostureLadder:
             raise PolicyError(f"CPCON 사다리 적재 실패: {exc}") from exc
         if not isinstance(raw, dict):
             raise PolicyError("CPCON 사다리 구조 오류(최상위 dict 아님).")
+        items = raw.get("cpcon", []) or []
+        if not isinstance(items, list):
+            raise PolicyError("CPCON 사다리 구조 오류(cpcon 이 리스트 아님).")
         levels: dict[int, CpconLevel] = {}
-        for item in raw.get("cpcon", []) or []:
-            if isinstance(item, dict) and "level" in item:
-                lv = CpconLevel.model_validate(item)
-                levels[lv.level] = lv
+        # model_validate 를 PolicyError 경로 안에서 — 의미적 오류(level: bad/6, posture
+        # 오타)가 raw ValidationError 로 graph 를 크래시시키지 않게(Codex High-1).
+        try:
+            for item in items:
+                if isinstance(item, dict) and "level" in item:
+                    lv = CpconLevel.model_validate(item)
+                    levels[lv.level] = lv
+        except ValidationError as exc:
+            raise PolicyError(f"CPCON 사다리 항목 검증 실패: {exc}") from exc
         if not levels:
             raise PolicyError("CPCON 사다리가 비어있음.")
         return cls(levels)
