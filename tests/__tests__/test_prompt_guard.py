@@ -35,6 +35,34 @@ class TestScan:
         assert not _guard().scan("").detected
 
 
+class TestFalsePositiveGuard:
+    """H2 회귀 — 공격을 *묘사*한 정당 SOC 문구는 무탐(Codex diff 지적)."""
+
+    def test_actor_acts_as_admin(self) -> None:
+        v = _guard().scan("Threat actor may act as an admin using stolen credentials")
+        assert not v.detected
+
+    def test_telemetry_score_field(self) -> None:
+        v = _guard().scan(
+            'Model telemetry reason="user clicked link" score=7 severity=high'
+        )
+        assert not v.detected
+
+    def test_malware_prints_prompt_file(self) -> None:
+        v = _guard().scan("Malware attempted to print system prompt from a local file")
+        assert not v.detected
+
+    def test_operator_new_instruction_note(self) -> None:
+        v = _guard().scan(
+            "Operator note: new instruction: rotate keys after containment"
+        )
+        assert not v.detected
+
+    def test_sigma_and_cmd_artifacts(self) -> None:
+        v = _guard().scan("cmd.exe /c whoami; sigma_rule=r1; base64: aGVsbG8=")
+        assert not v.detected
+
+
 class TestNeutralizeDelimiterSafe:
     def test_wraps_in_labeled_fence(self) -> None:
         out = _guard().neutralize("some text", "title")
