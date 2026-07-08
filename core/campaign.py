@@ -16,10 +16,10 @@ from __future__ import annotations
 from pathlib import Path
 
 from pydantic import BaseModel, Field
-import yaml
 
 from core.exceptions import PolicyError
 from core.models import CampaignMatch
+from core.policy_loader import load_policy_mapping, require_list, validate_models
 
 _POLICY = Path(__file__).resolve().parent / "policy" / "campaign-chains.yaml"
 
@@ -70,17 +70,12 @@ class CampaignChains:
         Raises:
             PolicyError: 파일 부재/파싱 실패/구조 불일치 시.
         """
-        p = Path(path) if path is not None else _POLICY
-        try:
-            raw = yaml.safe_load(p.read_text(encoding="utf-8"))
-        except (OSError, yaml.YAMLError) as exc:
-            raise PolicyError(f"캠페인 체인 적재 실패: {exc}") from exc
-        if not isinstance(raw, dict):
-            raise PolicyError("캠페인 체인 구조 오류(최상위 dict 아님).")
-        chains: list[CampaignChain] = []
-        for item in raw.get("chains", []) or []:
-            if isinstance(item, dict):
-                chains.append(CampaignChain.model_validate(item))
+        raw = load_policy_mapping(path, _POLICY, label="캠페인 체인")
+        chains = validate_models(
+            require_list(raw.get("chains"), label="캠페인 체인 chains"),
+            CampaignChain,
+            label="캠페인 체인",
+        )
         if not chains:
             raise PolicyError("캠페인 체인이 비어있음.")
         return cls(chains)

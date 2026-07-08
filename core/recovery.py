@@ -14,11 +14,9 @@ from __future__ import annotations
 from enum import StrEnum
 from pathlib import Path
 
-import yaml
-
-from core.exceptions import PolicyError
 from core.models import RecoveryPlan, RecoveryStep
 from core.outcome import Observation
+from core.policy_loader import load_policy_mapping
 from tools.coverage import CoverageMatrix
 from utils.logging import get_logger
 
@@ -71,13 +69,7 @@ class RecoveryMatrix:
         Raises:
             PolicyError: 파일 부재/파싱 실패/구조 불일치 시.
         """
-        p = Path(path) if path is not None else _POLICY
-        try:
-            raw = yaml.safe_load(p.read_text(encoding="utf-8"))
-        except (OSError, yaml.YAMLError) as exc:
-            raise PolicyError(f"Recovery 매트릭스 적재 실패: {exc}") from exc
-        if not isinstance(raw, dict):
-            raise PolicyError("Recovery 매트릭스 구조 오류(최상위 dict 아님).")
+        raw = load_policy_mapping(path, _POLICY, label="Recovery 매트릭스")
         matrix: dict[str, RecoveryPlan] = {}
         raw_matrix = raw.get("matrix", {})
         if isinstance(raw_matrix, dict):

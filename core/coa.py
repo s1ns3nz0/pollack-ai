@@ -15,11 +15,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import yaml
-
 from core.engage import EngageMatrix
 from core.exceptions import PolicyError
 from core.models import ActorEngagement, CoaOption, EngageGoal
+from core.policy_loader import load_policy_mapping, require_list
 from tools.coverage import CoverageMatrix
 
 _POLICY = Path(__file__).resolve().parent / "policy" / "coa-matrix.yaml"
@@ -54,14 +53,10 @@ class CoaMatrix:
         Raises:
             PolicyError: 파일 부재/파싱 실패/구조 불일치 시.
         """
-        p = Path(path) if path is not None else _POLICY
-        try:
-            raw = yaml.safe_load(p.read_text(encoding="utf-8"))
-        except (OSError, yaml.YAMLError) as exc:
-            raise PolicyError(f"COA 매트릭스 적재 실패: {exc}") from exc
-        if not isinstance(raw, dict):
-            raise PolicyError("COA 매트릭스 구조 오류(최상위 dict 아님).")
-        defenses = [str(d) for d in raw.get("defenses", [])]
+        raw = load_policy_mapping(path, _POLICY, label="COA 매트릭스")
+        defenses = [
+            str(d) for d in require_list(raw.get("defenses"), label="COA defenses")
+        ]
         if not defenses:
             raise PolicyError("COA 매트릭스에 7D 방어 축이 없음.")
         matrix_raw = raw.get("matrix", {})

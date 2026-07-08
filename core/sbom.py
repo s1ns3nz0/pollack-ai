@@ -17,10 +17,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-import yaml
-
-from core.exceptions import PolicyError
 from core.models import SbomComponent, SbomFinding, VulnFinding
+from core.policy_loader import load_policy_mapping, require_mapping
 
 _POLICY = Path(__file__).resolve().parent / "policy" / "approved-sbom.yaml"
 
@@ -53,15 +51,11 @@ class ApprovedSbom:
         Raises:
             PolicyError: 파일 부재/파싱 실패/구조 불일치 시.
         """
-        p = Path(path) if path is not None else _POLICY
-        try:
-            raw = yaml.safe_load(p.read_text(encoding="utf-8"))
-        except (OSError, yaml.YAMLError) as exc:
-            raise PolicyError(f"승인 SBOM 적재 실패: {exc}") from exc
-        if not isinstance(raw, dict):
-            raise PolicyError("승인 SBOM 구조 오류(최상위 dict 아님).")
+        raw = load_policy_mapping(path, _POLICY, label="승인 SBOM")
         components: dict[str, dict[str, str]] = {}
-        for name, cell in (raw.get("components") or {}).items():
+        for name, cell in require_mapping(
+            raw.get("components"), label="SBOM components"
+        ).items():
             if isinstance(cell, dict):
                 components[str(name)] = {
                     "version": str(cell.get("version", "")),
