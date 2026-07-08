@@ -18,6 +18,7 @@ from core.coa import CoaPlanner
 from core.coerce import opt_str
 from core.degradation import DegradationAssessor
 from core.diamond import DiamondAnalyzer
+from core.incident import CaseManager
 from core.lineage import LineageCollector
 from core.models import (
     ActorProfile,
@@ -69,11 +70,13 @@ class ReportAgent(BaseSOCAgent):
         campaign_detector: CampaignDetector | None = None,
         mission_risk: MissionRiskAssessor | None = None,
         diamond: DiamondAnalyzer | None = None,
+        case_mgr: CaseManager | None = None,
     ) -> None:
         super().__init__(settings)
         self._engine = engine
         self._mission_risk = mission_risk
         self._diamond = diamond
+        self._case_mgr = case_mgr
         self._coa_planner = coa_planner
         self._recovery_planner = recovery_planner
         self._degradation = degradation
@@ -129,6 +132,11 @@ class ReportAgent(BaseSOCAgent):
             self._mission_risk.assess(alert) if self._mission_risk is not None else None
         )
         diamond = self._build_diamond(alert, profile)
+        incident_case = (
+            self._case_mgr.observe_alert(alert, severity)
+            if self._case_mgr is not None
+            else None
+        )
 
         report = SOCReport(
             alert_id=alert.id,
@@ -147,6 +155,7 @@ class ReportAgent(BaseSOCAgent):
             coa_options=coa_options,
             mission_risk=mission_risk,
             diamond=diamond,
+            incident_case=incident_case,
             recovery_plan=recovery_plan,
             mission_continuity=mission_continuity,
             stride_threats=stride_threats,

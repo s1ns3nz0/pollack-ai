@@ -770,6 +770,44 @@ class CatoStatus(BaseModel):
     rationale: list[str] = Field(default_factory=list)
 
 
+class IncidentState(StrEnum):
+    """NIST 800-61 인시던트 생명주기 상태."""
+
+    NEW = "new"
+    ANALYSIS = "analysis"
+    CONTAINMENT = "containment"  # report 도달 불가 — 신뢰확증 후속
+    ERADICATION = "eradication"
+    RECOVERY = "recovery"
+    CLOSED = "closed"
+
+
+class IncidentCase(BaseModel):
+    """관리되는 Incident Case — actor 단위 지속 생명주기 엔티티(DoD SOC 정렬).
+
+    Attributes:
+        case_id: 봉합 키(`case:<actor_id>`).
+        actor_id: 봉합 actor(explicit 또는 fingerprint).
+        state: 현재 생명주기 상태.
+        cat: CJCSM 6510 CAT 분류(report 산 잠정: CAT6/CAT8).
+        severity_peak: 관측 최고 심각도(provisional·informational — 권위 판정 비구동).
+        kill_chain_stage: 관측 최고 kill-chain order.
+        member_alert_ids: 소속 alert id(슬라이딩 cap).
+        provisional: report 산 미확증 여부(True=신뢰확증 전).
+        opened_at/updated_at: 타임스탬프.
+    """
+
+    case_id: str
+    actor_id: str
+    state: IncidentState = IncidentState.NEW
+    cat: str = "CAT8"
+    severity_peak: Severity = Severity.INFO
+    kill_chain_stage: int = 0
+    member_alert_ids: list[str] = Field(default_factory=list)
+    provisional: bool = True
+    opened_at: str = ""
+    updated_at: str = ""
+
+
 class DiamondEvent(BaseModel):
     """침입분석 다이아몬드 한 건 — 4 정점(Adversary·Capability·Infrastructure·Victim).
 
@@ -1078,6 +1116,10 @@ class SOCReport(BaseModel):
     diamond: DiamondEvent | None = Field(
         default=None,
         description="침입분석 다이아몬드 4정점(actor·능력·인프라·피해).",
+    )
+    incident_case: IncidentCase | None = Field(
+        default=None,
+        description="Incident Case(생명주기·CAT) — actor 봉합 사건(provisional).",
     )
 
 

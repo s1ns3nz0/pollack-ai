@@ -52,6 +52,7 @@ from core.diamond import DiamondAnalyzer
 from core.engage import EngageAdvancer, EngageMatrix
 from core.exceptions import SOCPlatformError
 from core.experience import MemoryReadGate
+from core.incident import CaseManager, incident_store
 from core.killchain import KillChainProgressor
 from core.lineage import LineageCollector
 from core.llm import LLMClient
@@ -370,6 +371,7 @@ def build_soc_graph(
         campaign_detector=campaign_detector,
         mission_risk=_mission_risk_assessor,
         diamond=DiamondAnalyzer(),
+        case_mgr=CaseManager(incident_store()),
     )
 
     graph: StateGraph[SOCState] = StateGraph(SOCState)
