@@ -52,6 +52,7 @@ from core.diamond import DiamondAnalyzer
 from core.engage import EngageAdvancer, EngageMatrix
 from core.exceptions import SOCPlatformError
 from core.experience import MemoryReadGate
+from core.hunt import HuntPlanner
 from core.incident import CaseManager, incident_store
 from core.killchain import KillChainProgressor
 from core.lineage import LineageCollector
@@ -355,6 +356,11 @@ def build_soc_graph(
         )
     except SOCPlatformError:
         _mission_risk_assessor = None
+    # Tier3 헌팅: coverage 있으면 hunt 플래너 배선(gap 소스). 실패 시 예측/campaign 만.
+    try:
+        _hunt_planner: HuntPlanner | None = HuntPlanner(CoverageMatrix.from_yaml())
+    except SOCPlatformError:
+        _hunt_planner = HuntPlanner(None)
     report = ReportAgent(
         settings,
         engine,
@@ -372,6 +378,7 @@ def build_soc_graph(
         mission_risk=_mission_risk_assessor,
         diamond=DiamondAnalyzer(),
         case_mgr=CaseManager(incident_store()),
+        hunt=_hunt_planner,
     )
 
     graph: StateGraph[SOCState] = StateGraph(SOCState)

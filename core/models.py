@@ -770,6 +770,29 @@ class CatoStatus(BaseModel):
     rationale: list[str] = Field(default_factory=list)
 
 
+class HuntHypothesis(BaseModel):
+    """Tier3 위협 헌팅 가설 한 건 — 선제 hunt 백로그 항목(DoD SOC Tier3).
+
+    예측/campaign/coverage-gap 신호를 융합한 *분석가 hunt 리드*(자문·읽기전용).
+    staged_defenses(방어 준비)·hunt_candidates(legacy 예측나열)와 구분된 표면.
+
+    Attributes:
+        focus: 헌팅 대상(MITRE technique 또는 campaign 시나리오 id).
+        source: "prediction" | "campaign" | "coverage_gap".
+        priority: 결정론 우선순위(높을수록 먼저 헌팅).
+        tactic: 대상 tactic(정렬·스코프용, 미상 빈값).
+        rationale: 왜 헌팅하는가.
+        target_hint: 어디를 볼지(자산/tactic 컨텍스트).
+    """
+
+    focus: str
+    source: str
+    priority: int = 0
+    tactic: str = ""
+    rationale: str = ""
+    target_hint: str = ""
+
+
 class IncidentState(StrEnum):
     """NIST 800-61 인시던트 생명주기 상태."""
 
@@ -1076,7 +1099,11 @@ class SOCReport(BaseModel):
     hitl: str | None = None
     hunt_candidates: list[str] = Field(
         default_factory=list,
-        description="spec C1: SequencePredictor 예측 → 헌트 후보 technique 목록.",
+        description="spec C1: SequencePredictor 예측 → 헌트 후보 technique 목록(legacy).",
+    )
+    hunt_hypotheses: list[HuntHypothesis] = Field(
+        default_factory=list,
+        description="Tier3 위협 헌팅 백로그 — 예측/campaign/gap 융합 우선순위 hunt 리드.",
     )
     staged_defenses: list[StagedDefense] = Field(
         default_factory=list,

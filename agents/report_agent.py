@@ -18,6 +18,7 @@ from core.coa import CoaPlanner
 from core.coerce import opt_str
 from core.degradation import DegradationAssessor
 from core.diamond import DiamondAnalyzer
+from core.hunt import HuntPlanner
 from core.incident import CaseManager
 from core.lineage import LineageCollector
 from core.models import (
@@ -26,6 +27,7 @@ from core.models import (
     CampaignMatch,
     CoaOption,
     DiamondEvent,
+    HuntHypothesis,
     InvestigationResult,
     MissionContinuity,
     RecoveryPlan,
@@ -71,12 +73,14 @@ class ReportAgent(BaseSOCAgent):
         mission_risk: MissionRiskAssessor | None = None,
         diamond: DiamondAnalyzer | None = None,
         case_mgr: CaseManager | None = None,
+        hunt: HuntPlanner | None = None,
     ) -> None:
         super().__init__(settings)
         self._engine = engine
         self._mission_risk = mission_risk
         self._diamond = diamond
         self._case_mgr = case_mgr
+        self._hunt = hunt
         self._coa_planner = coa_planner
         self._recovery_planner = recovery_planner
         self._degradation = degradation
@@ -132,6 +136,7 @@ class ReportAgent(BaseSOCAgent):
             self._mission_risk.assess(alert) if self._mission_risk is not None else None
         )
         diamond = self._build_diamond(alert, profile)
+        hunt_hypotheses = self._build_hunt(alert, inv, campaign_matches, profile)
         incident_case = (
             self._case_mgr.observe_alert(alert, severity)
             if self._case_mgr is not None
@@ -151,6 +156,7 @@ class ReportAgent(BaseSOCAgent):
             guardrail_flags=state.get("guardrail_flags", []),
             hitl=opt_str(meta.get("hitl")),
             hunt_candidates=hunt_candidates,
+            hunt_hypotheses=hunt_hypotheses,
             staged_defenses=staged_defenses,
             coa_options=coa_options,
             mission_risk=mission_risk,
@@ -259,6 +265,30 @@ class ReportAgent(BaseSOCAgent):
         if self._diamond is None:
             return None
         return self._diamond.build(alert, profile)
+
+    def _build_hunt(
+        self,
+        alert: Alert,
+        inv: InvestigationResult | None,
+        campaign_matches: list[CampaignMatch],
+        profile: ActorProfile | None,
+    ) -> list[HuntHypothesis]:
+        """예측/campaign/coverage-gap 융합 Tier3 hunt 가설(planner 미주입 시 빈).
+
+        현 tactic 은 profile 누적 우선(신뢰), 없으면 alert.mitre tactics(자문 스코프).
+        """
+        if self._hunt is None:
+            return []
+        preds = inv.predictions if inv is not None else []
+        camp = [
+            (m.next_expected, m.matched) for m in campaign_matches if m.next_expected
+        ]
+        if profile is not None and profile.ttp_stats:
+            tactics: list[str] = [s.tactic for s in profile.ttp_stats]
+        else:
+            raw = alert.mitre.get("tactics", [])
+            tactics = [str(t) for t in raw] if isinstance(raw, list) else []
+        return self._hunt.plan(preds, camp, tactics)
 
     async def _build_campaign(
         self, alert: Alert, profile: ActorProfile | None
