@@ -135,11 +135,16 @@ class ValidationAgent(BaseSOCAgent):
                 result.composite_score,
                 result.veto_triggered,
             )
-            return {
+            update: SOCState = {
                 "verdict": result.verdict,
                 "ensemble": result,
                 "trace": ["validation"],
             }
+            # judge guardrail 신호(프롬프트 인젝션 등) → guardrail_flags 전파(관측성).
+            flags = [s.guardrail for s in scores if s.guardrail]
+            if flags:
+                update["guardrail_flags"] = flags
+            return update
         verdict = self._judge(state)
         self._logger.info("validation: alert=%s verdict=%s", state["alert"].id, verdict)
         return {"verdict": verdict, "trace": ["validation"]}

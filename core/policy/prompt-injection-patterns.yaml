@@ -1,0 +1,26 @@
+# 프롬프트 인젝션 탐지 패턴(OWASP LLM01 / MITRE ATLAS AML.T0051).
+# 결정론 정규식 — LlmJudge 프롬프트에 들어가는 untrusted 텍스트(alert 내용 + RAG
+# 컨텍스트)의 *능동적 지시 시도* 를 텔레메트리로 표식한다. 탐지는 판정을 바꾸지
+# 않는다(펜싱이 실보호). SOC alert 는 정당히 공격문자열을 포함하므로(H2) 패턴은
+# 보수적으로 — 우리 LLM 에게 직접 지시하려는 표현에 한정한다.
+prompt_injection:
+  atlas_id: "AML.T0051"
+  patterns:
+    - id: ignore_previous
+      atlas: "AML.T0051"
+      regex: "(?i)\\b(ignore|disregard|forget)\\b[^.\\n]{0,30}\\b(previous|prior|above|earlier|all)\\b[^.\\n]{0,20}\\b(instruction|rule|context|prompt|direction)"
+    - id: role_switch
+      atlas: "AML.T0051"
+      regex: "(?i)(you\\s+are\\s+now\\b|from\\s+now\\s+on\\s+you\\b|act\\s+as\\s+(an?\\s+)?|pretend\\s+to\\s+be\\b)"
+    - id: score_manipulation
+      atlas: "AML.T0051"
+      regex: "(?i)(score|reason)\\s*=\\s*[0-9\"']"
+    - id: system_exfil
+      atlas: "AML.T0051.000"
+      regex: "(?i)(reveal|repeat|print|show|output)\\b[^.\\n]{0,20}\\b(your\\s+)?(system\\s+)?(prompt|instruction)"
+    - id: fence_breakout
+      atlas: "AML.T0051"
+      regex: "(?i)<<\\s*(end|untrusted)[:_ ]|end[_ ]of[_ ]untrusted"
+    - id: new_instructions
+      atlas: "AML.T0051"
+      regex: "(?i)(new|updated|real|true)\\s+(instruction|task|objective|directive)s?\\b\\s*[:\\-]"
