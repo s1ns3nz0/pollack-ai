@@ -18,34 +18,55 @@ tiers:
     weight: 4
     desc: 방어 AI 자산(SOC 에이전트/RAG). 손상 시 전 자산 방어 무력화(메타)
 
+# MBCRA(임무 기반 사이버 위험평가, DoD): key_terrain = 이 자산이 사이버 핵심지형
+# (JP 3-12 KT-C)인 임무단계 목록. depends_on = 이 자산이 의존하는 상위 자산(손상
+# 전파 그래프). 임무단계: pre-flight/ingress/on-station/egress/recovery.
 assets:
   - id: GNSS
     name: 위성항법 수신기/항법 솔루션
     tier: T1-Critical
     coords: { lat: 36.778, lon: 126.448, radius_km: 5.0 }   # 안흥 시험장 인근
+    key_terrain: [ingress, on-station]      # 침투·표적 항법에 결정적
+    depends_on: []
   - id: C2_LINK
     name: 명령·제어(C2) 데이터링크
     tier: T1-Critical
     coords: { lat: 36.778, lon: 126.448, radius_km: 5.0 }
+    key_terrain: [ingress, on-station, egress]   # 전 단계 통제 핵심
+    depends_on: [SATCOM]
   - id: AUTOPILOT
     name: 비행제어기/임베디드 펌웨어
     tier: T1-Critical
+    key_terrain: [ingress, on-station, egress]
+    depends_on: [GNSS, C2_LINK]
   - id: GCS
     name: 지상통제소
     tier: T1-Critical
     coords: { lat: 36.778, lon: 126.448, radius_km: 1.0 }
+    key_terrain: [pre-flight, ingress, on-station, egress, recovery]  # 전 단계
+    depends_on: [C2_LINK]
   - id: SATCOM
     name: 위성통신 데이터링크
     tier: T2-Important
+    key_terrain: [on-station]               # BLOS 원거리 운영 시 결정적
+    depends_on: []
   - id: PAYLOAD_EOIR
     name: EO/IR 임무 페이로드/온보드 인식
     tier: T2-Important
+    key_terrain: [on-station]               # 표적 단계 임무 본질
+    depends_on: [AUTOPILOT]
   - id: UGV_TELEOP
     name: 무인지상차량 원격조종/자율주행 제어
     tier: T1-Critical
+    key_terrain: [ingress, on-station]
+    depends_on: [C2_LINK]
   - id: TELEMETRY
     name: 텔레메트리/로깅
     tier: T3-Support
+    key_terrain: []                         # 지원자산 — 핵심지형 아님
+    depends_on: [C2_LINK]
   - id: AI_SOC
     name: SOC 에이전트 + RAG 지식베이스
     tier: T0-AI
+    key_terrain: [pre-flight, ingress, on-station, egress, recovery]  # 방어 메타
+    depends_on: []

@@ -87,6 +87,8 @@ dynamics:
       action: +1
     - rule: decoy_hit                   # decoy 자산/canary 미끼 접촉(고신뢰 공격 신호) → 등급↑
       action: +1
+    - rule: key_terrain                 # 현 임무단계 사이버 핵심지형(KT-C) 자산 침해 → 등급↑
+      action: +1
   de_escalation:
     - rule: no_effect_sustained         # 무영향 지속 → 등급↓ (단 posture lock 시 금지)
       window_min: 60
