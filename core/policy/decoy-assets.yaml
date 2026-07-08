@@ -1,0 +1,12 @@
+# =============================================================================
+# Decoy 자산 레지스트리 — 미끼로 배치된 자산 id 목록(라벨, 커밋 OK)
+# 정상 임무 트래픽은 이 자산에 접근할 이유가 없다 → 접촉 = 고신뢰 공격자 신호.
+# asset_id 는 위조 가능(라벨)하므로 매칭은 읽기전용 decoy_hit enrich 까지만.
+# CONFIRMED_TP 승격은 canary(신뢰 관측 채널)만. Detection-as-Code.
+# Spec: docs/superpowers/specs/2026-07-08-deception-decoy-layer-design.md
+# =============================================================================
+
+decoy_assets:
+  - GCS_HONEY          # 가짜 지상통제소 — 접속 시도 = C2 정찰 미끼
+  - TELEMETRY_DECOY    # 가짜 텔레메트리 엔드포인트 — 수집 시도 미끼
+  - RAG_CANARY_DOC     # T0-AI/RAG 미끼 문서 자산 — 조회 시 S5 포이즈닝 정찰 신호
