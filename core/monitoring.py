@@ -14,9 +14,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from pydantic import BaseModel
-import yaml
 
 from core.exceptions import PolicyError
+from core.policy_loader import load_policy_mapping, require_list, validate_models
 from utils.logging import get_logger
 
 _logger = get_logger("monitoring")
@@ -108,17 +108,12 @@ class SLOMonitor:
         Raises:
             PolicyError: 파일 부재/파싱 실패/구조 불일치 시.
         """
-        p = Path(path) if path is not None else _POLICY
-        try:
-            raw = yaml.safe_load(p.read_text(encoding="utf-8"))
-        except (OSError, yaml.YAMLError) as exc:
-            raise PolicyError(f"SLO 규칙 적재 실패: {exc}") from exc
-        if not isinstance(raw, dict):
-            raise PolicyError("SLO 규칙 구조 오류(최상위 dict 아님).")
-        rules: list[SloRule] = []
-        for item in raw.get("rules", []) or []:
-            if isinstance(item, dict):
-                rules.append(SloRule.model_validate(item))
+        raw = load_policy_mapping(path, _POLICY, label="SLO 규칙")
+        rules = validate_models(
+            require_list(raw.get("rules"), label="SLO 규칙 rules"),
+            SloRule,
+            label="SLO 규칙",
+        )
         if not rules:
             raise PolicyError("SLO 규칙이 비어있음.")
         return cls(rules)

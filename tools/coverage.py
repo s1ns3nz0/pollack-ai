@@ -15,9 +15,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from pydantic import BaseModel, Field
-import yaml
 
 from core.exceptions import CoverageDataError
+from core.policy_loader import load_policy_mapping, require_list, require_mapping
 from utils.logging import get_logger
 
 _logger = get_logger("coverage")
@@ -116,21 +116,24 @@ class CoverageMatrix:
         Raises:
             CoverageDataError: 파일 부재/파싱 실패/구조 불일치 시.
         """
-        p = Path(path) if path is not None else DEFAULT_COVERAGE_PATH
-        try:
-            raw = yaml.safe_load(p.read_text(encoding="utf-8"))
-        except (OSError, yaml.YAMLError) as exc:
-            raise CoverageDataError(f"커버리지 매트릭스 적재 실패: {exc}") from exc
-        if not isinstance(raw, dict):
-            raise CoverageDataError(
-                "커버리지 매트릭스 구조 검증 실패(최상위 dict 아님)."
-            )
+        raw = load_policy_mapping(
+            path,
+            DEFAULT_COVERAGE_PATH,
+            label="커버리지 매트릭스",
+            error_cls=CoverageDataError,
+        )
         archetypes = {
-            aid: Archetype(id=aid, **(meta if isinstance(meta, dict) else {}))
-            for aid, meta in (raw.get("archetypes") or {}).items()
+            aid: Archetype(id=str(aid), **(meta if isinstance(meta, dict) else {}))
+            for aid, meta in require_mapping(
+                raw.get("archetypes"),
+                label="커버리지 archetypes",
+                error_cls=CoverageDataError,
+            ).items()
         }
         tactics: list[TacticCoverage] = []
-        for t in raw.get("tactics") or []:
+        for t in require_list(
+            raw.get("tactics"), label="커버리지 tactics", error_cls=CoverageDataError
+        ):
             if not isinstance(t, dict):
                 continue
             gaps = [

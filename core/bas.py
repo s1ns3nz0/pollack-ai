@@ -14,9 +14,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from pydantic import BaseModel, Field
-import yaml
 
 from core.exceptions import PolicyError
+from core.policy_loader import load_policy_mapping, require_list, validate_models
 
 _POLICY = Path(__file__).resolve().parent / "policy" / "bas-scenarios.yaml"
 
@@ -90,17 +90,12 @@ class BASRunner:
         Raises:
             PolicyError: 파일 부재/파싱 실패/구조 불일치 시.
         """
-        p = Path(path) if path is not None else _POLICY
-        try:
-            raw = yaml.safe_load(p.read_text(encoding="utf-8"))
-        except (OSError, yaml.YAMLError) as exc:
-            raise PolicyError(f"BAS 시나리오 적재 실패: {exc}") from exc
-        if not isinstance(raw, dict):
-            raise PolicyError("BAS 시나리오 구조 오류(최상위 dict 아님).")
-        scenarios: list[BASScenario] = []
-        for item in raw.get("scenarios", []) or []:
-            if isinstance(item, dict):
-                scenarios.append(BASScenario.model_validate(item))
+        raw = load_policy_mapping(path, _POLICY, label="BAS 시나리오")
+        scenarios = validate_models(
+            require_list(raw.get("scenarios"), label="BAS 시나리오 scenarios"),
+            BASScenario,
+            label="BAS 시나리오",
+        )
         if not scenarios:
             raise PolicyError("BAS 시나리오가 비어있음.")
         return cls(scenarios)

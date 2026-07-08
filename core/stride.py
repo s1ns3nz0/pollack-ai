@@ -14,10 +14,10 @@ from __future__ import annotations
 from pathlib import Path
 
 from pydantic import BaseModel, Field
-import yaml
 
 from core.exceptions import PolicyError
 from core.models import Alert, StrideThreat
+from core.policy_loader import load_policy_mapping
 
 _POLICY = Path(__file__).resolve().parent / "policy" / "stride-model.yaml"
 
@@ -56,13 +56,7 @@ class StrideModel:
         Raises:
             PolicyError: 파일 부재/파싱 실패/구조 불일치 시.
         """
-        p = Path(path) if path is not None else _POLICY
-        try:
-            raw = yaml.safe_load(p.read_text(encoding="utf-8"))
-        except (OSError, yaml.YAMLError) as exc:
-            raise PolicyError(f"STRIDE 모델 적재 실패: {exc}") from exc
-        if not isinstance(raw, dict):
-            raise PolicyError("STRIDE 모델 구조 오류(최상위 dict 아님).")
+        raw = load_policy_mapping(path, _POLICY, label="STRIDE 모델")
         categories: dict[str, StrideCategory] = {}
         raw_cats = raw.get("categories", {})
         if isinstance(raw_cats, dict):

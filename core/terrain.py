@@ -15,10 +15,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import yaml
-
 from core.exceptions import PolicyError
 from core.models import Alert, MissionRisk
+from core.policy_loader import load_policy_mapping
 
 _POLICY = Path(__file__).resolve().parent / "policy" / "asset-tiers.yaml"
 
@@ -83,13 +82,7 @@ class KeyTerrainMap:
         Raises:
             PolicyError: 파일 부재/파싱 실패/구조 불일치/자산 없음 시.
         """
-        p = Path(path) if path is not None else _POLICY
-        try:
-            raw = yaml.safe_load(p.read_text(encoding="utf-8"))
-        except (OSError, yaml.YAMLError) as exc:
-            raise PolicyError(f"자산 지형 적재 실패: {exc}") from exc
-        if not isinstance(raw, dict):
-            raise PolicyError("자산 지형 구조 오류(최상위 dict 아님).")
+        raw = load_policy_mapping(path, _POLICY, label="자산 지형")
         tiers_raw = raw.get("tiers") or {}
         if not isinstance(tiers_raw, dict):
             raise PolicyError("자산 지형 구조 오류(tiers 가 dict 아님).")

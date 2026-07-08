@@ -13,10 +13,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import yaml
-
-from core.exceptions import PolicyError
 from core.models import Alert, MissionContinuity, Verdict
+from core.policy_loader import load_policy_mapping
 
 _POLICY = Path(__file__).resolve().parent / "policy" / "degradation-matrix.yaml"
 
@@ -40,13 +38,7 @@ class DegradationMatrix:
         Raises:
             PolicyError: 파일 부재/파싱 실패/구조 불일치 시.
         """
-        p = Path(path) if path is not None else _POLICY
-        try:
-            raw = yaml.safe_load(p.read_text(encoding="utf-8"))
-        except (OSError, yaml.YAMLError) as exc:
-            raise PolicyError(f"Degradation 매트릭스 적재 실패: {exc}") from exc
-        if not isinstance(raw, dict):
-            raise PolicyError("Degradation 매트릭스 구조 오류(최상위 dict 아님).")
+        raw = load_policy_mapping(path, _POLICY, label="Degradation 매트릭스")
         assets: dict[str, MissionContinuity] = {}
         raw_assets = raw.get("assets", {})
         if isinstance(raw_assets, dict):
