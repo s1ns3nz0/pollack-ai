@@ -16,6 +16,7 @@ from core.actors import ActorWriteGate
 from core.bda import BdaAssessor
 from core.exceptions import SOCPlatformError
 from core.experience import MemoryWriteGate
+from core.incident import CaseManager, incident_store
 from core.models import (
     Alert,
     ExperienceRecord,
@@ -63,6 +64,7 @@ class OutcomeProbeAgent(BaseWorkerAgent):
         actor_gate: ActorWriteGate | None = None,
         pb_gate: ActorPlaybookOutcomeGate | None = None,
         bda: BdaAssessor | None = None,
+        case_mgr: CaseManager | None = None,
     ) -> None:
         super().__init__(settings)
         self._source = source
@@ -71,6 +73,7 @@ class OutcomeProbeAgent(BaseWorkerAgent):
         self._actor_gate = actor_gate
         self._pb_gate = pb_gate
         self._bda = bda or BdaAssessor()
+        self._case_mgr = case_mgr or CaseManager(incident_store())
 
     async def run(self) -> WorkerReport:
         try:
@@ -85,6 +88,7 @@ class OutcomeProbeAgent(BaseWorkerAgent):
             actor_n += await self._submit_actor(obs, decision, errors)
             pb_n += await self._submit_pb(obs, decision, errors)
             restore_n += self._assess_bda(obs, decision, errors)
+            self._submit_case(obs, decision, errors)
         if restore_n:
             metrics().record_bda_restore(restore_n)
         self._logger.info(
@@ -101,6 +105,23 @@ class OutcomeProbeAgent(BaseWorkerAgent):
             auto_applied=exp_n + actor_n + pb_n,
             errors=errors,
         )
+
+    def _submit_case(
+        self, obs: Observation, decision: object, errors: list[str]
+    ) -> None:
+        """Incident Case 후반 생명주기 전진(신뢰관측). 오류는 사이클 격리(Codex M6)."""
+        if self._case_mgr is None or not obs.actor_id:
+            return
+        try:
+            self._case_mgr.observe_outcome(
+                _reconstruct_alert(obs),
+                decision.env_verdict,  # type: ignore[attr-defined]
+                recovery_applied=obs.recovery_applied,
+                reoccurred=obs.reoccurred,
+                no_effect_sustained=obs.no_effect_sustained,
+            )
+        except SOCPlatformError as exc:
+            errors.append(f"case[{obs.alert_id}]: {exc}")
 
     def _assess_bda(self, obs: Observation, decision: object, errors: list[str]) -> int:
         """교전피해평가(BDA) 산정 — 유의미 피해/복구권고 시 로깅. 복구권고면 1 반환.
