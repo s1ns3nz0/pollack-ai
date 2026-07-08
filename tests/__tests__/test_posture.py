@@ -40,6 +40,20 @@ class TestPostureLadder:
         with pytest.raises(PolicyError):
             PostureLadder.from_yaml(p)
 
+    def test_malformed_level_raises_policy_error(self, tmp_path) -> None:  # type: ignore[no-untyped-def] # noqa: E501
+        """level 범위 밖(6) → PolicyError(ValidationError 아님, Codex H-1)."""
+        p = tmp_path / "b.yaml"
+        p.write_text("cpcon:\n  - level: 6\n    posture: high\n", encoding="utf-8")
+        with pytest.raises(PolicyError):
+            PostureLadder.from_yaml(p)
+
+    def test_typo_posture_raises_policy_error(self, tmp_path) -> None:  # type: ignore[no-untyped-def] # noqa: E501
+        """posture 오타(critical) → PolicyError(조용한 de-escalation 차단 Codex H-2)."""
+        p = tmp_path / "t.yaml"
+        p.write_text("cpcon:\n  - level: 1\n    posture: critical\n", encoding="utf-8")
+        with pytest.raises(PolicyError):
+            PostureLadder.from_yaml(p)
+
 
 class TestPostureProvider:
     """전역 태세 하한 스탬프."""
