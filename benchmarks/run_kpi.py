@@ -89,6 +89,7 @@ def load_tp_alerts(scen_dir: Path) -> list[Alert]:
                 id=f"KPI-TP-{scn['scenario_id']}",
                 scenario_id=scn["scenario_id"],
                 title=scn["title"],
+                asset_id=scn.get("target_asset", {}).get("id", ""),
                 asset_tier=scn.get("target_asset", {}).get("tier", ""),
                 mission_phase=scn.get("mission_context", {}).get("phase", ""),
                 severity_baseline=Severity(scn["severity_baseline"]),

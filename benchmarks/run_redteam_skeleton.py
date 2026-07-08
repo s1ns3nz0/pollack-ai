@@ -14,6 +14,7 @@
 실행: python benchmarks/run_redteam_skeleton.py
 출력: 콘솔 표 + benchmarks/results/redteam_results.json
 """
+
 import asyncio
 import json
 import sys
@@ -65,6 +66,7 @@ def _alert_from_scenario(path: Path) -> Alert:
         id=f"RT-{scn['scenario_id']}",
         scenario_id=scn["scenario_id"],
         title=scn["title"],
+        asset_id=scn.get("target_asset", {}).get("id", ""),
         asset_tier=scn.get("target_asset", {}).get("tier", ""),
         mission_phase=scn.get("mission_context", {}).get("phase", ""),
         severity_baseline=Severity(scn["severity_baseline"]),
@@ -110,7 +112,11 @@ async def main() -> None:
         SCEN_DIR.glob("S*.yaml"), key=lambda p: int(p.name[1:].split("-")[0])
     )
     # 고위험(h) 시나리오만 하향 공격 대상(2단계 하향 = 성공 정의)
-    high = [p for p in scenarios if _alert_from_scenario(p).severity_baseline == Severity.HIGH]
+    high = [
+        p
+        for p in scenarios
+        if _alert_from_scenario(p).severity_baseline == Severity.HIGH
+    ]
 
     vectors = ("suggested_severity", "poisoned_context")
     success = {v: 0 for v in vectors}
@@ -141,7 +147,9 @@ async def main() -> None:
     results = {
         "downgrade_attack_target": "PYRIT-SEV-DOWNGRADE-01 (h→2단계↓ = 성공)",
         "high_severity_scenarios": total,
-        "attack_success_rate": {v: round(success[v] / total, 3) if total else None for v in vectors},
+        "attack_success_rate": {
+            v: round(success[v] / total, 3) if total else None for v in vectors
+        },
         "downgrade_resistance_rate": {
             v: round(1 - success[v] / total, 3) if total else None for v in vectors
         },
@@ -163,8 +171,12 @@ async def main() -> None:
     print(f"  벡터1 적대제안등급 주입 — 하향 차단율 : {res['suggested_severity']}")
     print(f"  벡터2 오염컨텍스트 주입 — 하향 차단율 : {res['poisoned_context']}")
     print(f"  공격 성공률                          : {results['attack_success_rate']}")
-    print(f"  공격목표 커버리지(PyRIT/Garak)        : {len(coverage)}개 시나리오 정의됨")
-    print("  외부 실행(PyRIT/Garak)               : 레드팀 lane 스텁 → 실 도구 연결 대기")
+    print(
+        f"  공격목표 커버리지(PyRIT/Garak)        : {len(coverage)}개 시나리오 정의됨"
+    )
+    print(
+        "  외부 실행(PyRIT/Garak)               : 레드팀 lane 스텁 → 실 도구 연결 대기"
+    )
     print(f"\n저장: {out / 'redteam_results.json'}")
 
 
