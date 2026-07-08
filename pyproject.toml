@@ -140,6 +140,13 @@ module = [
 ]
 ignore_missing_imports = true
 
+# scripts/·benchmarks/ 는 exclude 대상(팀 도구 검사 제외)이나, 일부 테스트가 이들을
+# import 하면 mypy 가 import-following 으로 따라 들어가 strict 검사한다(exclude 는
+# discovery 만 막음). 도구계층 제외 의도를 import 경로에도 적용 — 에러 무시.
+[[tool.mypy.overrides]]
+module = ["scripts.*", "benchmarks.*", "compliance.*"]
+ignore_errors = true
+
 # 인프라 매니페스트 구조 검증 테스트 — 동적 YAML/JSON 을 중첩 인덱싱해 단언한다.
 # dict[str, object] 로 좁히면 매 접근마다 narrowing 이 필요해 노이즈만 커진다(안전
 # 이득 없음). 이 모듈만 generic-any 완화(bare dict=dict[Any,Any] 허용).
