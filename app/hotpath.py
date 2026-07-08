@@ -17,7 +17,7 @@ import json
 from agents.graph import build_soc_graph
 from app.health import content_type_for, route
 from app.metrics import metrics
-from core.models import Alert
+from core.models import UntrustedAlertPayload, has_forged_internal_fields
 from core.settings import get_settings
 from utils.logging import get_logger
 
@@ -27,13 +27,15 @@ _logger = get_logger("hotpath")
 async def _run_alert(payload: dict[str, object]) -> dict[str, object]:
     """경보 1건을 파이프라인에 태워 판정 요약을 반환한다(+ 메트릭 계측).
 
-    spec #2 신뢰 경계: inbound payload 의 `actor_id` 는 외부 위장 가능 — 항상
-    strip 한다. actor_id 는 sim_bridge / 운영자 / 신뢰 inbound webhook 만 채울 수
-    있는 의미라, hotpath HTTP 입력은 None 으로 강제(가드).
+    구조적 신뢰경계: untrusted HTTP 입력은 `UntrustedAlertPayload`(whitelist wire
+    모델)로만 파싱한다. 파이프라인 내부/게이트 산출 필드(actor_id·enrich 플래그·
+    ground_truth·posture·defense_playbook 등 `_INTERNAL_ONLY_FIELDS`)는 wire 모델에
+    없어 위조가 구조적으로 불가능하다. 위조 시도는 로깅해 telemetry 로 남긴다.
     """
-    if isinstance(payload, dict):
-        payload.pop("actor_id", None)
-    alert = Alert.model_validate(payload)
+    forged = has_forged_internal_fields(payload)
+    if forged:
+        _logger.warning("inbound alert 내부전용 필드 위조 시도 드롭: %s", forged)
+    alert = UntrustedAlertPayload.model_validate(payload).to_alert()
     graph = build_soc_graph(settings=get_settings())
     state = await graph.ainvoke({"alert": alert})
     report = state["report"]
