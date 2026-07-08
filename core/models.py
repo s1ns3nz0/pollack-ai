@@ -134,6 +134,38 @@ class VulnFinding(BaseModel):
     source: str = ""
 
 
+class SbomComponent(BaseModel):
+    """SBOM 컴포넌트 한 건(관측된 UAV 펌웨어/라이브러리/모델).
+
+    Attributes:
+        name: 컴포넌트 식별자.
+        version: 관측 버전.
+        hash: 관측 서명 해시(승인 해시와 대조).
+        cves: 컴포넌트가 선언한 CVE 목록(vuln_tool 로 악용여부 조회).
+    """
+
+    name: str
+    version: str = ""
+    hash: str = ""
+    cves: list[str] = Field(default_factory=list)
+
+
+class SbomFinding(BaseModel):
+    """SBOM 검증 위험 한 건(공급망 무결성).
+
+    Attributes:
+        component: 대상 컴포넌트명.
+        issue: "unregistered"(미승인) | "tampered"(해시 불일치) | "vulnerable"(악용 CVE).
+        detail: 사람이 읽을 위험 상세.
+        cve: vulnerable 이면 해당 CVE(그 외 빈값).
+    """
+
+    component: str
+    issue: str
+    detail: str = ""
+    cve: str = ""
+
+
 class Severity(StrEnum):
     """심각도 등급(정책 엔진 산정값)."""
 
@@ -193,6 +225,10 @@ class Alert(BaseModel):
     signals: list[str] = Field(default_factory=list)
     iocs: list[str] = Field(default_factory=list)  # 외부 TI 조회용 지표(해시/IP/도메인)
     cves: list[str] = Field(default_factory=list)  # 취약점 컨텍스트 조회용 CVE 식별자
+    sbom_components: list[SbomComponent] = Field(
+        default_factory=list,
+        description="공급망 검증용 관측 SBOM 컴포넌트(펌웨어 변조 시나리오 등).",
+    )
     expected_detection: dict[str, object] = Field(default_factory=dict)
     defense_playbook: dict[str, object] = Field(default_factory=dict)
     ground_truth: Verdict = Verdict.TRUE_POSITIVE
@@ -765,6 +801,10 @@ class SOCReport(BaseModel):
     stride_threats: list[StrideThreat] = Field(
         default_factory=list,
         description="UAV STRIDE 모델: 이 공격의 위협 유형 분류 + 완화책.",
+    )
+    sbom_findings: list[SbomFinding] = Field(
+        default_factory=list,
+        description="공급망 검증: 미등록/변조/취약 컴포넌트(SBOM 무결성).",
     )
     causal_summary: CausalChain | None = Field(
         default=None, description="spec A1: 결정론 인과 체인 요약."

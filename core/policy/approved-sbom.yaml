@@ -1,0 +1,32 @@
+# =============================================================================
+# 승인 SBOM(Software Bill of Materials) — UAV 컴포넌트 공급망 무결성 기준
+# -----------------------------------------------------------------------------
+# NIST SSDF / SLSA 공급망 보안. UAV 펌웨어·라이브러리·모델의 승인된 버전·해시를
+# 정의한다. SBOMVerifier 가 관측 컴포넌트를 이 목록과 대조해 ① 미등록(승인 안 됨)
+# ② 변조(해시 불일치) ③ 취약(컴포넌트 선언 CVE 를 vuln_tool 로 조회) 를 판정한다.
+#
+# name: 컴포넌트 식별자. version/hash: 승인된 버전·서명 해시(무결성 기준).
+# =============================================================================
+
+version: 0.1
+owner: 황준식
+
+components:
+  px4-autopilot:
+    version: "1.14.3"
+    hash: "sha256:a1b2c3d4e5f6"
+  mavlink-router:
+    version: "3.0.1"
+    hash: "sha256:b2c3d4e5f6a1"
+  gnss-driver:
+    version: "2.2.0"
+    hash: "sha256:c3d4e5f6a1b2"
+  eo-ir-vision-model:
+    version: "4.1.0"
+    hash: "sha256:d4e5f6a1b2c3"
+  c2-link-firmware:
+    version: "5.0.2"
+    hash: "sha256:e5f6a1b2c3d4"
+  satcom-modem-fw:
+    version: "1.8.0"
+    hash: "sha256:f6a1b2c3d4e5"

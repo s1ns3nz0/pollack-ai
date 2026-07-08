@@ -54,12 +54,14 @@ from core.llm import LLMClient
 from core.models import SOCState
 from core.predictor import PredictionMatcher, SequencePredictor
 from core.recovery import RecoveryMatrix, RecoveryPlanner
+from core.sbom import ApprovedSbom, SBOMVerifier
 from core.settings import Settings, get_settings
 from core.severity import SeverityEngine
 from core.staging import DefenseStager
 from core.stride import StrideClassifier, StrideModel
 from tools.coverage import CoverageMatrix
 from tools.rule_publisher import RulePublisher
+from utils.logging import get_logger
 
 # LangGraph 노드 시그니처(에이전트 .run 과 동일: 비동기 SOCState→SOCState).
 _NodeFn = Callable[[SOCState], Coroutine[Any, Any, SOCState]]
@@ -293,6 +295,15 @@ def build_soc_graph(
         stride: StrideClassifier | None = StrideClassifier(StrideModel.from_yaml())
     except SOCPlatformError:
         stride = None
+    # 공급망: approved-sbom.yaml 있으면 SBOM 검증기 배선.
+    # 로드 실패는 로깅한다 — 공급망 검증이 조용히 꺼지면 방어 공백이 은폐되므로.
+    try:
+        sbom: SBOMVerifier | None = SBOMVerifier(ApprovedSbom.from_yaml())
+    except SOCPlatformError as exc:
+        get_logger("graph").warning(
+            "승인 SBOM 로드 실패 — 공급망 검증 비활성(정책 파일 점검 필요): %s", exc
+        )
+        sbom = None
     report = ReportAgent(
         settings,
         engine,
@@ -304,6 +315,8 @@ def build_soc_graph(
         recovery_planner=recovery_planner,
         degradation=degradation,
         stride=stride,
+        sbom=sbom,
+        vuln=vuln,  # SBOM CVE 검증에 vuln 컨텍스트 전달(Codex #1)
     )
 
     graph: StateGraph[SOCState] = StateGraph(SOCState)
