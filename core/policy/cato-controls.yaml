@@ -1,0 +1,23 @@
+# =============================================================================
+# cATO 통제 매핑 — 방어 검증 신호 → NIST 800-53 통제 갭(POA&M) (RMF/DoD DevSecOps)
+# 각 통제는 platform 의 상시 검증 신호(BAS/SLO/SBOM)에 매핑된다. 신호가 임계 미달이면
+# POA&M 발행 → 갭 심각도로 지속 인가태세 판정. "증거 자동생성"을 인가판정까지 확장.
+# Spec: docs/superpowers/specs/2026-07-08-cato-poam-design.md
+# =============================================================================
+
+cato:
+  bas_detection_floor: 0.8      # BAS 탐지 커버리지 하한 — 미달 시 CA-8 POA&M
+
+  controls:
+    - id: CA-8                   # Penetration Testing / 방어 상시 검증
+      family: Assessment, Authorization, and Monitoring
+      source: bas
+      severity: high            # 탐지 커버리지 붕괴 = 고위험(룰이 안 막음)
+    - id: SI-4                   # System Monitoring
+      family: System and Information Integrity
+      source: slo               # severity 는 SloBreach 자체값 우선
+      severity: medium
+    - id: SR-4                   # Provenance / 공급망 무결성
+      family: Supply Chain Risk Management
+      source: sbom              # severity 는 issue 유형(변조/취약=high)
+      severity: medium

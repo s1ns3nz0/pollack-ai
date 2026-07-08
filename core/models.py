@@ -666,6 +666,42 @@ class MissionRisk(BaseModel):
     rationale: list[str] = Field(default_factory=list)
 
 
+class PoamItem(BaseModel):
+    """POA&M(Plan of Action & Milestones) 한 건 — 미충족 통제 갭(RMF/cATO).
+
+    Attributes:
+        control_id: NIST 800-53 통제 식별자(예: CA-8, SI-4, SR-4).
+        family: 통제 패밀리 명.
+        severity: "high" | "medium" | "low".
+        source: 근거 신호("bas"|"slo"|"sbom").
+        gap: 갭 서술(사람이 읽는 미충족 사유).
+        status: "open"(미해결) — 자동 검증 파이프라인에서 지속 추적.
+    """
+
+    control_id: str
+    family: str = ""
+    severity: str = "medium"
+    source: str = ""
+    gap: str = ""
+    status: str = "open"
+
+
+class CatoStatus(BaseModel):
+    """지속 인가(cATO) 상태 — POA&M 집계 + 인가 판정(결정론).
+
+    Attributes:
+        authorization: "authorized"(갭 없음)|"conditional"(중/저 갭)|"at_risk"(고위험 갭).
+        poam: 미충족 통제 목록.
+        controls_evaluated: 평가한 통제 수.
+        rationale: 판정 근거.
+    """
+
+    authorization: str = "authorized"
+    poam: list[PoamItem] = Field(default_factory=list)
+    controls_evaluated: int = 0
+    rationale: list[str] = Field(default_factory=list)
+
+
 class CampaignMatch(BaseModel):
     """진행 중 캠페인 체인 매칭 한 건(2층 상관 — 시나리오 시퀀스).
 
