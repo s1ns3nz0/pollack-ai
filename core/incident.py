@@ -122,19 +122,32 @@ def _provisional_cat(kill_chain_stage: int) -> str:
 
 # 후반 단계 kill-chain order 임계(권위 CAT1 = root/admin intrusion).
 _ROOT_ORDER = 11
+# 재범 재개방 하드캡 — 신뢰소스 오작동/침해 시 무한 reopen/close 순환 방지(Codex H).
+_MAX_REOPEN = 100
+# DoS 시나리오 마커 — eval 명명 규약(의미적 DoS 탐지기 아님, 자문 분류용, Codex L).
+_DOS_MARKERS = frozenset({"SWARM", "SATURATION", "DISABLE", "FLOOD", "DOS"})
 
 
-def _authoritative_cat(env_verdict: EnvVerdict, kill_chain_stage: int) -> str:
+def _is_dos_scenario(scenario_id: str) -> bool:
+    """scenario_id 에 DoS 마커 포함 여부(대문자 매칭)."""
+    up = scenario_id.upper()
+    return any(m in up for m in _DOS_MARKERS)
+
+
+def _authoritative_cat(
+    env_verdict: EnvVerdict, kill_chain_stage: int, is_dos: bool = False
+) -> str:
     """확증 CAT(CJCSM 6510) 순서 결정표(첫 매치·무중첩).
 
     CONFIRMED_FP → CAT3(unsuccessful). CONFIRMED_TP:
-      order≥11(C2 이후)→CAT1(root) / order≥3(침입)→CAT2(user) / order 1~2→CAT6(recon)
-      / order 0(단계 미상 확정)→CAT2.
-    (CAT4 DoS·CAT7 SBOM 은 소스 명확화 필요 → 후속.)
+      DoS→CAT4 / order≥11→CAT1(root) / order≥3→CAT2(user) / order 1~2→CAT6(recon)
+      / order 0→CAT2. (CAT7 SBOM 은 확정 SbomFinding plumbing 필요 → 후속.)
     """
-    # CONFIRMED_FP 우선(무중첩) — 이하 stage 분기는 CONFIRMED_TP 에만 적용(Codex H4).
+    # CONFIRMED_FP 우선(무중첩) — 이하 분기는 CONFIRMED_TP 에만 적용(Codex H4).
     if env_verdict != EnvVerdict.CONFIRMED_TP:
         return "CAT3"  # CONFIRMED_FP → unsuccessful (INCONCLUSIVE 는 호출 전 차단)
+    if is_dos:
+        return "CAT4"  # DoS 는 효과유형 — 단계보다 우선
     if kill_chain_stage >= _ROOT_ORDER:
         return "CAT1"
     if kill_chain_stage > _RECON_MAX_ORDER:
@@ -236,23 +249,39 @@ class CaseManager:
         if not actor_id or is_empty_fingerprint(actor_id):
             return None
         case = self._resolve_case(alert, actor_id, is_explicit)
-        target = self._outcome_target(
-            case.state,
-            env_verdict,
-            recovery_applied=recovery_applied,
-            reoccurred=reoccurred,
-            no_effect_sustained=no_effect_sustained,
-        )
-        if target is not None and _STATE_ORDER[target] > _STATE_ORDER[case.state]:
-            case.state = target
+        is_new_alert = bool(alert.id) and alert.id not in case.member_alert_ids
+        # 재범 재개방(단조성 유일 예외): CLOSED + 신뢰 CONFIRMED_TP + **새 이벤트** +
+        # 캡 미만. 새 alert.id + _MAX_REOPEN 로 무한 순환 봉인(Codex H).
+        if (
+            case.state == IncidentState.CLOSED
+            and env_verdict == EnvVerdict.CONFIRMED_TP
+            and is_new_alert
+            and case.reopen_count < _MAX_REOPEN
+        ):
+            case.state = IncidentState.CONTAINMENT
+            case.reopen_count += 1
+        else:
+            target = self._outcome_target(
+                case.state,
+                env_verdict,
+                recovery_applied=recovery_applied,
+                reoccurred=reoccurred,
+                no_effect_sustained=no_effect_sustained,
+            )
+            if target is not None and _STATE_ORDER[target] > _STATE_ORDER[case.state]:
+                case.state = target
         if env_verdict == EnvVerdict.CONFIRMED_TP:
             case.provisional = False
-        if alert.id and alert.id not in case.member_alert_ids:
+        if is_new_alert:
             case.member_alert_ids.append(alert.id)
             case.member_alert_ids = case.member_alert_ids[-_CASE_CAP:]
         case.kill_chain_stage = max(case.kill_chain_stage, self._alert_stage(alert))
         if not case.provisional:
-            case.cat = _authoritative_cat(env_verdict, case.kill_chain_stage)
+            case.cat = _authoritative_cat(
+                env_verdict,
+                case.kill_chain_stage,
+                _is_dos_scenario(alert.scenario_id),
+            )
         case.updated_at = _now_iso()
         self._store.save(case)
         return case
