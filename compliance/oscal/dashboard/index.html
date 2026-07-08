@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UAV AI SOC — NIST AI RMF 통제 추적 대시보드</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#171c24; --panel2:#1e242e; --line:#2a313c;
+    --txt:#e6edf3; --muted:#8b97a7; --accent:#4c8dff;
+    --impl:#2ea043; --part:#d29922; --plan:#bc4cff; --none:#3d4654;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+  header{padding:20px 24px;border-bottom:1px solid var(--line);background:var(--panel)}
+  h1{margin:0;font-size:18px}
+  .sub{color:var(--muted);font-size:12px;margin-top:4px}
+  .wrap{max-width:1180px;margin:0 auto;padding:20px 24px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .card .n{font-size:26px;font-weight:700}
+  .card .l{color:var(--muted);font-size:12px;margin-top:2px}
+  .bar{height:8px;border-radius:6px;background:var(--none);overflow:hidden;display:flex;margin-top:8px}
+  .bar i{display:block;height:100%}
+  .seg-impl{background:var(--impl)} .seg-part{background:var(--part)} .seg-plan{background:var(--plan)}
+  .fnrow{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:8px}
+  .fnrow .top{display:flex;justify-content:space-between;align-items:center;font-weight:600}
+  .fnrow .mini{color:var(--muted);font-weight:400;font-size:12px}
+  .controls-bar{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 14px}
+  input[type=search],select{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 10px;font-size:13px}
+  input[type=search]{flex:1;min-width:180px}
+  .pill{padding:5px 10px;border-radius:20px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);cursor:pointer;font-size:12px;user-select:none}
+  .pill.on{color:#fff;border-color:transparent}
+  .pill.on[data-s=implemented]{background:var(--impl)} .pill.on[data-s=partial]{background:var(--part);color:#1a1a1a}
+  .pill.on[data-s=planned]{background:var(--plan)} .pill.on[data-s="not-addressed"]{background:var(--none)}
+  .pill.on[data-s=all]{background:var(--accent)}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid var(--line)}
+  td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr.ctl{cursor:pointer}
+  tr.ctl:hover{background:var(--panel)}
+  .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:6px;white-space:nowrap}
+  .t-implemented{background:rgba(46,160,67,.18);color:#5ed87a}
+  .t-partial{background:rgba(210,153,34,.18);color:#e3b341}
+  .t-planned{background:rgba(188,76,255,.18);color:#d99bff}
+  .t-not-addressed{background:rgba(61,70,84,.4);color:#9aa6b5}
+  .lbl{font-weight:600;white-space:nowrap}
+  .detail{background:var(--panel2);font-size:13px}
+  .detail .stmt{color:var(--muted);margin-bottom:8px}
+  .detail b{color:var(--txt)}
+  .chips span{display:inline-block;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:2px 8px;margin:2px 4px 2px 0;font-size:12px;color:var(--muted)}
+  code{background:#0b0e13;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12px}
+  .hide{display:none}
+  footer{color:var(--muted);font-size:11px;text-align:center;padding:24px}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <h1>UAV AI SOC — NIST AI RMF 통제 추적 대시보드</h1>
+  <div class="sub" id="meta"></div>
+</header>
+<div class="wrap">
+  <div class="cards" id="cards"></div>
+  <div id="byfn"></div>
+
+  <div class="controls-bar">
+    <input type="search" id="q" placeholder="통제 ID·문구·컴포넌트 검색…">
+    <select id="fn">
+      <option value="all">전 함수</option>
+      <option value="GOVERN">GOVERN</option><option value="MAP">MAP</option>
+      <option value="MEASURE">MEASURE</option><option value="MANAGE">MANAGE</option>
+    </select>
+    <span class="pill on" data-s="all">전체</span>
+    <span class="pill" data-s="implemented">구현</span>
+    <span class="pill" data-s="partial">부분</span>
+    <span class="pill" data-s="planned">계획</span>
+    <span class="pill" data-s="not-addressed">미대응</span>
+  </div>
+
+  <table>
+    <thead><tr><th style="width:90px">통제</th><th>문구 / 매핑</th><th style="width:90px">상태</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</div>
+<footer id="foot"></footer>
+
+<script src="data.js"></script>
+<script>
+const D = window.OSCAL_DATA;
+let stFilter="all";
+
+function esc(s){return (s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
+const STLABEL={implemented:"구현",partial:"부분",planned:"계획","not-addressed":"미대응"};
+
+function renderTop(){
+  document.getElementById("meta").textContent =
+    `생성 ${D.generated} · OSCAL ${D.oscal_version} · 전체 ${D.summary.total}개 서브카테고리 · 프로파일 채택 ${D.summary.in_profile}개`;
+  const s=D.summary;
+  const pct=Math.round((s.implemented + s.partial*0.5)/s.in_profile*100);
+  document.getElementById("cards").innerHTML = `
+    ${card(s.in_profile,"프로파일 통제")}
+    ${card(s.implemented,"구현","var(--impl)")}
+    ${card(s.partial,"부분","var(--part)")}
+    ${card(s.planned,"계획","var(--plan)")}
+    ${card(pct+"%","가중 진행률","var(--accent)")}
+  `;
+  document.getElementById("byfn").innerHTML = Object.entries(D.by_function).map(([fn,v])=>{
+    const tot=v.implemented+v.partial+v.planned || 1;
+    return `<div class="fnrow"><div class="top"><span>${fn}</span>
+      <span class="mini">매핑 ${v.implemented+v.partial+v.planned}/${v.total} · 구현 ${v.implemented} · 부분 ${v.partial} · 계획 ${v.planned}</span></div>
+      <div class="bar">
+        <i class="seg-impl" style="width:${v.implemented/tot*100}%"></i>
+        <i class="seg-part" style="width:${v.partial/tot*100}%"></i>
+        <i class="seg-plan" style="width:${v.planned/tot*100}%"></i>
+      </div></div>`;
+  }).join("");
+}
+function card(n,l,col){return `<div class="card"><div class="n" style="color:${col||'var(--txt)'}">${n}</div><div class="l">${l}</div></div>`}
+
+function rows(){
+  const q=document.getElementById("q").value.toLowerCase();
+  const fn=document.getElementById("fn").value;
+  const list=D.controls.filter(c=>{
+    if(fn!=="all" && c.function!==fn) return false;
+    if(stFilter!=="all" && c.status!==stFilter) return false;
+    if(q){const hay=(c.label+" "+c.title+" "+c.components.join(" ")+" "+c.narrative).toLowerCase();
+      if(!hay.includes(q)) return false;}
+    return true;
+  });
+  document.getElementById("rows").innerHTML = list.map(c=>{
+    const mapped=c.status!=="not-addressed";
+    const detail = mapped ? `
+      <tr class="detail hide" id="d-${c.id}"><td></td><td colspan="2">
+        <div class="stmt">${esc(c.title)}</div>
+        ${c.narrative?`<div><b>구현:</b> ${esc(c.narrative)}</div>`:""}
+        ${c.components.length?`<div class="chips" style="margin-top:6px"><b>컴포넌트:</b> ${c.components.map(x=>`<span>${esc(x)}</span>`).join("")}</div>`:""}
+        ${c.trustworthy.length?`<div class="chips"><b>Trustworthy:</b> ${c.trustworthy.map(x=>`<span>${esc(x)}</span>`).join("")}</div>`:""}
+        ${c.evidence.length?`<div style="margin-top:6px"><b>증거:</b> ${c.evidence.map(e=>`<code>${esc(e)}</code>`).join(" ")}</div>`:""}
+      </td></tr>` : "";
+    return `<tr class="ctl" onclick="toggle('${c.id}')">
+        <td class="lbl">${c.label}</td>
+        <td>${esc(c.title.length>130?c.title.slice(0,130)+"…":c.title)}
+            ${c.components.length?`<div style="color:var(--muted);font-size:12px;margin-top:3px">▸ ${esc(c.components.join(", "))}</div>`:""}</td>
+        <td><span class="tag t-${c.status}">${STLABEL[c.status]}</span></td>
+      </tr>${detail}`;
+  }).join("");
+  document.getElementById("foot").textContent = `${list.length}개 표시 · NIST AI 100-1 기반 · OSCAL ${D.oscal_version}`;
+}
+function toggle(id){const e=document.getElementById("d-"+id); if(e) e.classList.toggle("hide");}
+
+document.getElementById("q").oninput=rows;
+document.getElementById("fn").onchange=rows;
+document.querySelectorAll(".pill").forEach(p=>p.onclick=()=>{
+  document.querySelectorAll(".pill").forEach(x=>x.classList.remove("on"));
+  p.classList.add("on"); stFilter=p.dataset.s; rows();
+});
+renderTop(); rows();
+</script>
+</body>
+</html>

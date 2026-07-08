@@ -1,0 +1,791 @@
+{
+  "plan-of-action-and-milestones": {
+    "uuid": "c93f5acc-3592-5e09-80e0-511974ab52c5",
+    "metadata": {
+      "title": "UAV AI SOC — POA&M (AI RMF Gaps)",
+      "last-modified": "2026-06-28T14:34:55+00:00",
+      "version": "1.0.0",
+      "oscal-version": "1.1.2",
+      "roles": [
+        {
+          "id": "owner",
+          "title": "UAV AI SOC Platform Team"
+        }
+      ],
+      "parties": [
+        {
+          "uuid": "2981b69e-1600-52ba-b065-d03b7d01d7c6",
+          "type": "organization",
+          "name": "UAV AI SOC Platform Team"
+        }
+      ]
+    },
+    "import-ssp": {
+      "href": "../ssp/uav-soc-ssp.json"
+    },
+    "observations": [
+      {
+        "uuid": "a21fec20-8950-5f53-9a54-a19723ef4db5",
+        "description": "GOVERN 1.1 구현 갭(partial).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      },
+      {
+        "uuid": "d61768e9-0553-5fc7-abce-c1335ee49a38",
+        "description": "GOVERN 1.2 구현 갭(partial).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      },
+      {
+        "uuid": "90a572ec-c461-5c88-9939-a063b99b0085",
+        "description": "GOVERN 1.4 구현 갭(partial).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      },
+      {
+        "uuid": "205f1bba-89f3-58be-a306-311a75d32caf",
+        "description": "GOVERN 1.6 구현 갭(planned).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      },
+      {
+        "uuid": "b29cecb4-9ef6-5f23-98ec-7cad858c4238",
+        "description": "GOVERN 2.1 구현 갭(partial).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      },
+      {
+        "uuid": "b899893d-f060-5af0-b4f8-c67063efd53f",
+        "description": "GOVERN 6.2 구현 갭(partial).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      },
+      {
+        "uuid": "c90c8a8c-75c8-5dfb-ba62-7a7fe74955fd",
+        "description": "MAP 1.1 구현 갭(partial).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      },
+      {
+        "uuid": "e6025e53-505f-5e9b-be96-179109d3270f",
+        "description": "MAP 3.5 구현 갭(partial).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      },
+      {
+        "uuid": "b8afa55f-376a-5b27-97c8-f865462f6097",
+        "description": "MAP 4.1 구현 갭(partial).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      },
+      {
+        "uuid": "0330420e-f867-545e-a1e2-1cdc6a6da2fc",
+        "description": "MAP 5.1 구현 갭(partial).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      },
+      {
+        "uuid": "753a4210-6599-556a-a422-3d2343388a3d",
+        "description": "MEASURE 1.2 구현 갭(partial).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      },
+      {
+        "uuid": "3fb5e435-5475-5459-aaf4-84142afe96fc",
+        "description": "MEASURE 2.5 구현 갭(partial).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      },
+      {
+        "uuid": "9c544ee5-2325-59a9-8804-55d364636a1d",
+        "description": "MEASURE 2.6 구현 갭(partial).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      },
+      {
+        "uuid": "44cc639c-f7c4-5e72-8692-476f5ad5894e",
+        "description": "MEASURE 2.9 구현 갭(partial).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      },
+      {
+        "uuid": "57e317d2-6a52-54e4-ba35-e54b21e8bf01",
+        "description": "MEASURE 3.2 구현 갭(partial).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      },
+      {
+        "uuid": "ccf1c906-f164-5cb8-8a54-2480b4427265",
+        "description": "MEASURE 4.1 구현 갭(partial).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      },
+      {
+        "uuid": "ff8f92ba-8b1f-5be1-a634-bea2b4eb6cb5",
+        "description": "MEASURE 4.2 구현 갭(partial).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      },
+      {
+        "uuid": "e28e8ea0-014d-5c91-ad1f-8f6bc9287be2",
+        "description": "MANAGE 1.2 구현 갭(partial).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      },
+      {
+        "uuid": "b86a269a-1ddf-5820-aa5d-dda0ca3aa20b",
+        "description": "MANAGE 2.3 구현 갭(partial).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      },
+      {
+        "uuid": "2a4d292b-005f-555e-9872-49b62c02dedd",
+        "description": "MANAGE 3.2 구현 갭(partial).",
+        "methods": [
+          "EXAMINE"
+        ],
+        "collected": "2026-06-28T14:34:55+00:00"
+      }
+    ],
+    "poam-items": [
+      {
+        "uuid": "4a3517fc-2384-5894-8f43-027cd02ffd1a",
+        "title": "[GOVERN 1.1] Legal and regulatory requirements involving AI are understoo…",
+        "description": "현황(partial): 방산 컨텍스트의 법·규제(공급망 SSDF/800-204D) 요건을 보안 스킬에 매핑. 정식 법규 인벤토리는 미완.  | 잔여 리스크: 중간",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "partial"
+          },
+          {
+            "name": "risk",
+            "value": "중간"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "a21fec20-8950-5f53-9a54-a19723ef4db5"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "be027df8-361c-513f-9b58-4fd59d04e74c",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "정식 절차/문서 수립 → 게이트화/자동화 → 정기 검토 등록"
+            }
+          ]
+        }
+      },
+      {
+        "uuid": "3db099a3-5c91-56ce-acae-4aebf25278fb",
+        "title": "[GOVERN 1.2] The characteristics of trustworthy AI are integrated into or…",
+        "description": "현황(partial): trustworthy AI 특성을 코딩/보안 규약에 부분 통합. 전사 정책 문서화는 진행 중.  | 잔여 리스크: 중간",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "partial"
+          },
+          {
+            "name": "risk",
+            "value": "중간"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "d61768e9-0553-5fc7-abce-c1335ee49a38"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "431e4c4f-8873-5cf1-88d4-aa4a39b793c6",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "정식 절차/문서 수립 → 게이트화/자동화 → 정기 검토 등록"
+            }
+          ]
+        }
+      },
+      {
+        "uuid": "35931563-4d4c-5c7a-a14c-7fa2350cf920",
+        "title": "[GOVERN 1.4] The risk management process and its outcomes are established…",
+        "description": "현황(partial): 리스크 관리 프로세스를 게이트(품질/보안/AI레드팀)와 ADR로 투명화. 리스크 우선순위 정책은 부분.  | 잔여 리스크: 중간",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "partial"
+          },
+          {
+            "name": "risk",
+            "value": "중간"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "90a572ec-c461-5c88-9939-a063b99b0085"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "fe959695-a441-58d2-8b9a-08088eaa0df4",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "정식 절차/문서 수립 → 게이트화/자동화 → 정기 검토 등록"
+            }
+          ]
+        }
+      },
+      {
+        "uuid": "6d882a6f-2713-55ae-ad54-b8f99056b817",
+        "title": "[GOVERN 1.6] Mechanisms are in place to inventory AI systems and are reso…",
+        "description": "현황(planned): AI 시스템(에이전트/모델) 인벤토리 메커니즘 미구축. POA&M 항목.  | 잔여 리스크: 높음",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "planned"
+          },
+          {
+            "name": "risk",
+            "value": "높음"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "205f1bba-89f3-58be-a306-311a75d32caf"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "ae724322-f5f4-5432-ae79-a3622befa4f2",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "설계 → 구현 → 게이트/모니터링 통합"
+            }
+          ]
+        }
+      },
+      {
+        "uuid": "e63eb944-715c-569d-b13f-12459b571a40",
+        "title": "[GOVERN 2.1] Roles and responsibilities and lines of communication relate…",
+        "description": "현황(partial): 하네스 에이전트별 역할 정의로 책임 경계 명확화. CODEOWNERS·승인 권한 매트릭스는 계획.  | 잔여 리스크: 중간",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "partial"
+          },
+          {
+            "name": "risk",
+            "value": "중간"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "b29cecb4-9ef6-5f23-98ec-7cad858c4238"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "bc5bcf43-785c-51d2-8d2b-c681fdc3391c",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "정식 절차/문서 수립 → 게이트화/자동화 → 정기 검토 등록"
+            }
+          ]
+        }
+      },
+      {
+        "uuid": "dc8667da-48ee-54af-acd7-2960e5137281",
+        "title": "[GOVERN 6.2] Contingency processes are in place to handle failures or inc…",
+        "description": "현황(partial): 서드파티 장애 대비 롤백/대체 경로 일부. 고위험 third-party 모델 비상계획은 부분.  | 잔여 리스크: 중간",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "partial"
+          },
+          {
+            "name": "risk",
+            "value": "중간"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "b899893d-f060-5af0-b4f8-c67063efd53f"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "8c034d92-459b-50ca-8684-91ba05929ad5",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "정식 절차/문서 수립 → 게이트화/자동화 → 정기 검토 등록"
+            }
+          ]
+        }
+      },
+      {
+        "uuid": "fdebf90e-f680-556c-a873-98ea6b8ac1bd",
+        "title": "[MAP 1.1] Intended purposes, potentially beneficial uses, context-spec…",
+        "description": "현황(partial): 방산 UAV SOC 의도/맥락/사용자를 문서로 정의. 정식 영향분석은 부분.  | 잔여 리스크: 중간",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "partial"
+          },
+          {
+            "name": "risk",
+            "value": "중간"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "c90c8a8c-75c8-5dfb-ba62-7a7fe74955fd"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "536f016b-58ba-5ee7-aa31-ad04fa2de9ae",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "정식 절차/문서 수립 → 게이트화/자동화 → 정기 검토 등록"
+            }
+          ]
+        }
+      },
+      {
+        "uuid": "b87d8525-e1ae-5bc9-9bf9-98f5acd553cf",
+        "title": "[MAP 3.5] Processes for human oversight are defined, assessed, and doc…",
+        "description": "현황(partial): human oversight = prod 수동 승인 게이트 + 정책 하한. 절차 정식 평가는 부분.  | 잔여 리스크: 중간",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "partial"
+          },
+          {
+            "name": "risk",
+            "value": "중간"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "e6025e53-505f-5e9b-be96-179109d3270f"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "65eff31f-f189-54e3-8adf-539dd09eb07d",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "정식 절차/문서 수립 → 게이트화/자동화 → 정기 검토 등록"
+            }
+          ]
+        }
+      },
+      {
+        "uuid": "fdac3a48-3fe4-5cd9-b36d-fa899fc691ec",
+        "title": "[MAP 4.1] Approaches for mapping AI technology and legal risks of its …",
+        "description": "현황(partial): 서드파티 데이터/SW 기술·법적 리스크 매핑(SCA/라이선스). 정식 문서화 진행.  | 잔여 리스크: 중간",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "partial"
+          },
+          {
+            "name": "risk",
+            "value": "중간"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "b8afa55f-376a-5b27-97c8-f865462f6097"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "dd2f20a8-0221-51f1-a742-39d9aa270390",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "정식 절차/문서 수립 → 게이트화/자동화 → 정기 검토 등록"
+            }
+          ]
+        }
+      },
+      {
+        "uuid": "5de0cf57-766e-52c4-b7b0-8ebec9ed8ace",
+        "title": "[MAP 5.1] Likelihood and magnitude of each identified impact (both pot…",
+        "description": "현황(partial): 공격 시나리오(S1~S11, ATT&CK/ATLAS)로 영향 가능성·규모 일부 특성화.  | 잔여 리스크: 중간",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "partial"
+          },
+          {
+            "name": "risk",
+            "value": "중간"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "0330420e-f867-545e-a1e2-1cdc6a6da2fc"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "0ab8a4d2-17f9-597c-bbbe-02147fb76f46",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "정식 절차/문서 수립 → 게이트화/자동화 → 정기 검토 등록"
+            }
+          ]
+        }
+      },
+      {
+        "uuid": "39b1fcb4-a405-575d-85e5-587a8aad06fe",
+        "title": "[MEASURE 1.2] Appropriateness of AI metrics and effectiveness of existing …",
+        "description": "현황(partial): 지표 적절성/통제 효과를 벤치 추세로 평가. 정기 갱신 절차는 부분.  | 잔여 리스크: 중간",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "partial"
+          },
+          {
+            "name": "risk",
+            "value": "중간"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "753a4210-6599-556a-a422-3d2343388a3d"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "59d65e4f-c6ef-508f-b633-ac4705498dac",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "정식 절차/문서 수립 → 게이트화/자동화 → 정기 검토 등록"
+            }
+          ]
+        }
+      },
+      {
+        "uuid": "3ac6d421-3e87-50fd-b592-5a6a5c628d6b",
+        "title": "[MEASURE 2.5] The AI system to be deployed is demonstrated to be valid and…",
+        "description": "현황(partial): 유효성·신뢰성 데모(벤치)와 일반화 한계 일부 문서화. LLM 연동 RAGAS 확대 진행.  | 잔여 리스크: 중간",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "partial"
+          },
+          {
+            "name": "risk",
+            "value": "중간"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "3fb5e435-5475-5459-aaf4-84142afe96fc"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "2ffeaebe-20ea-5296-893f-9c88173dfc93",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "정식 절차/문서 수립 → 게이트화/자동화 → 정기 검토 등록"
+            }
+          ]
+        }
+      },
+      {
+        "uuid": "bcdc711d-5cd9-511d-94e3-b994d363407c",
+        "title": "[MEASURE 2.6] The AI system is evaluated regularly for safety risks – as i…",
+        "description": "현황(partial): 안전 평가: 정책 하한으로 fail-safe(등급 미하향), 잔여 리스크 추적. 정기 안전평가 정식화는 부분.  | 잔여 리스크: 중간",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "partial"
+          },
+          {
+            "name": "risk",
+            "value": "중간"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "9c544ee5-2325-59a9-8804-55d364636a1d"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "f19499de-2288-5f4f-a772-901a05dc4e40",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "정식 절차/문서 수립 → 게이트화/자동화 → 정기 검토 등록"
+            }
+          ]
+        }
+      },
+      {
+        "uuid": "729b6e43-0518-582c-8263-93fd5e8512b8",
+        "title": "[MEASURE 2.9] The AI model is explained, validated, and documented, and AI…",
+        "description": "현황(partial): 트리아지 판정 근거·검증(결정론 judge)으로 설명/해석 일부. 정식 모델 설명서는 부분.  | 잔여 리스크: 중간",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "partial"
+          },
+          {
+            "name": "risk",
+            "value": "중간"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "44cc639c-f7c4-5e72-8692-476f5ad5894e"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "216d83f8-0a56-5213-acc1-57af6ee46d0a",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "정식 절차/문서 수립 → 게이트화/자동화 → 정기 검토 등록"
+            }
+          ]
+        }
+      },
+      {
+        "uuid": "f046ae85-31f3-5bb4-b824-f015bad9a268",
+        "title": "[MEASURE 3.2] Risk tracking approaches are considered for settings where A…",
+        "description": "현황(partial): 측정 곤란 영역(T0015 미믹리)을 게이트 아닌 추세 감시로 추적.  | 잔여 리스크: 중간",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "partial"
+          },
+          {
+            "name": "risk",
+            "value": "중간"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "57e317d2-6a52-54e4-ba35-e54b21e8bf01"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "08dcf8b9-9b89-5f2b-ae29-f69bd00156f6",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "정식 절차/문서 수립 → 게이트화/자동화 → 정기 검토 등록"
+            }
+          ]
+        }
+      },
+      {
+        "uuid": "bb597479-4ac8-52c8-80cf-8309170bc9a6",
+        "title": "[MEASURE 4.1] Measurement approaches for identifying AI risks are connecte…",
+        "description": "현황(partial): 측정 접근을 배포 맥락에 연결. 도메인 전문가 협의 정식화는 부분.  | 잔여 리스크: 중간",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "partial"
+          },
+          {
+            "name": "risk",
+            "value": "중간"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "ccf1c906-f164-5cb8-8a54-2480b4427265"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "045f18b3-d1ba-52e9-97ab-dd9094a4e1ac",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "정식 절차/문서 수립 → 게이트화/자동화 → 정기 검토 등록"
+            }
+          ]
+        }
+      },
+      {
+        "uuid": "f53445e1-102d-5951-8adc-95d0ee4ff355",
+        "title": "[MEASURE 4.2] Measurement results regarding AI system trustworthiness in d…",
+        "description": "현황(partial): 신뢰성 측정 결과를 LLM-as-Judge 등으로 검증. 전문가 입력 정식 절차는 부분.  | 잔여 리스크: 중간",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "partial"
+          },
+          {
+            "name": "risk",
+            "value": "중간"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "ff8f92ba-8b1f-5be1-a634-bea2b4eb6cb5"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "aff762bc-14a0-5c25-bd6a-9eb938c854c9",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "정식 절차/문서 수립 → 게이트화/자동화 → 정기 검토 등록"
+            }
+          ]
+        }
+      },
+      {
+        "uuid": "6c6b526e-1b10-524f-80ac-4e4b088d8bc2",
+        "title": "[MANAGE 1.2] Treatment of documented AI risks is prioritized based on imp…",
+        "description": "현황(partial): 문서화된 리스크를 게이트 차단정책(CVSS/임계)으로 우선순위화. 통합 리스크 레지스터는 계획.  | 잔여 리스크: 중간",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "partial"
+          },
+          {
+            "name": "risk",
+            "value": "중간"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "e28e8ea0-014d-5c91-ad1f-8f6bc9287be2"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "2771102a-390a-55b5-bbfd-13863808454a",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "정식 절차/문서 수립 → 게이트화/자동화 → 정기 검토 등록"
+            }
+          ]
+        }
+      },
+      {
+        "uuid": "18244894-f7b8-5371-b76d-5193355c7614",
+        "title": "[MANAGE 2.3] Procedures are followed to respond to and recover from a pre…",
+        "description": "현황(partial): 미지의 리스크 대응/복구를 자동 롤백·사후분석으로. 정식 절차 문서화는 부분.  | 잔여 리스크: 중간",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "partial"
+          },
+          {
+            "name": "risk",
+            "value": "중간"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "b86a269a-1ddf-5820-aa5d-dda0ca3aa20b"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "d3ee8359-ee01-507c-80f9-1a31b0a74e79",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "정식 절차/문서 수립 → 게이트화/자동화 → 정기 검토 등록"
+            }
+          ]
+        }
+      },
+      {
+        "uuid": "307be8af-49cc-545a-907c-52d3071f332c",
+        "title": "[MANAGE 3.2] Pre-trained models which are used for development are monito…",
+        "description": "현황(partial): 사전학습 모델(Azure OpenAI) 버전/행동 모니터링 일부. 정식 모델 모니터링 계획.  | 잔여 리스크: 중간",
+        "props": [
+          {
+            "name": "implementation-status",
+            "value": "partial"
+          },
+          {
+            "name": "risk",
+            "value": "중간"
+          }
+        ],
+        "related-observations": [
+          {
+            "observation-uuid": "2a4d292b-005f-555e-9872-49b62c02dedd"
+          }
+        ],
+        "remediation-tracking": {
+          "tracking-entries": [
+            {
+              "uuid": "b2828b19-bba7-519d-8ed9-ef81147d32f6",
+              "date-time-stamp": "2026-06-28T14:34:55+00:00",
+              "title": "초기 등록",
+              "description": "정식 절차/문서 수립 → 게이트화/자동화 → 정기 검토 등록"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

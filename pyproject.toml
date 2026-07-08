@@ -68,7 +68,8 @@ line-length = 88
 target-version = ["py311"]
 # 큰따옴표 통일 (기본값)
 # projects/ 는 별도 관리(gitignore)되는 관련 프로젝트 모음 — 팀 도구 검사 대상 아님
-extend-exclude = "(projects|benchmarks|scripts)/"
+# compliance/ 는 OSCAL 산출물+보조 스크립트(크로스레인 도구) — scripts 와 동류 제외
+extend-exclude = "(projects|benchmarks|scripts|compliance)/"
 
 # ─────────────────────────────────────────
 # ruff — 린터 + isort
@@ -76,8 +77,8 @@ extend-exclude = "(projects|benchmarks|scripts)/"
 [tool.ruff]
 line-length = 88
 target-version = "py311"
-# projects/ 제외 (별도 관리되는 관련 프로젝트 모음)
-extend-exclude = ["projects", "benchmarks", "scripts"]
+# projects/ 제외 (별도 관리되는 관련 프로젝트 모음). compliance=OSCAL 도구(scripts 동류)
+extend-exclude = ["projects", "benchmarks", "scripts", "compliance"]
 
 [tool.ruff.lint]
 select = [
@@ -112,7 +113,7 @@ force-sort-within-sections = true
 # 쓰므로 3.11 타깃이면 파싱 충돌. requires-python 은 런타임 호환을 위해 >=3.11 유지.
 python_version = "3.12"
 strict = true                    # 모든 strict 옵션 활성화
-exclude = "^(projects|benchmarks|scripts)/"           # 별도 관리되는 관련 프로젝트 모음 제외
+exclude = "^(projects|benchmarks|scripts|compliance|_workspace)/"  # 별도 관리 도구/산출물 제외
 
 # strict 세부 항목 (strict = true 와 동일하지만 명시)
 disallow_any_generics = true

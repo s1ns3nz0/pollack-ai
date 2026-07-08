@@ -10,18 +10,29 @@ ATT&CK 갭을 여는 신규 `*_CL` 테이블의 ARM 스키마. 분석/매핑은
 | `UAVImagery_CL.json` | 영상 스트림 이벤트 | 8 | EO/IR 다운링크 |
 | `UAVFileAudit_CL.json` | 파일·exec 감사 | 9 | eBPF/Falco |
 
-## 1. 테이블 스키마 배포 (멱등)
+## 0. 원샷 배포 (권장)
+테이블 + DCE + DCR 을 한 번에:
 ```bash
-WS=dah-data-law
-RG=dah-data-rg
-for f in deploy/sentinel-tables/*.json; do
+az login                       # 1회
+az account set -s <SUBSCRIPTION>
+cd deploy/sentinel-tables
+RG=dah-data-rg WS=dah-data-law LOCATION=koreacentral ./deploy.sh
+```
+`deploy.sh` 가 ① 테이블 4종 배포 → ② DCE 생성 → ③ `dcr.json` 배포 → ④ ingestion
+엔드포인트/immutableId 출력(소스가 POST 할 주소)까지 멱등으로 수행한다.
+
+## 1. 테이블 스키마만 수동 배포 (대안)
+```bash
+WS=dah-data-law; RG=dah-data-rg
+for f in deploy/sentinel-tables/UAV*_CL.json; do
   az deployment group create -g "$RG" \
-    --template-file "$f" \
-    --parameters workspaceName="$WS"
+    --template-file "$f" --parameters workspaceName="$WS"
 done
 ```
 
 ## 2. DCR 패턴 (소스 → 테이블 적재)
+`deploy.sh` 가 배포하는 `dcr.json` 은 4개 테이블의 `Custom-<Table>` 스트림을 선언하고
+워크스페이스로 흘린다(Logs Ingestion API). 스켈레톤 구조:
 커스텀 테이블은 **Data Collection Rule(DCR) + Azure Monitor Agent** 또는 **Logs
 Ingestion API** 로 채운다. DCR 스켈레톤(텍스트 로그 스트림 예):
 ```jsonc
@@ -62,10 +73,28 @@ Ingestion API** 로 채운다. DCR 스켈레톤(텍스트 로그 스트림 예):
 - 또는 코드에서 **Logs Ingestion API**(DCE + DCR)로 직접 POST.
 - `transformKql` 로 적재 시점 변환 가능(예: 컬럼 리네임/마스킹).
 
-## 3. 검증
+## 3. 테스트 데이터 적재
+`scripts/gen_table_testdata.py` 가 4개 테이블에 **정상 + 공격** 행을 생성한다.
+```bash
+# (a) 파일로 먼저 뽑아 검토(dry-run)
+python scripts/gen_table_testdata.py --out scripts/testdata --normal 50 --attack 5
+
+# (b) Logs Ingestion API 로 직접 적재
+TOKEN=$(az account get-access-token --resource https://monitor.azure.com \
+          --query accessToken -o tsv)
+python scripts/gen_table_testdata.py --post \
+  --endpoint <DCE ingestion 엔드포인트> \
+  --dcr-id <DCR immutableId> \
+  --token "$TOKEN" --normal 50 --attack 5
+```
+공격 행: GCS 외부IP/대용량(하이재킹·캡처), Router CRC 급증(C2), Imagery gap/degraded
+(View 상실), FileAudit delete(데이터 파괴) — 해당 탐지가 발화하도록 설계.
+
+## 4. 검증
 ```kusto
 UAVGcsAccess_CL | take 10
 UAVFileAudit_CL | summarize count() by Operation
+UAVRouterStats_CL | where CrcErrors > 1000   // 공격 행
 ```
 
 ## 4. 소유권

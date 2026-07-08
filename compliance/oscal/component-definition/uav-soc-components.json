@@ -1,0 +1,740 @@
+{
+  "component-definition": {
+    "uuid": "c5069f17-0cce-55c5-8f15-b02c190871ab",
+    "metadata": {
+      "title": "UAV AI SOC — Platform Components (AI RMF Implementation)",
+      "last-modified": "2026-06-28T14:34:55+00:00",
+      "version": "1.0.0",
+      "oscal-version": "1.1.2",
+      "roles": [
+        {
+          "id": "owner",
+          "title": "UAV AI SOC Platform Team"
+        }
+      ],
+      "parties": [
+        {
+          "uuid": "2981b69e-1600-52ba-b065-d03b7d01d7c6",
+          "type": "organization",
+          "name": "UAV AI SOC Platform Team"
+        }
+      ]
+    },
+    "components": [
+      {
+        "uuid": "62ad1ec5-262b-5f9a-a1c5-ad6e5458b1bc",
+        "type": "service",
+        "title": "CI/CD Pipeline (GitHub Actions)",
+        "description": "lint(black/ruff/mypy)→test(pytest)→CodeQL→dependency-review CI 게이트. .github/workflows/ci.yml.",
+        "control-implementations": [
+          {
+            "uuid": "28fcb47c-d81c-52f2-b4ea-5b5d57095198",
+            "source": "../profile/uav-soc-ai-rmf-profile.json",
+            "description": "CI/CD Pipeline (GitHub Actions) 가 충족하는 AI RMF 통제.",
+            "implemented-requirements": [
+              {
+                "uuid": "88078889-9544-55f2-bbef-add1a933d37a",
+                "control-id": "govern-1.4",
+                "description": "리스크 관리 프로세스를 게이트(품질/보안/AI레드팀)와 ADR로 투명화. 리스크 우선순위 정책은 부분.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "cf3b50f6-c32a-5500-8086-c152cdd875b5",
+                "control-id": "govern-4.3",
+                "description": "AI 테스트(레드팀 캠페인)·인시던트 식별(사후분석)·정보공유(SBOM/리포트) 관행 확립.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "dfccb041-a360-5656-9257-03cd38bfddd9",
+                "control-id": "measure-2.1",
+                "description": "테스트셋·지표·도구(PyRIT/Garak/pytest)를 TEVV로 문서화.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "d12e96ed-1544-514e-92f1-e1f635f7d484",
+                "control-id": "measure-2.3",
+                "description": "성능/보증 기준을 정량 측정(라우팅 정확도·Recall@5·MRR), 배포 유사 조건에서.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "2d4d4ad4-7861-56c0-a319-6fffdf171a0a",
+                "control-id": "measure-2.5",
+                "description": "유효성·신뢰성 데모(벤치)와 일반화 한계 일부 문서화. LLM 연동 RAGAS 확대 진행.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "bf20c519-b0fa-5305-8048-eff1c8cc8d0e",
+                "control-id": "manage-1.2",
+                "description": "문서화된 리스크를 게이트 차단정책(CVSS/임계)으로 우선순위화. 통합 리스크 레지스터는 계획.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "58249a70-1251-5dc7-b528-42cdc6e88748",
+                "control-id": "manage-1.3",
+                "description": "고우선 리스크 대응을 게이트 차단 + POA&M으로 계획·문서화(완화/회피).",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "uuid": "1a5273f9-6f59-59ec-8fe2-fe84e1cc629f",
+        "type": "service",
+        "title": "AI Red Team Gate (PyRIT/ATLAS)",
+        "description": "AI 시스템 적대 견고성 게이트. benchmarks/run_atlas_redteam.py, run_redteam_skeleton.py, check_gates.py. 트랙 A(PR 차단)+B(나이틀리).",
+        "control-implementations": [
+          {
+            "uuid": "18c500c7-62a7-5b1c-b204-c13fc63bba27",
+            "source": "../profile/uav-soc-ai-rmf-profile.json",
+            "description": "AI Red Team Gate (PyRIT/ATLAS) 가 충족하는 AI RMF 통제.",
+            "implemented-requirements": [
+              {
+                "uuid": "8bf75d94-692c-5321-8eec-5b3fd39d267c",
+                "control-id": "govern-4.3",
+                "description": "AI 테스트(레드팀 캠페인)·인시던트 식별(사후분석)·정보공유(SBOM/리포트) 관행 확립.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "a01124ea-8529-5a0d-b4bf-ff35f9322ebf",
+                "control-id": "map-4.2",
+                "description": "서드파티 AI(LLM/RAG) 포함 컴포넌트 내부 통제 식별: 게이트·가드레일·출처검증.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "c67f5a99-4ef3-53c7-9759-963e18675c9e",
+                "control-id": "map-5.1",
+                "description": "공격 시나리오(S1~S11, ATT&CK/ATLAS)로 영향 가능성·규모 일부 특성화.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "fb2d205e-b0b6-5c2d-aab6-ef3aa5e7edc6",
+                "control-id": "measure-1.1",
+                "description": "AI 리스크 측정 지표(공격성공률·FP재발률·RAGAS) 선정·구현, 최우선 리스크부터.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "03728842-dc9b-58f4-93a9-28ed980a7382",
+                "control-id": "measure-2.1",
+                "description": "테스트셋·지표·도구(PyRIT/Garak/pytest)를 TEVV로 문서화.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "e1c440c6-633a-5af8-b598-9a21c1ccddd8",
+                "control-id": "measure-2.6",
+                "description": "안전 평가: 정책 하한으로 fail-safe(등급 미하향), 잔여 리스크 추적. 정기 안전평가 정식화는 부분.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "ea03ef1c-29fe-5819-9fe0-a278be77460b",
+                "control-id": "measure-2.7",
+                "description": "보안·복원력 평가·문서화: ATLAS 적대 벤치(robust vs naive) + 공급망 무결성.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "c5e63771-b38f-500b-a515-eac7d6d4f4cb",
+                "control-id": "measure-3.1",
+                "description": "기존/신규/돌발 리스크를 정기 추적: 나이틀리 레드팀 캠페인 + Grafana 시계열.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "a775d50d-018a-56b0-a1a9-1be16c3bbb56",
+                "control-id": "measure-3.2",
+                "description": "측정 곤란 영역(T0015 미믹리)을 게이트 아닌 추세 감시로 추적.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "d89736b9-aa68-5407-9c6b-8cf68bf5e1a9",
+                "control-id": "manage-1.2",
+                "description": "문서화된 리스크를 게이트 차단정책(CVSS/임계)으로 우선순위화. 통합 리스크 레지스터는 계획.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "98a4c201-2b11-5145-ad89-6b6248696f9a",
+                "control-id": "manage-1.3",
+                "description": "고우선 리스크 대응을 게이트 차단 + POA&M으로 계획·문서화(완화/회피).",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "uuid": "f0b36959-46d4-55c2-8bf7-52c78350f0de",
+        "type": "service",
+        "title": "Supply Chain Integrity",
+        "description": "SBOM(Syft)·서명(cosign)·SLSA provenance·Actions SHA 핀·OIDC. SCA(dependency-review/Trivy).",
+        "control-implementations": [
+          {
+            "uuid": "2e2e1ebb-33b6-52dc-b6f6-7f9d911a05aa",
+            "source": "../profile/uav-soc-ai-rmf-profile.json",
+            "description": "Supply Chain Integrity 가 충족하는 AI RMF 통제.",
+            "implemented-requirements": [
+              {
+                "uuid": "eb364bd7-e17c-54d4-91f2-b34439d86e8e",
+                "control-id": "govern-6.1",
+                "description": "서드파티 SW/데이터 공급망 리스크를 SCA·SBOM·라이선스 검사로 통제.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "eabdd9f6-bc21-52cc-a7c3-3a566f4eb903",
+                "control-id": "govern-6.2",
+                "description": "서드파티 장애 대비 롤백/대체 경로 일부. 고위험 third-party 모델 비상계획은 부분.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "3cdd95b5-d0df-5469-9a65-bf6902b41950",
+                "control-id": "map-4.1",
+                "description": "서드파티 데이터/SW 기술·법적 리스크 매핑(SCA/라이선스). 정식 문서화 진행.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "17583036-293d-5b77-b3c0-c284ee1dc1e0",
+                "control-id": "measure-2.7",
+                "description": "보안·복원력 평가·문서화: ATLAS 적대 벤치(robust vs naive) + 공급망 무결성.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "0ad0c1f3-1a71-5b26-aa2c-b43922935e36",
+                "control-id": "manage-3.1",
+                "description": "서드파티 리스크 정기 모니터링: dependency-review, Trivy, Dependabot SHA 갱신.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "bf4abb53-d7f8-56da-821d-cd2144ef2a61",
+                "control-id": "manage-3.2",
+                "description": "사전학습 모델(Azure OpenAI) 버전/행동 모니터링 일부. 정식 모델 모니터링 계획.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "uuid": "62de315d-a6c6-555e-87dc-26367fc0b06a",
+        "type": "service",
+        "title": "Deployment & GitOps (AKS/ArgoCD)",
+        "description": "ArgoCD GitOps, AKS 트랙 A/B, Argo Rollouts Canary 자동 분석/롤백. deploy/.",
+        "control-implementations": [
+          {
+            "uuid": "f1d1ed99-ea6a-5865-86da-fe4de50f14cd",
+            "source": "../profile/uav-soc-ai-rmf-profile.json",
+            "description": "Deployment & GitOps (AKS/ArgoCD) 가 충족하는 AI RMF 통제.",
+            "implemented-requirements": [
+              {
+                "uuid": "6d1d6923-0bbe-5a2a-94ca-4460bbc928e2",
+                "control-id": "map-3.5",
+                "description": "human oversight = prod 수동 승인 게이트 + 정책 하한. 절차 정식 평가는 부분.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "aed31a11-d070-5c6b-b466-8e51f614e056",
+                "control-id": "manage-2.3",
+                "description": "미지의 리스크 대응/복구를 자동 롤백·사후분석으로. 정식 절차 문서화는 부분.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "3762ba6b-37b1-551f-8533-e58c873dd807",
+                "control-id": "manage-2.4",
+                "description": "이상 행동 시스템 비활성화: Argo Rollouts 자동 중단/롤백, 정책 하한으로 강등 차단.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "uuid": "85f45c5c-c58e-57ce-a7c8-fb2608a71d16",
+        "type": "service",
+        "title": "Observability (Prometheus/Grafana)",
+        "description": "DORA + AI-SOC 메트릭(agent latency, 토큰비용, RAGAS faithfulness/relevancy, 트리아지 정확도). deploy/monitoring/.",
+        "control-implementations": [
+          {
+            "uuid": "f7e89090-3c91-5084-8261-3599c9dc7a73",
+            "source": "../profile/uav-soc-ai-rmf-profile.json",
+            "description": "Observability (Prometheus/Grafana) 가 충족하는 AI RMF 통제.",
+            "implemented-requirements": [
+              {
+                "uuid": "4d19dbac-8d31-5590-81af-267bdc4e46f9",
+                "control-id": "measure-1.1",
+                "description": "AI 리스크 측정 지표(공격성공률·FP재발률·RAGAS) 선정·구현, 최우선 리스크부터.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "5644c06c-4194-50dd-ab12-6c81c9bf49c4",
+                "control-id": "measure-1.2",
+                "description": "지표 적절성/통제 효과를 벤치 추세로 평가. 정기 갱신 절차는 부분.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "ee29d693-69f2-51b1-a0a3-2dabf916ed5b",
+                "control-id": "measure-2.3",
+                "description": "성능/보증 기준을 정량 측정(라우팅 정확도·Recall@5·MRR), 배포 유사 조건에서.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "76b355d3-f07d-54a6-9469-60daeabb94cd",
+                "control-id": "measure-2.4",
+                "description": "프로덕션에서 시스템 기능·행동 모니터링(Prometheus ServiceMonitor + Grafana).",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "49185697-94ef-5d35-bdf4-be00171cbb2a",
+                "control-id": "measure-3.1",
+                "description": "기존/신규/돌발 리스크를 정기 추적: 나이틀리 레드팀 캠페인 + Grafana 시계열.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "e2a97707-37ad-5be4-a3d3-93fcd9bd3b10",
+                "control-id": "measure-4.1",
+                "description": "측정 접근을 배포 맥락에 연결. 도메인 전문가 협의 정식화는 부분.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "4d5cefef-384a-5ae6-988c-db0a64c7f5ec",
+                "control-id": "measure-4.2",
+                "description": "신뢰성 측정 결과를 LLM-as-Judge 등으로 검증. 전문가 입력 정식 절차는 부분.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "70951781-3244-5a5f-a005-5064337b2359",
+                "control-id": "manage-3.2",
+                "description": "사전학습 모델(Azure OpenAI) 버전/행동 모니터링 일부. 정식 모델 모니터링 계획.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "ef0b2d80-df4e-55bf-81df-02dbba655b0e",
+                "control-id": "manage-4.1",
+                "description": "배포 후 모니터링 계획 구현: 메트릭·알림·인시던트 대응·변경관리(GitOps).",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "ca20d539-ca42-573e-8b10-8c2048971a66",
+                "control-id": "manage-4.3",
+                "description": "인시던트/오류 소통·추적: 사후분석 하네스 + Slack/PagerDuty 알림, 추적·복구 절차.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "uuid": "1f36ad4f-1006-5701-9ed2-77f4b512c0ea",
+        "type": "software",
+        "title": "Runtime Defense Guardrails",
+        "description": "정책 등급 하한, MemoryReadGate 출처(서명)검증, RAG 포이즌 폐기. core/experience.py, agents/.",
+        "control-implementations": [
+          {
+            "uuid": "057598f4-471d-5f69-8c89-68d2e47e9fd6",
+            "source": "../profile/uav-soc-ai-rmf-profile.json",
+            "description": "Runtime Defense Guardrails 가 충족하는 AI RMF 통제.",
+            "implemented-requirements": [
+              {
+                "uuid": "9c48fe39-36a4-50dd-a4cd-243f65d7019a",
+                "control-id": "map-3.5",
+                "description": "human oversight = prod 수동 승인 게이트 + 정책 하한. 절차 정식 평가는 부분.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "85b8901a-1646-54c9-8ede-6a886ca96069",
+                "control-id": "map-4.2",
+                "description": "서드파티 AI(LLM/RAG) 포함 컴포넌트 내부 통제 식별: 게이트·가드레일·출처검증.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "b0845012-748a-5655-93ca-58d801684ceb",
+                "control-id": "measure-2.6",
+                "description": "안전 평가: 정책 하한으로 fail-safe(등급 미하향), 잔여 리스크 추적. 정기 안전평가 정식화는 부분.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "cfa5369e-9999-504f-a508-4cd2df9c888b",
+                "control-id": "measure-2.9",
+                "description": "트리아지 판정 근거·검증(결정론 judge)으로 설명/해석 일부. 정식 모델 설명서는 부분.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "d0662d90-752e-5b20-af34-67ddcf57fd4b",
+                "control-id": "manage-2.4",
+                "description": "이상 행동 시스템 비활성화: Argo Rollouts 자동 중단/롤백, 정책 하한으로 강등 차단.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "uuid": "d9f6bdba-ef6b-5586-b583-2a02f77f08a6",
+        "type": "policy",
+        "title": "Governance & Policy",
+        "description": "CLAUDE.md, .claude/rules/python-conventions.md, docs/adr/, CI/CD 하네스, CODEOWNERS(계획).",
+        "control-implementations": [
+          {
+            "uuid": "e21676cb-6aed-509f-aeb1-aa5c0d4d6360",
+            "source": "../profile/uav-soc-ai-rmf-profile.json",
+            "description": "Governance & Policy 가 충족하는 AI RMF 통제.",
+            "implemented-requirements": [
+              {
+                "uuid": "c109789e-d77e-5c6e-8b4e-fe99589bf6c7",
+                "control-id": "govern-1.1",
+                "description": "방산 컨텍스트의 법·규제(공급망 SSDF/800-204D) 요건을 보안 스킬에 매핑. 정식 법규 인벤토리는 미완.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "9e7dde3c-80c5-563d-a939-428152549121",
+                "control-id": "govern-1.2",
+                "description": "trustworthy AI 특성을 코딩/보안 규약에 부분 통합. 전사 정책 문서화는 진행 중.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "75552927-e98e-5b43-9822-6764cef103be",
+                "control-id": "govern-1.4",
+                "description": "리스크 관리 프로세스를 게이트(품질/보안/AI레드팀)와 ADR로 투명화. 리스크 우선순위 정책은 부분.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "a09273b7-8b8e-57de-8079-8cfca1c7f4bc",
+                "control-id": "govern-1.6",
+                "description": "AI 시스템(에이전트/모델) 인벤토리 메커니즘 미구축. POA&M 항목.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "planned"
+                  }
+                ]
+              },
+              {
+                "uuid": "85050af1-b400-55b1-adc3-1dd321135500",
+                "control-id": "govern-2.1",
+                "description": "하네스 에이전트별 역할 정의로 책임 경계 명확화. CODEOWNERS·승인 권한 매트릭스는 계획.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "cf2bc956-51d1-5215-b38f-c346d59b6828",
+                "control-id": "map-1.1",
+                "description": "방산 UAV SOC 의도/맥락/사용자를 문서로 정의. 정식 영향분석은 부분.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "82843333-170c-58b6-9ef1-ec5a4e9b2eeb",
+                "control-id": "map-2.1",
+                "description": "LangGraph 에이전트 태스크/방법(트리아지·조사·대응) 정의·문서화.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "uuid": "4a0002b5-ed16-5ec5-ab7a-9ff050c98df3",
+        "type": "process",
+        "title": "Incident Response",
+        "description": "장애 사후분석(타임라인→RCA→영향→재발방지) + 배포 실패/롤백 알림. incident-postmortem 하네스.",
+        "control-implementations": [
+          {
+            "uuid": "3d6357c4-a10b-556d-874b-6092c88cab08",
+            "source": "../profile/uav-soc-ai-rmf-profile.json",
+            "description": "Incident Response 가 충족하는 AI RMF 통제.",
+            "implemented-requirements": [
+              {
+                "uuid": "0e368878-ed49-5d0c-a5ca-7d854260bd67",
+                "control-id": "govern-4.3",
+                "description": "AI 테스트(레드팀 캠페인)·인시던트 식별(사후분석)·정보공유(SBOM/리포트) 관행 확립.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "1f464b90-55a9-55e7-a063-2c2e5776a1e8",
+                "control-id": "govern-6.2",
+                "description": "서드파티 장애 대비 롤백/대체 경로 일부. 고위험 third-party 모델 비상계획은 부분.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "6e07ed8a-477d-5208-bf4d-795be1c4341a",
+                "control-id": "manage-2.3",
+                "description": "미지의 리스크 대응/복구를 자동 롤백·사후분석으로. 정식 절차 문서화는 부분.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "partial"
+                  }
+                ]
+              },
+              {
+                "uuid": "ac7192d8-addf-5956-8a4d-2d61fd515cdb",
+                "control-id": "manage-4.1",
+                "description": "배포 후 모니터링 계획 구현: 메트릭·알림·인시던트 대응·변경관리(GitOps).",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              },
+              {
+                "uuid": "0f55f717-6c1a-5726-9161-3a29b49de349",
+                "control-id": "manage-4.3",
+                "description": "인시던트/오류 소통·추적: 사후분석 하네스 + Slack/PagerDuty 알림, 추적·복구 절차.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "value": "implemented"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
