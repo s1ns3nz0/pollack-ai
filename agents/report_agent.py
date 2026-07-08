@@ -23,6 +23,7 @@ from core.models import (
     InvestigationResult,
     MissionContinuity,
     RecoveryPlan,
+    SbomFinding,
     SOCReport,
     SOCState,
     StagedDefense,
@@ -30,6 +31,7 @@ from core.models import (
     Verdict,
 )
 from core.recovery import RecoveryPlanner
+from core.sbom import SBOMVerifier, VulnLookup
 from core.settings import Settings
 from core.severity import SeverityEngine
 from core.staging import DefenseStager
@@ -51,6 +53,8 @@ class ReportAgent(BaseSOCAgent):
         recovery_planner: RecoveryPlanner | None = None,
         degradation: DegradationAssessor | None = None,
         stride: StrideClassifier | None = None,
+        sbom: SBOMVerifier | None = None,
+        vuln: VulnLookup | None = None,
     ) -> None:
         super().__init__(settings)
         self._engine = engine
@@ -58,6 +62,8 @@ class ReportAgent(BaseSOCAgent):
         self._recovery_planner = recovery_planner
         self._degradation = degradation
         self._stride = stride
+        self._sbom = sbom
+        self._vuln = vuln
         self._reasoner = reasoner
         self._actor_read = actor_read
         self._lineage = lineage
@@ -89,6 +95,15 @@ class ReportAgent(BaseSOCAgent):
         stride_threats: list[StrideThreat] = []
         if self._stride is not None:
             stride_threats = self._stride.classify(alert)
+        sbom_findings: list[SbomFinding] = []
+        if (
+            self._sbom is not None
+            and verdict == Verdict.TRUE_POSITIVE
+            and alert.sbom_components
+        ):
+            sbom_findings = await self._sbom.averify(
+                alert.sbom_components, vuln=self._vuln
+            )
 
         report = SOCReport(
             alert_id=alert.id,
@@ -108,6 +123,7 @@ class ReportAgent(BaseSOCAgent):
             recovery_plan=recovery_plan,
             mission_continuity=mission_continuity,
             stride_threats=stride_threats,
+            sbom_findings=sbom_findings,
         )
         # kill chain: 후반단계 도달 시 guardrail 노출 + 메트릭 계측.
         if alert.kill_chain_advanced:
