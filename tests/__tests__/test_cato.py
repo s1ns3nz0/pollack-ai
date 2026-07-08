@@ -37,6 +37,20 @@ class TestCatoControls:
         with pytest.raises(PolicyError):
             CatoControls.from_yaml(p)
 
+    def test_missing_id_raises(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        """id 누락 통제 → PolicyError(조용한 부분로딩 은폐 차단, Codex M-3)."""
+        p = tmp_path / "n.yaml"
+        p.write_text("cato:\n  controls:\n    - source: bas\n", encoding="utf-8")
+        with pytest.raises(PolicyError):
+            CatoControls.from_yaml(p)
+
+    def test_controls_not_list_raises(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        """controls 가 리스트 아님 → PolicyError(TypeError 아님, Codex H-1)."""
+        p = tmp_path / "c.yaml"
+        p.write_text("cato:\n  controls: 5\n", encoding="utf-8")
+        with pytest.raises(PolicyError):
+            CatoControls.from_yaml(p)
+
 
 class TestCatoAssess:
     """신호 → POA&M + 인가태세."""
@@ -77,6 +91,15 @@ class TestCatoAssess:
         f = SbomFinding(component="lib.so", issue="unregistered")
         status = _assessor().assess(sbom_findings=[f])
         assert status.authorization == "conditional"
+
+    def test_unknown_slo_severity_fails_safe_high(self) -> None:
+        """미인식 SLO severity(critical) → high 로 상향(강등 우회 차단, Codex H-2)."""
+        breach = SloBreach(
+            metric="m", actual=1, threshold=0, severity="critical", message="치명"
+        )
+        status = _assessor().assess(slo_breaches=[breach])
+        item = next(p for p in status.poam if p.source == "slo")
+        assert item.severity == "high" and status.authorization == "at_risk"
 
     def test_worst_severity_drives_authorization(self) -> None:
         """혼합 갭 — 최고 심각도(high)가 인가태세 지배."""
