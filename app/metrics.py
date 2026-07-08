@@ -45,6 +45,7 @@ class _Counters:
         self.key_terrain_total = 0
         # BDA: 교전피해평가 복구/재교전 권고 누적(OutcomeProbeAgent 가 갱신)
         self.bda_restore_total = 0
+        self.prompt_injection_total = 0
 
     def record_alert(self, verdict: str) -> None:
         """경보 1건 처리 + 판정 집계."""
@@ -104,6 +105,11 @@ class _Counters:
         """교전피해평가 복구/재교전 권고 n건 누적."""
         with self._lock:
             self.bda_restore_total += n
+
+    def record_prompt_injection(self) -> None:
+        """LLM 프롬프트 인젝션 의심/가드 강등 1건 누적(ATLAS AML.T0051)."""
+        with self._lock:
+            self.prompt_injection_total += 1
 
     def record_prediction(self, *, hit: bool) -> None:
         """예측 판정 1건 누적(예측 폐루프)."""
@@ -218,6 +224,12 @@ def render_text() -> str:
         out.append("# HELP soc_bda_restore_total 교전피해평가 복구/재교전 권고 수")
         out.append("# TYPE soc_bda_restore_total counter")
         out.append(_line("soc_bda_restore_total", c.bda_restore_total))
+    if c.prompt_injection_total:
+        out.append(
+            "# HELP soc_prompt_injection_total 프롬프트 인젝션 의심/가드 강등 수"
+        )
+        out.append("# TYPE soc_prompt_injection_total counter")
+        out.append(_line("soc_prompt_injection_total", c.prompt_injection_total))
 
     # 예측 폐루프: hit/miss 카운터 + 적중률 게이지
     pred = c.prediction_stats()

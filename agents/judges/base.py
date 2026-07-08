@@ -15,9 +15,11 @@ class JudgeScore:
         score: 0.0 ~ 1.0. 정탐 확률.
         rationale: 사람이 읽을 근거.
         veto: True 면 ensemble 이 signal 단독에 한해 hard veto FP 채택.
+        guardrail: 관측성 신호(예: 프롬프트 인젝션 의심) — validation 이 guardrail_flags
+            로 전파. None 이면 신호 없음(판정 비구동).
     """
 
-    __slots__ = ("judge", "score", "rationale", "veto")
+    __slots__ = ("judge", "score", "rationale", "veto", "guardrail")
 
     def __init__(
         self,
@@ -25,11 +27,13 @@ class JudgeScore:
         score: float,
         rationale: str = "",
         veto: bool = False,
+        guardrail: str | None = None,
     ) -> None:
         self.judge = judge
         self.score = max(0.0, min(1.0, float(score)))
         self.rationale = rationale
         self.veto = veto
+        self.guardrail = guardrail
 
     def __repr__(self) -> str:  # pragma: no cover - debug
         return (
