@@ -22,7 +22,8 @@ _MIN_SHARED = 2
 
 
 def _alert_techniques(alert: Alert) -> list[str]:
-    raw = alert.mitre.get("techniques", [])
+    # mitre 가 post-validation 으로 None 이 돼도 방어(Codex 견고성 caveat).
+    raw = (alert.mitre or {}).get("techniques", [])
     return [str(t) for t in raw] if isinstance(raw, list) else []
 
 
@@ -46,7 +47,7 @@ class DiamondAnalyzer:
             adversary or (alert.actor_id or "") or (profile.actor_id if profile else "")
         )
         caps = set(_alert_techniques(alert))
-        infra = {str(i) for i in alert.iocs if i}
+        infra = {str(i) for i in (alert.iocs or []) if i}
         if profile is not None:
             caps.update(s.technique for s in profile.ttp_stats if s.technique)
             infra.update(p.value for p in profile.ioc_patterns if p.value)
