@@ -19,7 +19,7 @@ import re
 
 from pydantic import BaseModel, Field
 
-from core.exceptions import PolicyError
+from core.exceptions import PolicyError, SOCPlatformError
 from core.policy_loader import load_policy_mapping, require_list, require_mapping
 
 _POLICY = Path(__file__).resolve().parent / "policy" / "prompt-injection-patterns.yaml"
@@ -162,3 +162,11 @@ class PromptInjectionGuard:
     def degraded_fence_only(cls) -> PromptInjectionGuard:
         """정책 로드 실패 시 fence-only 폴백(탐지 비활성, 펜싱은 유지·관측가능)."""
         return cls([], degraded=True)
+
+
+def load_default_guard() -> PromptInjectionGuard:
+    """기본 정책으로 가드 로드 — 실패 시 fence-only 폴백(graceful·관측가능)."""
+    try:
+        return PromptInjectionGuard.from_yaml()
+    except SOCPlatformError:
+        return PromptInjectionGuard.degraded_fence_only()
