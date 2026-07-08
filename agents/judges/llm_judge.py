@@ -11,10 +11,10 @@ import re
 
 from agents.judges.base import JudgeScore
 from app.metrics import metrics
-from core.exceptions import LLMError, SOCPlatformError
+from core.exceptions import LLMError
 from core.llm import LLMClient
 from core.models import SOCState
-from core.prompt_guard import PromptInjectionGuard
+from core.prompt_guard import PromptInjectionGuard, load_default_guard
 from utils.logging import get_logger
 
 _LLM_JUDGE_SYS = (
@@ -26,14 +26,6 @@ _LLM_JUDGE_SYS = (
 )
 _SCORE_RE = re.compile(r"score\s*=\s*([01](?:\.\d+)?)", re.IGNORECASE)
 _REASON_RE = re.compile(r"reason\s*=\s*(.+)$", re.IGNORECASE)
-
-
-def _load_guard() -> PromptInjectionGuard:
-    """기본 정책으로 가드 로드 — 실패 시 fence-only 폴백(graceful·관측가능)."""
-    try:
-        return PromptInjectionGuard.from_yaml()
-    except SOCPlatformError:
-        return PromptInjectionGuard.degraded_fence_only()
 
 
 def _build_user(state: SOCState, guard: PromptInjectionGuard) -> str:
@@ -88,7 +80,7 @@ class LlmJudge:
         self, llm: LLMClient | None, guard: PromptInjectionGuard | None = None
     ) -> None:
         self._llm = llm
-        self._guard = guard or _load_guard()
+        self._guard = guard or load_default_guard()
         self._logger = get_logger("LlmJudge")
 
     def _guardrail_signal(self, state: SOCState) -> str | None:
