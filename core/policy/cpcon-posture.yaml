@@ -1,0 +1,29 @@
+# =============================================================================
+# CPCON 사이버방어태세 사다리 — DoD CPCON(5→1) = 국정원 사이버위기경보(5단계)
+# 외부 태세 피드/운영자가 settings.cyber_posture_level(1~5)로 설정 → 전 alert 의
+# posture 하한. severity posture_modifier·no-downgrade lock 이 기존대로 소비한다.
+# posture 어휘(normal/elevated/high)는 severity-policy.yaml 과 정합. Detection-as-Code.
+# Spec: docs/superpowers/specs/2026-07-08-cpcon-posture-design.md
+# =============================================================================
+
+cpcon:
+  - level: 5
+    name: 정상            # CPCON 5 — 평시
+    posture: normal
+    description: 일상 운영. 표준 방어태세.
+  - level: 4
+    name: 관심            # CPCON 4 — 위협 징후
+    posture: normal
+    description: 위협 정보 증가. 모니터링 강화(등급 영향 없음).
+  - level: 3
+    name: 주의            # CPCON 3 — 위협 고조
+    posture: elevated
+    description: 표적 위협 가능성. 하향(de-escalation) 금지 발효.
+  - level: 2
+    name: 경계            # CPCON 2 — 공격 임박/진행
+    posture: elevated
+    description: 능동 위협. 방어강도 상향 + 하향 금지.
+  - level: 1
+    name: 심각            # CPCON 1 — 중대 침해/전면
+    posture: high
+    description: 중대 침해 상황. 최고 방어태세.

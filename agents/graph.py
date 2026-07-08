@@ -55,6 +55,7 @@ from core.killchain import KillChainProgressor
 from core.lineage import LineageCollector
 from core.llm import LLMClient
 from core.models import SOCState
+from core.posture import PostureLadder, PostureProvider
 from core.predictor import PredictionMatcher, SequencePredictor
 from core.recovery import RecoveryMatrix, RecoveryPlanner
 from core.sbom import ApprovedSbom, SBOMVerifier
@@ -250,6 +251,13 @@ def build_soc_graph(
         )
     except SOCPlatformError:
         terrain_detector = None
+    # CPCON: cpcon-posture.yaml 있으면 전역 태세 하한 스탬프 배선(severity 진입 전).
+    try:
+        posture_provider: PostureProvider | None = PostureProvider(
+            PostureLadder.from_yaml(), settings.cyber_posture_level
+        )
+    except SOCPlatformError:
+        posture_provider = None
     # spec A1: causal-rules.yaml 존재 시 reasoner 자동 배선.
     if reasoner is None:
         rules_path = Path(settings.causal_rules_path)
@@ -376,6 +384,12 @@ def build_soc_graph(
         """
         alert = state["alert"]
         changed = False
+        # CPCON 전역 태세 하한을 먼저 스탬프 — severity(triage 내부)가 소비하기 전.
+        if posture_provider is not None:
+            new_alert = await posture_provider.enrich(alert)
+            if new_alert.posture != alert.posture:
+                changed = True
+            alert = new_alert
         if matcher is not None:
             alert = await matcher.enrich(alert)
             changed = changed or alert.prediction_match

@@ -285,6 +285,17 @@ class Settings(BaseSettings):
         description="opt-in — Report 노드가 라인리지 스냅샷을 OSCAL evidence 에 임베드.",
     )
 
+    # ── CPCON 사이버 태세 (DoD CPCON / 국정원 위기경보) ──────────────
+    cyber_posture_level: int = Field(
+        default=5,
+        ge=1,
+        le=5,
+        description=(
+            "전역 사이버방어태세. DoD CPCON 5(정상)~1(심각) = 국정원 정상/관심/"
+            "주의/경계/심각. 외부 태세 피드/운영자가 설정 → 전 alert 방어강도 하한."
+        ),
+    )
+
     @property
     def ragflow_retrieval_url(self) -> str:
         """RAGFlow 검색 엔드포인트 전체 URL."""
