@@ -165,7 +165,11 @@ class PromptInjectionGuard:
 
 
 def load_default_guard() -> PromptInjectionGuard:
-    """기본 정책으로 가드 로드 — 실패 시 fence-only 폴백(graceful·관측가능)."""
+    """기본 정책으로 가드를 로드한다(실패 시 fence-only 폴백).
+
+    Returns:
+        로드된 가드. 정책 로드 실패 시 degraded fence-only 가드(관측가능).
+    """
     try:
         return PromptInjectionGuard.from_yaml()
     except SOCPlatformError:
