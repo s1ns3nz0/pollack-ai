@@ -59,3 +59,29 @@ class PerceptionRecord(BaseModel):
     def from_ndjson(cls, data: dict[str, object]) -> PerceptionRecord:
         """NDJSON dict(원본 키) → PerceptionRecord."""
         return cls.model_validate(data)
+
+
+class GcsAccessRecord(BaseModel):
+    """noVNC/VNC/QGC GCS 원격접속 세션 1건 — `UAVGcsAccess_CL` 스키마 미러.
+
+    `deploy/sentinel-tables/UAVGcsAccess_CL.json` 컬럼/타입과 1:1 매칭. Logs
+    Ingestion API 로 보낼 행을 `model_dump(by_alias=True)` 로 생성한다.
+    """
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    time_generated: str = Field(alias="TimeGenerated")
+    session_id: str = Field(alias="SessionId")
+    client_ip: str = Field(alias="ClientIp")
+    transport: str = Field(alias="Transport")
+    operator: str = Field(alias="Operator")
+    action: str = Field(alias="Action")
+    user_agent: str = Field(alias="UserAgent")
+    bytes_sent: int = Field(alias="BytesSent")
+    bytes_received: int = Field(alias="BytesReceived")
+    duration_sec: float = Field(alias="DurationSec")
+    result: str = Field(alias="Result")
+
+    def to_row(self) -> dict[str, object]:
+        """Logs Ingestion API POST 용 dict(원본 컬럼명)."""
+        return self.model_dump(by_alias=True)

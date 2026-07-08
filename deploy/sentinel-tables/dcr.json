@@ -1,0 +1,259 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "dcrName": {
+      "type": "string",
+      "defaultValue": "dcr-uav-soc"
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "koreacentral"
+    },
+    "workspaceResourceId": {
+      "type": "string",
+      "metadata": {
+        "description": "Log Analytics 워크스페이스 리소스 ID"
+      }
+    },
+    "dataCollectionEndpointId": {
+      "type": "string",
+      "metadata": {
+        "description": "DCE 리소스 ID"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Insights/dataCollectionRules",
+      "apiVersion": "2022-06-01",
+      "name": "[parameters('dcrName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "dataCollectionEndpointId": "[parameters('dataCollectionEndpointId')]",
+        "streamDeclarations": {
+          "Custom-UAVFileAudit_CL": {
+            "columns": [
+              {
+                "name": "TimeGenerated",
+                "type": "datetime"
+              },
+              {
+                "name": "ContainerName",
+                "type": "string"
+              },
+              {
+                "name": "Pid",
+                "type": "int"
+              },
+              {
+                "name": "ProcessName",
+                "type": "string"
+              },
+              {
+                "name": "Operation",
+                "type": "string"
+              },
+              {
+                "name": "FilePath",
+                "type": "string"
+              },
+              {
+                "name": "BytesAccessed",
+                "type": "long"
+              },
+              {
+                "name": "User",
+                "type": "string"
+              },
+              {
+                "name": "Syscall",
+                "type": "string"
+              }
+            ]
+          },
+          "Custom-UAVGcsAccess_CL": {
+            "columns": [
+              {
+                "name": "TimeGenerated",
+                "type": "datetime"
+              },
+              {
+                "name": "SessionId",
+                "type": "string"
+              },
+              {
+                "name": "ClientIp",
+                "type": "string"
+              },
+              {
+                "name": "Transport",
+                "type": "string"
+              },
+              {
+                "name": "Operator",
+                "type": "string"
+              },
+              {
+                "name": "Action",
+                "type": "string"
+              },
+              {
+                "name": "UserAgent",
+                "type": "string"
+              },
+              {
+                "name": "BytesSent",
+                "type": "long"
+              },
+              {
+                "name": "BytesReceived",
+                "type": "long"
+              },
+              {
+                "name": "DurationSec",
+                "type": "real"
+              },
+              {
+                "name": "Result",
+                "type": "string"
+              }
+            ]
+          },
+          "Custom-UAVImagery_CL": {
+            "columns": [
+              {
+                "name": "TimeGenerated",
+                "type": "datetime"
+              },
+              {
+                "name": "UAVId",
+                "type": "string"
+              },
+              {
+                "name": "StreamId",
+                "type": "string"
+              },
+              {
+                "name": "MsgType",
+                "type": "string"
+              },
+              {
+                "name": "EventType",
+                "type": "string"
+              },
+              {
+                "name": "FrameRate",
+                "type": "real"
+              },
+              {
+                "name": "GapMs",
+                "type": "long"
+              },
+              {
+                "name": "Resolution",
+                "type": "string"
+              }
+            ]
+          },
+          "Custom-UAVRouterStats_CL": {
+            "columns": [
+              {
+                "name": "TimeGenerated",
+                "type": "datetime"
+              },
+              {
+                "name": "EndpointName",
+                "type": "string"
+              },
+              {
+                "name": "PeerIp",
+                "type": "string"
+              },
+              {
+                "name": "PeerPort",
+                "type": "int"
+              },
+              {
+                "name": "Protocol",
+                "type": "string"
+              },
+              {
+                "name": "MsgTx",
+                "type": "long"
+              },
+              {
+                "name": "MsgRx",
+                "type": "long"
+              },
+              {
+                "name": "CrcErrors",
+                "type": "long"
+              },
+              {
+                "name": "DropCount",
+                "type": "long"
+              }
+            ]
+          }
+        },
+        "destinations": {
+          "logAnalytics": [
+            {
+              "workspaceResourceId": "[parameters('workspaceResourceId')]",
+              "name": "dah"
+            }
+          ]
+        },
+        "dataFlows": [
+          {
+            "streams": [
+              "Custom-UAVFileAudit_CL"
+            ],
+            "destinations": [
+              "dah"
+            ],
+            "transformKql": "source",
+            "outputStream": "Custom-UAVFileAudit_CL"
+          },
+          {
+            "streams": [
+              "Custom-UAVGcsAccess_CL"
+            ],
+            "destinations": [
+              "dah"
+            ],
+            "transformKql": "source",
+            "outputStream": "Custom-UAVGcsAccess_CL"
+          },
+          {
+            "streams": [
+              "Custom-UAVImagery_CL"
+            ],
+            "destinations": [
+              "dah"
+            ],
+            "transformKql": "source",
+            "outputStream": "Custom-UAVImagery_CL"
+          },
+          {
+            "streams": [
+              "Custom-UAVRouterStats_CL"
+            ],
+            "destinations": [
+              "dah"
+            ],
+            "transformKql": "source",
+            "outputStream": "Custom-UAVRouterStats_CL"
+          }
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "immutableId": {
+      "type": "string",
+      "value": "[reference(parameters('dcrName')).immutableId]"
+    }
+  }
+}

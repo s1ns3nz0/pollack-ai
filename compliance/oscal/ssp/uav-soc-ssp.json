@@ -1,0 +1,1527 @@
+{
+  "system-security-plan": {
+    "uuid": "2c926ae6-11c4-5bd3-a88d-99cb0ea6aeaf",
+    "metadata": {
+      "title": "UAV AI SOC — System Security Plan (AI RMF)",
+      "last-modified": "2026-06-28T14:34:55+00:00",
+      "version": "1.0.0",
+      "oscal-version": "1.1.2",
+      "roles": [
+        {
+          "id": "owner",
+          "title": "UAV AI SOC Platform Team"
+        }
+      ],
+      "parties": [
+        {
+          "uuid": "2981b69e-1600-52ba-b065-d03b7d01d7c6",
+          "type": "organization",
+          "name": "UAV AI SOC Platform Team"
+        }
+      ]
+    },
+    "import-profile": {
+      "href": "../profile/uav-soc-ai-rmf-profile.json"
+    },
+    "system-characteristics": {
+      "system-ids": [
+        {
+          "id": "uav-ai-soc"
+        }
+      ],
+      "system-name": "UAV AI SOC Platform",
+      "description": "방산 UAV 보안 SaaS. LangGraph 멀티에이전트 + Azure Sentinel + GraphRAG, AKS/ArgoCD 배포.",
+      "security-sensitivity-level": "high",
+      "system-information": {
+        "information-types": [
+          {
+            "uuid": "e414d1d6-63fc-5fbf-b83e-fb49ea800aed",
+            "title": "Security operations & threat intelligence",
+            "description": "UAV 위협 탐지·트리아지·대응 데이터."
+          }
+        ]
+      },
+      "security-impact-level": {
+        "security-objective-confidentiality": "high",
+        "security-objective-integrity": "high",
+        "security-objective-availability": "high"
+      },
+      "status": {
+        "state": "operational"
+      },
+      "authorization-boundary": {
+        "description": "AKS 클러스터 + GitHub Actions CI/CD + ArgoCD GitOps 범위."
+      }
+    },
+    "system-implementation": {
+      "users": [
+        {
+          "uuid": "80f67144-3584-5284-9bab-fce12634d8ab",
+          "title": "SOC Analyst / Platform Operator",
+          "role-ids": [
+            "owner"
+          ]
+        }
+      ],
+      "components": [
+        {
+          "uuid": "cb66fc3c-876c-5e58-8116-e355d112d020",
+          "type": "this-system",
+          "title": "UAV AI SOC Platform",
+          "description": "방산 UAV 보안 SaaS — LangGraph 멀티에이전트 + Azure Sentinel AI SOC.",
+          "status": {
+            "state": "operational"
+          }
+        },
+        {
+          "uuid": "62ad1ec5-262b-5f9a-a1c5-ad6e5458b1bc",
+          "type": "service",
+          "title": "CI/CD Pipeline (GitHub Actions)",
+          "description": "lint(black/ruff/mypy)→test(pytest)→CodeQL→dependency-review CI 게이트. .github/workflows/ci.yml.",
+          "status": {
+            "state": "operational"
+          }
+        },
+        {
+          "uuid": "1a5273f9-6f59-59ec-8fe2-fe84e1cc629f",
+          "type": "service",
+          "title": "AI Red Team Gate (PyRIT/ATLAS)",
+          "description": "AI 시스템 적대 견고성 게이트. benchmarks/run_atlas_redteam.py, run_redteam_skeleton.py, check_gates.py. 트랙 A(PR 차단)+B(나이틀리).",
+          "status": {
+            "state": "operational"
+          }
+        },
+        {
+          "uuid": "f0b36959-46d4-55c2-8bf7-52c78350f0de",
+          "type": "service",
+          "title": "Supply Chain Integrity",
+          "description": "SBOM(Syft)·서명(cosign)·SLSA provenance·Actions SHA 핀·OIDC. SCA(dependency-review/Trivy).",
+          "status": {
+            "state": "operational"
+          }
+        },
+        {
+          "uuid": "62de315d-a6c6-555e-87dc-26367fc0b06a",
+          "type": "service",
+          "title": "Deployment & GitOps (AKS/ArgoCD)",
+          "description": "ArgoCD GitOps, AKS 트랙 A/B, Argo Rollouts Canary 자동 분석/롤백. deploy/.",
+          "status": {
+            "state": "operational"
+          }
+        },
+        {
+          "uuid": "85f45c5c-c58e-57ce-a7c8-fb2608a71d16",
+          "type": "service",
+          "title": "Observability (Prometheus/Grafana)",
+          "description": "DORA + AI-SOC 메트릭(agent latency, 토큰비용, RAGAS faithfulness/relevancy, 트리아지 정확도). deploy/monitoring/.",
+          "status": {
+            "state": "operational"
+          }
+        },
+        {
+          "uuid": "1f36ad4f-1006-5701-9ed2-77f4b512c0ea",
+          "type": "software",
+          "title": "Runtime Defense Guardrails",
+          "description": "정책 등급 하한, MemoryReadGate 출처(서명)검증, RAG 포이즌 폐기. core/experience.py, agents/.",
+          "status": {
+            "state": "operational"
+          }
+        },
+        {
+          "uuid": "d9f6bdba-ef6b-5586-b583-2a02f77f08a6",
+          "type": "policy",
+          "title": "Governance & Policy",
+          "description": "CLAUDE.md, .claude/rules/python-conventions.md, docs/adr/, CI/CD 하네스, CODEOWNERS(계획).",
+          "status": {
+            "state": "operational"
+          }
+        },
+        {
+          "uuid": "4a0002b5-ed16-5ec5-ab7a-9ff050c98df3",
+          "type": "process",
+          "title": "Incident Response",
+          "description": "장애 사후분석(타임라인→RCA→영향→재발방지) + 배포 실패/롤백 알림. incident-postmortem 하네스.",
+          "status": {
+            "state": "operational"
+          }
+        }
+      ]
+    },
+    "control-implementation": {
+      "description": "AI RMF 맞춤 프로파일에 대한 구현 현황. 상태 prop = implemented/partial/planned.",
+      "implemented-requirements": [
+        {
+          "uuid": "8a82bf73-f28e-543f-8727-5ffffc337e85",
+          "control-id": "govern-1.1",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "partial"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "accountable-transparent",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "govern-1.1_smt",
+              "uuid": "a6319dcf-9224-530d-abcb-bcf93987badb",
+              "by-components": [
+                {
+                  "component-uuid": "d9f6bdba-ef6b-5586-b583-2a02f77f08a6",
+                  "uuid": "78b82552-6ed3-58ea-a170-ea61c7001b3d",
+                  "description": "방산 컨텍스트의 법·규제(공급망 SSDF/800-204D) 요건을 보안 스킬에 매핑. 정식 법규 인벤토리는 미완."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#42cf8da3-5c6c-527a-811e-bd170cdc8e3d",
+              "rel": "reference"
+            },
+            {
+              "href": "#f019136b-8f59-5765-95b5-29b72db3f76e",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "1df43bef-8e77-5427-8cb3-4bfe001a25d9",
+          "control-id": "govern-1.2",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "partial"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "accountable-transparent",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "govern-1.2_smt",
+              "uuid": "59034348-30ec-5374-a4d5-97d4e18538ef",
+              "by-components": [
+                {
+                  "component-uuid": "d9f6bdba-ef6b-5586-b583-2a02f77f08a6",
+                  "uuid": "04057d68-89f6-503b-a513-1570000ca011",
+                  "description": "trustworthy AI 특성을 코딩/보안 규약에 부분 통합. 전사 정책 문서화는 진행 중."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#712ecdec-cb0f-5916-8626-c89949a29190",
+              "rel": "reference"
+            },
+            {
+              "href": "#90499d17-a9e0-5e9c-a2dd-703387ae4179",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "ca28d529-9d2a-57cd-b1ba-542b240d6d21",
+          "control-id": "govern-1.4",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "partial"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "accountable-transparent",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "govern-1.4_smt",
+              "uuid": "73084109-4691-5d21-bb7a-44a2a9d59265",
+              "by-components": [
+                {
+                  "component-uuid": "d9f6bdba-ef6b-5586-b583-2a02f77f08a6",
+                  "uuid": "cb7478d3-e6da-5a35-9407-4de913fb4731",
+                  "description": "리스크 관리 프로세스를 게이트(품질/보안/AI레드팀)와 ADR로 투명화. 리스크 우선순위 정책은 부분."
+                },
+                {
+                  "component-uuid": "62ad1ec5-262b-5f9a-a1c5-ad6e5458b1bc",
+                  "uuid": "f26dd2e9-168e-54ec-98f7-26086eb5f00a",
+                  "description": "리스크 관리 프로세스를 게이트(품질/보안/AI레드팀)와 ADR로 투명화. 리스크 우선순위 정책은 부분."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#323dcea5-b43d-57a0-88ee-926215e8b5a3",
+              "rel": "reference"
+            },
+            {
+              "href": "#f67e642f-c4ae-501a-a6dc-1a1c936412d8",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "8b2e4319-2671-5a6d-9f86-d6284f652b70",
+          "control-id": "govern-1.6",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "planned"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "accountable-transparent",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "govern-1.6_smt",
+              "uuid": "3c1f897e-decd-53ad-9571-061f5b4d14f0",
+              "by-components": [
+                {
+                  "component-uuid": "d9f6bdba-ef6b-5586-b583-2a02f77f08a6",
+                  "uuid": "10834d7a-9008-520b-946e-e1bfe251df3c",
+                  "description": "AI 시스템(에이전트/모델) 인벤토리 메커니즘 미구축. POA&M 항목."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "uuid": "c7a61df5-6c32-59e9-bf9c-14de10f53376",
+          "control-id": "govern-2.1",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "partial"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "accountable-transparent",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "govern-2.1_smt",
+              "uuid": "5c21230d-1873-58b6-8a0d-2f676f3f9235",
+              "by-components": [
+                {
+                  "component-uuid": "d9f6bdba-ef6b-5586-b583-2a02f77f08a6",
+                  "uuid": "14590734-3dbd-5b54-9a75-eebb2ed09f34",
+                  "description": "하네스 에이전트별 역할 정의로 책임 경계 명확화. CODEOWNERS·승인 권한 매트릭스는 계획."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#974270fb-75d6-5592-8ce1-c2cc6de1633c",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "1a4c1dab-a13b-585d-81eb-5ee3533d2b28",
+          "control-id": "govern-4.3",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "implemented"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "secure-resilient",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "safe",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "govern-4.3_smt",
+              "uuid": "28369d1e-df7a-5042-8c4b-3bb391273893",
+              "by-components": [
+                {
+                  "component-uuid": "1a5273f9-6f59-59ec-8fe2-fe84e1cc629f",
+                  "uuid": "ab5937a7-cd5e-5084-8e3c-56a2d0418c5d",
+                  "description": "AI 테스트(레드팀 캠페인)·인시던트 식별(사후분석)·정보공유(SBOM/리포트) 관행 확립."
+                },
+                {
+                  "component-uuid": "4a0002b5-ed16-5ec5-ab7a-9ff050c98df3",
+                  "uuid": "4d10d875-aa2a-5916-be55-c573354ca86e",
+                  "description": "AI 테스트(레드팀 캠페인)·인시던트 식별(사후분석)·정보공유(SBOM/리포트) 관행 확립."
+                },
+                {
+                  "component-uuid": "62ad1ec5-262b-5f9a-a1c5-ad6e5458b1bc",
+                  "uuid": "3cb894a6-2d56-5161-95c1-cb8d706438c2",
+                  "description": "AI 테스트(레드팀 캠페인)·인시던트 식별(사후분석)·정보공유(SBOM/리포트) 관행 확립."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#331f9fcd-86e8-58e9-a6bb-9fc5be5055fb",
+              "rel": "reference"
+            },
+            {
+              "href": "#ab8381ba-2712-5598-8a34-4105430d774c",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "20838f15-636a-57d8-bd93-02100e4b611f",
+          "control-id": "govern-6.1",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "implemented"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "secure-resilient",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "govern-6.1_smt",
+              "uuid": "d3a15852-9ede-5849-8646-4143bc75d714",
+              "by-components": [
+                {
+                  "component-uuid": "f0b36959-46d4-55c2-8bf7-52c78350f0de",
+                  "uuid": "cc59034d-73ed-528e-80d1-4cdf886a1ea1",
+                  "description": "서드파티 SW/데이터 공급망 리스크를 SCA·SBOM·라이선스 검사로 통제."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#f019136b-8f59-5765-95b5-29b72db3f76e",
+              "rel": "reference"
+            },
+            {
+              "href": "#18b4107c-ad23-56de-80be-3de4b83cc519",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "98d767a4-44c0-5e1d-9954-652429370cb8",
+          "control-id": "govern-6.2",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "partial"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "secure-resilient",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "govern-6.2_smt",
+              "uuid": "4214929e-0577-53bc-811c-dcb4b1a321e4",
+              "by-components": [
+                {
+                  "component-uuid": "f0b36959-46d4-55c2-8bf7-52c78350f0de",
+                  "uuid": "40efab14-eb26-5fc6-b3db-b0bc2333e494",
+                  "description": "서드파티 장애 대비 롤백/대체 경로 일부. 고위험 third-party 모델 비상계획은 부분."
+                },
+                {
+                  "component-uuid": "4a0002b5-ed16-5ec5-ab7a-9ff050c98df3",
+                  "uuid": "cc34e802-ed38-5517-a664-78a5526f98d9",
+                  "description": "서드파티 장애 대비 롤백/대체 경로 일부. 고위험 third-party 모델 비상계획은 부분."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#5b094b22-4c6f-53c4-b55a-2d715a95d225",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "437c9464-a147-5748-b32b-f9a351268dca",
+          "control-id": "map-1.1",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "partial"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "valid-reliable",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "map-1.1_smt",
+              "uuid": "e7c440fd-336b-56b2-9b24-4327e911f277",
+              "by-components": [
+                {
+                  "component-uuid": "d9f6bdba-ef6b-5586-b583-2a02f77f08a6",
+                  "uuid": "e8fae967-718e-52cf-b27d-818ed2820ea6",
+                  "description": "방산 UAV SOC 의도/맥락/사용자를 문서로 정의. 정식 영향분석은 부분."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#05a15f5f-b085-591f-bfeb-26584fe4146b",
+              "rel": "reference"
+            },
+            {
+              "href": "#42cf8da3-5c6c-527a-811e-bd170cdc8e3d",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "a9014a0e-cec9-5604-bebb-34b74919ca16",
+          "control-id": "map-2.1",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "implemented"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "valid-reliable",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "map-2.1_smt",
+              "uuid": "755b8cdb-635f-50cc-ab39-1599998e5bdb",
+              "by-components": [
+                {
+                  "component-uuid": "d9f6bdba-ef6b-5586-b583-2a02f77f08a6",
+                  "uuid": "8440df5a-ce9c-52e0-b32c-ee8cfb219672",
+                  "description": "LangGraph 에이전트 태스크/방법(트리아지·조사·대응) 정의·문서화."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#f2357691-fe2e-58c6-87aa-75cbb9dc3f11",
+              "rel": "reference"
+            },
+            {
+              "href": "#eea69ed2-e85f-56a5-8fda-767ba1844844",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "9590b689-cfde-54d5-bce4-a1566be1dc6c",
+          "control-id": "map-3.5",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "partial"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "accountable-transparent",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "map-3.5_smt",
+              "uuid": "b8fb237f-e976-571d-a828-65a2778280ed",
+              "by-components": [
+                {
+                  "component-uuid": "62de315d-a6c6-555e-87dc-26367fc0b06a",
+                  "uuid": "f633f88f-5bca-525a-a02d-bf2f2fc292f2",
+                  "description": "human oversight = prod 수동 승인 게이트 + 정책 하한. 절차 정식 평가는 부분."
+                },
+                {
+                  "component-uuid": "1f36ad4f-1006-5701-9ed2-77f4b512c0ea",
+                  "uuid": "8e4d434b-34d0-5421-a8d5-be97c678e4dc",
+                  "description": "human oversight = prod 수동 승인 게이트 + 정책 하한. 절차 정식 평가는 부분."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#7eccb86f-8ef4-52f8-af70-92185a3fc9ba",
+              "rel": "reference"
+            },
+            {
+              "href": "#939ecd3c-fb88-5979-afcb-be1ba6ffc815",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "bee1b400-72ae-5cdf-a4f5-026b3b94c8d6",
+          "control-id": "map-4.1",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "partial"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "secure-resilient",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "map-4.1_smt",
+              "uuid": "e6340756-7596-5a6a-8813-af209cf735d0",
+              "by-components": [
+                {
+                  "component-uuid": "f0b36959-46d4-55c2-8bf7-52c78350f0de",
+                  "uuid": "bf3b3573-d097-5e05-8666-2c686733d306",
+                  "description": "서드파티 데이터/SW 기술·법적 리스크 매핑(SCA/라이선스). 정식 문서화 진행."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#18b4107c-ad23-56de-80be-3de4b83cc519",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "dae7e7d3-674d-53c0-beb2-ceca218e7b80",
+          "control-id": "map-4.2",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "implemented"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "secure-resilient",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "map-4.2_smt",
+              "uuid": "3f1675a9-5695-5629-a942-1987349766ed",
+              "by-components": [
+                {
+                  "component-uuid": "1a5273f9-6f59-59ec-8fe2-fe84e1cc629f",
+                  "uuid": "db716c35-b921-5ba8-932c-f439a30ad6c5",
+                  "description": "서드파티 AI(LLM/RAG) 포함 컴포넌트 내부 통제 식별: 게이트·가드레일·출처검증."
+                },
+                {
+                  "component-uuid": "1f36ad4f-1006-5701-9ed2-77f4b512c0ea",
+                  "uuid": "e44502e2-054a-51de-a64f-718c512e7567",
+                  "description": "서드파티 AI(LLM/RAG) 포함 컴포넌트 내부 통제 식별: 게이트·가드레일·출처검증."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#b55f3081-ae43-5886-b52f-6bb045b26844",
+              "rel": "reference"
+            },
+            {
+              "href": "#6bdca347-a9e8-592b-8e2e-f1312738f450",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "a8b671ea-b6c9-5f6c-a60a-986cb0ea73dc",
+          "control-id": "map-5.1",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "partial"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "safe",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "map-5.1_smt",
+              "uuid": "d57b7c8b-3b18-58ed-baa5-ddda78612b1a",
+              "by-components": [
+                {
+                  "component-uuid": "1a5273f9-6f59-59ec-8fe2-fe84e1cc629f",
+                  "uuid": "725b286f-4972-5567-a3d2-2dd70fba28f9",
+                  "description": "공격 시나리오(S1~S11, ATT&CK/ATLAS)로 영향 가능성·규모 일부 특성화."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#0542b8ec-f73d-58ce-a6ca-e5125c794aa2",
+              "rel": "reference"
+            },
+            {
+              "href": "#c9523924-cd1b-5692-9e28-1fc717db3c26",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "4a86e8db-db60-518e-a10d-474ad69afd2e",
+          "control-id": "measure-1.1",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "implemented"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "valid-reliable",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "secure-resilient",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "measure-1.1_smt",
+              "uuid": "bf6d3c1a-aa2a-5f40-94dc-0dd26acb9f8b",
+              "by-components": [
+                {
+                  "component-uuid": "1a5273f9-6f59-59ec-8fe2-fe84e1cc629f",
+                  "uuid": "e9acbe2c-d21b-5ce7-bbfb-892c2cc96e30",
+                  "description": "AI 리스크 측정 지표(공격성공률·FP재발률·RAGAS) 선정·구현, 최우선 리스크부터."
+                },
+                {
+                  "component-uuid": "85f45c5c-c58e-57ce-a7c8-fb2608a71d16",
+                  "uuid": "17106ac1-25d6-55aa-b3a3-48f3d329a92c",
+                  "description": "AI 리스크 측정 지표(공격성공률·FP재발률·RAGAS) 선정·구현, 최우선 리스크부터."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#3b53d8a4-4018-539b-a612-e59b4589c6c5",
+              "rel": "reference"
+            },
+            {
+              "href": "#88d3f542-57d7-5a70-af5e-232dd3185402",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "5f7083d1-296e-5a62-8885-d381f70fa4e0",
+          "control-id": "measure-1.2",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "partial"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "valid-reliable",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "measure-1.2_smt",
+              "uuid": "c7bbfb9d-efb5-50d9-98d8-ddcddf8de11c",
+              "by-components": [
+                {
+                  "component-uuid": "85f45c5c-c58e-57ce-a7c8-fb2608a71d16",
+                  "uuid": "5c2bde56-1820-5ade-8313-87627d8af235",
+                  "description": "지표 적절성/통제 효과를 벤치 추세로 평가. 정기 갱신 절차는 부분."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#15196601-143b-51b4-b8bd-e2158c5c1aeb",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "dfba6b7b-4957-5595-8d9a-682cd4493f92",
+          "control-id": "measure-2.1",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "implemented"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "valid-reliable",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "measure-2.1_smt",
+              "uuid": "f83732fe-2f29-527e-906b-ed0b1ec2eab4",
+              "by-components": [
+                {
+                  "component-uuid": "62ad1ec5-262b-5f9a-a1c5-ad6e5458b1bc",
+                  "uuid": "e37053d4-6dec-5717-88a8-d36dc45534fe",
+                  "description": "테스트셋·지표·도구(PyRIT/Garak/pytest)를 TEVV로 문서화."
+                },
+                {
+                  "component-uuid": "1a5273f9-6f59-59ec-8fe2-fe84e1cc629f",
+                  "uuid": "0065d168-d61e-5ccb-a067-96b19c77626a",
+                  "description": "테스트셋·지표·도구(PyRIT/Garak/pytest)를 TEVV로 문서화."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#89218b21-f2bf-524f-b159-d96582333891",
+              "rel": "reference"
+            },
+            {
+              "href": "#7007a2b7-7ef6-5b45-a106-e7299e1241ce",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "04e6b664-0cea-50a6-ba85-1be3097e694d",
+          "control-id": "measure-2.3",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "implemented"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "valid-reliable",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "measure-2.3_smt",
+              "uuid": "14c7e13d-f6dd-58e7-92ef-6a90b80ce0e2",
+              "by-components": [
+                {
+                  "component-uuid": "62ad1ec5-262b-5f9a-a1c5-ad6e5458b1bc",
+                  "uuid": "64e268db-3410-5208-8b8f-87b05d572e73",
+                  "description": "성능/보증 기준을 정량 측정(라우팅 정확도·Recall@5·MRR), 배포 유사 조건에서."
+                },
+                {
+                  "component-uuid": "85f45c5c-c58e-57ce-a7c8-fb2608a71d16",
+                  "uuid": "025b80a7-a76f-5f9f-ad69-975fafb7b0de",
+                  "description": "성능/보증 기준을 정량 측정(라우팅 정확도·Recall@5·MRR), 배포 유사 조건에서."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#e09c3557-5e78-51f4-bd3a-ddfcba95032d",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "2bea3a2e-7481-5478-84f3-3df2dd934432",
+          "control-id": "measure-2.4",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "implemented"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "valid-reliable",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "measure-2.4_smt",
+              "uuid": "93772389-f1d3-5cf9-af63-b0791c9fb5e3",
+              "by-components": [
+                {
+                  "component-uuid": "85f45c5c-c58e-57ce-a7c8-fb2608a71d16",
+                  "uuid": "77c063b4-2b10-57d9-9367-174736b31e0f",
+                  "description": "프로덕션에서 시스템 기능·행동 모니터링(Prometheus ServiceMonitor + Grafana)."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#f2ada4ea-5ea0-5e52-a840-94a94299307a",
+              "rel": "reference"
+            },
+            {
+              "href": "#73d1f99d-3fb4-5f65-bf19-ddb645e1dede",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "6cf5acb8-db83-523d-ad16-5e239da4d647",
+          "control-id": "measure-2.5",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "partial"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "valid-reliable",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "measure-2.5_smt",
+              "uuid": "c40ed9bd-6f45-5c23-be7f-3f8caa797a10",
+              "by-components": [
+                {
+                  "component-uuid": "62ad1ec5-262b-5f9a-a1c5-ad6e5458b1bc",
+                  "uuid": "11cd404f-c7c8-5f35-bdad-7b8da7b6fe20",
+                  "description": "유효성·신뢰성 데모(벤치)와 일반화 한계 일부 문서화. LLM 연동 RAGAS 확대 진행."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#3b53d8a4-4018-539b-a612-e59b4589c6c5",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "ed39ad78-7bed-5bb0-9d5d-94a05b54d4a6",
+          "control-id": "measure-2.6",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "partial"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "safe",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "measure-2.6_smt",
+              "uuid": "d34655c9-67ff-5cd3-a827-363e6becd28e",
+              "by-components": [
+                {
+                  "component-uuid": "1f36ad4f-1006-5701-9ed2-77f4b512c0ea",
+                  "uuid": "b8cda4ba-a73f-55ac-8cc4-0d39ef872632",
+                  "description": "안전 평가: 정책 하한으로 fail-safe(등급 미하향), 잔여 리스크 추적. 정기 안전평가 정식화는 부분."
+                },
+                {
+                  "component-uuid": "1a5273f9-6f59-59ec-8fe2-fe84e1cc629f",
+                  "uuid": "7184be18-986f-5622-ad3f-adf7c2e4f01b",
+                  "description": "안전 평가: 정책 하한으로 fail-safe(등급 미하향), 잔여 리스크 추적. 정기 안전평가 정식화는 부분."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#6bdca347-a9e8-592b-8e2e-f1312738f450",
+              "rel": "reference"
+            },
+            {
+              "href": "#b55f3081-ae43-5886-b52f-6bb045b26844",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "36deb58c-b3cb-50ef-be3c-96e30dc3118c",
+          "control-id": "measure-2.7",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "implemented"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "secure-resilient",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "measure-2.7_smt",
+              "uuid": "64db7cff-f985-53fd-ab0e-8770e7824ef0",
+              "by-components": [
+                {
+                  "component-uuid": "1a5273f9-6f59-59ec-8fe2-fe84e1cc629f",
+                  "uuid": "9a8c9410-b9ba-52b7-8788-c92ad67dfb55",
+                  "description": "보안·복원력 평가·문서화: ATLAS 적대 벤치(robust vs naive) + 공급망 무결성."
+                },
+                {
+                  "component-uuid": "f0b36959-46d4-55c2-8bf7-52c78350f0de",
+                  "uuid": "9fdbaa59-0d17-5a89-993c-7c5d2052f8c7",
+                  "description": "보안·복원력 평가·문서화: ATLAS 적대 벤치(robust vs naive) + 공급망 무결성."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#331f9fcd-86e8-58e9-a6bb-9fc5be5055fb",
+              "rel": "reference"
+            },
+            {
+              "href": "#db004c04-45e6-5a1f-b7a9-b68bdcd506cb",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "50b51b90-07d6-5cde-8a7f-3da29cb241b0",
+          "control-id": "measure-2.9",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "partial"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "explainable-interpretable",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "measure-2.9_smt",
+              "uuid": "c48121f1-18d1-50a3-aaf9-f8fcba1943d2",
+              "by-components": [
+                {
+                  "component-uuid": "1f36ad4f-1006-5701-9ed2-77f4b512c0ea",
+                  "uuid": "10869168-137f-5490-9f95-bcbd9fc85ea4",
+                  "description": "트리아지 판정 근거·검증(결정론 judge)으로 설명/해석 일부. 정식 모델 설명서는 부분."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#e58669bd-0069-523c-9b25-c3bbec78f5a1",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "49d864b3-8aa1-5267-b51b-67ee41939908",
+          "control-id": "measure-3.1",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "implemented"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "secure-resilient",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "measure-3.1_smt",
+              "uuid": "8f82db88-1ea9-5810-9273-0e1bd40d450e",
+              "by-components": [
+                {
+                  "component-uuid": "85f45c5c-c58e-57ce-a7c8-fb2608a71d16",
+                  "uuid": "cfb1bc6e-2b82-5f93-877e-fb7a20032ce4",
+                  "description": "기존/신규/돌발 리스크를 정기 추적: 나이틀리 레드팀 캠페인 + Grafana 시계열."
+                },
+                {
+                  "component-uuid": "1a5273f9-6f59-59ec-8fe2-fe84e1cc629f",
+                  "uuid": "36ff427a-ef81-5bb2-8747-e8be62b632d9",
+                  "description": "기존/신규/돌발 리스크를 정기 추적: 나이틀리 레드팀 캠페인 + Grafana 시계열."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#88d3f542-57d7-5a70-af5e-232dd3185402",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "85949011-37ff-5159-abce-9fe21b55c52d",
+          "control-id": "measure-3.2",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "partial"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "secure-resilient",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "measure-3.2_smt",
+              "uuid": "d2566455-6a99-56aa-99f2-3e5dbaacf774",
+              "by-components": [
+                {
+                  "component-uuid": "1a5273f9-6f59-59ec-8fe2-fe84e1cc629f",
+                  "uuid": "d1196216-4952-5424-bafe-6e754b6639e7",
+                  "description": "측정 곤란 영역(T0015 미믹리)을 게이트 아닌 추세 감시로 추적."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#331f9fcd-86e8-58e9-a6bb-9fc5be5055fb",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "b4544264-33b0-5521-bb3a-d7a6ea124799",
+          "control-id": "measure-4.1",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "partial"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "valid-reliable",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "measure-4.1_smt",
+              "uuid": "07091193-389e-5030-8400-df4a5f82b0e8",
+              "by-components": [
+                {
+                  "component-uuid": "85f45c5c-c58e-57ce-a7c8-fb2608a71d16",
+                  "uuid": "28a5e79a-98b0-5817-ba37-902ea661572d",
+                  "description": "측정 접근을 배포 맥락에 연결. 도메인 전문가 협의 정식화는 부분."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#88d3f542-57d7-5a70-af5e-232dd3185402",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "a2308aa5-146c-5075-a3ee-a3181c9ed927",
+          "control-id": "measure-4.2",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "partial"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "valid-reliable",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "measure-4.2_smt",
+              "uuid": "9cf62d48-3cc9-51be-9aae-1a767cb2426b",
+              "by-components": [
+                {
+                  "component-uuid": "85f45c5c-c58e-57ce-a7c8-fb2608a71d16",
+                  "uuid": "9eb3441a-e10d-5a97-8b94-1e3179044c22",
+                  "description": "신뢰성 측정 결과를 LLM-as-Judge 등으로 검증. 전문가 입력 정식 절차는 부분."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#15196601-143b-51b4-b8bd-e2158c5c1aeb",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "8a81f145-bd8f-54a3-b3e8-d3e549c0e93b",
+          "control-id": "manage-1.2",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "partial"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "secure-resilient",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "manage-1.2_smt",
+              "uuid": "2e8a9bdb-3e11-5121-aadf-8f43284195f2",
+              "by-components": [
+                {
+                  "component-uuid": "1a5273f9-6f59-59ec-8fe2-fe84e1cc629f",
+                  "uuid": "3c070789-fd68-5f5a-8cd4-0c823a15faaf",
+                  "description": "문서화된 리스크를 게이트 차단정책(CVSS/임계)으로 우선순위화. 통합 리스크 레지스터는 계획."
+                },
+                {
+                  "component-uuid": "62ad1ec5-262b-5f9a-a1c5-ad6e5458b1bc",
+                  "uuid": "d2e5e3bf-d0b6-51ad-945f-5266f291a411",
+                  "description": "문서화된 리스크를 게이트 차단정책(CVSS/임계)으로 우선순위화. 통합 리스크 레지스터는 계획."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#88d3f542-57d7-5a70-af5e-232dd3185402",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "5512772b-de36-552f-bf38-e56bc881ec6f",
+          "control-id": "manage-1.3",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "implemented"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "secure-resilient",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "manage-1.3_smt",
+              "uuid": "7bf72d31-f54b-54d1-a750-c7db4e579528",
+              "by-components": [
+                {
+                  "component-uuid": "62ad1ec5-262b-5f9a-a1c5-ad6e5458b1bc",
+                  "uuid": "e3be470c-6336-5286-aeb6-943124cd20e8",
+                  "description": "고우선 리스크 대응을 게이트 차단 + POA&M으로 계획·문서화(완화/회피)."
+                },
+                {
+                  "component-uuid": "1a5273f9-6f59-59ec-8fe2-fe84e1cc629f",
+                  "uuid": "c079d867-ec2c-5b44-a17b-331761aaefa4",
+                  "description": "고우선 리스크 대응을 게이트 차단 + POA&M으로 계획·문서화(완화/회피)."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#595bcc33-e3a2-5fa7-a70a-e928cad7c771",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "75b79d39-2d0f-57ce-bf4e-eb667fc34b26",
+          "control-id": "manage-2.3",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "partial"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "secure-resilient",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "manage-2.3_smt",
+              "uuid": "ee06c894-ee22-5d28-943b-345f56052c63",
+              "by-components": [
+                {
+                  "component-uuid": "62de315d-a6c6-555e-87dc-26367fc0b06a",
+                  "uuid": "9a6bfc03-76bc-5681-9729-47efc9f80fde",
+                  "description": "미지의 리스크 대응/복구를 자동 롤백·사후분석으로. 정식 절차 문서화는 부분."
+                },
+                {
+                  "component-uuid": "4a0002b5-ed16-5ec5-ab7a-9ff050c98df3",
+                  "uuid": "187bb06c-58f8-5737-9e8a-69727432be4f",
+                  "description": "미지의 리스크 대응/복구를 자동 롤백·사후분석으로. 정식 절차 문서화는 부분."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#5b094b22-4c6f-53c4-b55a-2d715a95d225",
+              "rel": "reference"
+            },
+            {
+              "href": "#712311a8-7d11-58e2-b995-ab0ffca7f95c",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "bec5f672-2169-51ac-8fa4-a515436b4c1c",
+          "control-id": "manage-2.4",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "implemented"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "safe",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "secure-resilient",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "manage-2.4_smt",
+              "uuid": "1a33cafe-6642-578f-9302-9e7c7a72e5d9",
+              "by-components": [
+                {
+                  "component-uuid": "62de315d-a6c6-555e-87dc-26367fc0b06a",
+                  "uuid": "942764c2-7e42-5d47-b899-4ade97d2b72e",
+                  "description": "이상 행동 시스템 비활성화: Argo Rollouts 자동 중단/롤백, 정책 하한으로 강등 차단."
+                },
+                {
+                  "component-uuid": "1f36ad4f-1006-5701-9ed2-77f4b512c0ea",
+                  "uuid": "65177df6-1923-5ae0-9c2d-039b6b24d9f0",
+                  "description": "이상 행동 시스템 비활성화: Argo Rollouts 자동 중단/롤백, 정책 하한으로 강등 차단."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#5b094b22-4c6f-53c4-b55a-2d715a95d225",
+              "rel": "reference"
+            },
+            {
+              "href": "#939ecd3c-fb88-5979-afcb-be1ba6ffc815",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "cc91a5e1-a5a8-5104-b2db-e871115261d0",
+          "control-id": "manage-3.1",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "implemented"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "secure-resilient",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "manage-3.1_smt",
+              "uuid": "48e3120b-c9ce-53c8-ac7b-77bf8fc52850",
+              "by-components": [
+                {
+                  "component-uuid": "f0b36959-46d4-55c2-8bf7-52c78350f0de",
+                  "uuid": "de6ffc39-bdd1-580a-98e9-13efaf25ceb1",
+                  "description": "서드파티 리스크 정기 모니터링: dependency-review, Trivy, Dependabot SHA 갱신."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#18b4107c-ad23-56de-80be-3de4b83cc519",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "8f547b7b-9efc-56e5-9936-ea62268477ff",
+          "control-id": "manage-3.2",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "partial"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "valid-reliable",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "manage-3.2_smt",
+              "uuid": "7f7752e2-3c19-5db8-923c-98de4a2be49d",
+              "by-components": [
+                {
+                  "component-uuid": "85f45c5c-c58e-57ce-a7c8-fb2608a71d16",
+                  "uuid": "a8d87fcc-5260-5c65-9d5b-bb91a5d9e108",
+                  "description": "사전학습 모델(Azure OpenAI) 버전/행동 모니터링 일부. 정식 모델 모니터링 계획."
+                },
+                {
+                  "component-uuid": "f0b36959-46d4-55c2-8bf7-52c78350f0de",
+                  "uuid": "507e6114-d7af-5fb9-9ac3-e00d014ebeb5",
+                  "description": "사전학습 모델(Azure OpenAI) 버전/행동 모니터링 일부. 정식 모델 모니터링 계획."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#5fd18c27-ce9b-59e6-9077-6eccbd71d5f1",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "9e19cc02-5a97-5a38-8647-e9bb1f5b42c7",
+          "control-id": "manage-4.1",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "implemented"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "valid-reliable",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "safe",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "manage-4.1_smt",
+              "uuid": "579c6781-bf75-58fc-8d33-84738d708d92",
+              "by-components": [
+                {
+                  "component-uuid": "85f45c5c-c58e-57ce-a7c8-fb2608a71d16",
+                  "uuid": "324b7bf2-ffc7-58f8-aec9-b76a02135ede",
+                  "description": "배포 후 모니터링 계획 구현: 메트릭·알림·인시던트 대응·변경관리(GitOps)."
+                },
+                {
+                  "component-uuid": "4a0002b5-ed16-5ec5-ab7a-9ff050c98df3",
+                  "uuid": "11da762e-1037-56bf-8da8-432ee4145de7",
+                  "description": "배포 후 모니터링 계획 구현: 메트릭·알림·인시던트 대응·변경관리(GitOps)."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#5fd18c27-ce9b-59e6-9077-6eccbd71d5f1",
+              "rel": "reference"
+            },
+            {
+              "href": "#5b094b22-4c6f-53c4-b55a-2d715a95d225",
+              "rel": "reference"
+            }
+          ]
+        },
+        {
+          "uuid": "c1725256-1042-5911-bd94-f74d1fcf4295",
+          "control-id": "manage-4.3",
+          "props": [
+            {
+              "name": "implementation-status",
+              "value": "implemented"
+            },
+            {
+              "name": "trustworthy-characteristic",
+              "value": "safe",
+              "ns": "https://uav-ai-soc/ns/airmf"
+            }
+          ],
+          "statements": [
+            {
+              "statement-id": "manage-4.3_smt",
+              "uuid": "a29b60e3-1f22-55db-af11-fee44ec4e790",
+              "by-components": [
+                {
+                  "component-uuid": "4a0002b5-ed16-5ec5-ab7a-9ff050c98df3",
+                  "uuid": "f9da73e2-9ce4-59f2-9749-5c5d83e99816",
+                  "description": "인시던트/오류 소통·추적: 사후분석 하네스 + Slack/PagerDuty 알림, 추적·복구 절차."
+                },
+                {
+                  "component-uuid": "85f45c5c-c58e-57ce-a7c8-fb2608a71d16",
+                  "uuid": "8e70bec4-2bb5-5c14-9ca0-333beb4e6d4d",
+                  "description": "인시던트/오류 소통·추적: 사후분석 하네스 + Slack/PagerDuty 알림, 추적·복구 절차."
+                }
+              ]
+            }
+          ],
+          "links": [
+            {
+              "href": "#dd948475-6466-5d9a-a3ca-7f41d95b2011",
+              "rel": "reference"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
