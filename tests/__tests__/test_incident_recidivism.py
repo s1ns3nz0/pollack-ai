@@ -3,12 +3,11 @@
 from core.incident import (
     _MAX_REOPEN,
     CaseManager,
-    IncidentState,
     InMemoryIncidentStore,
     _authoritative_cat,
     _is_dos_scenario,
 )
-from core.models import Alert, EnvVerdict, Severity
+from core.models import Alert, EnvVerdict, IncidentState, Severity
 
 
 def _alert(

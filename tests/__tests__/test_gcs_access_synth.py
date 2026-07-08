@@ -71,7 +71,8 @@ class TestAttackSignals:
         row = hijack_session().to_row()
         assert row["ClientIp"] == "203.0.113.66"
         assert row["SessionId"] == "sess-1001"  # 정상 세션과 동일 ID 재사용
-        assert int(row["BytesSent"]) >= 100 * 1024 * 1024  # Exfil 임계
+        sent = row["BytesSent"]
+        assert isinstance(sent, int) and sent >= 100 * 1024 * 1024  # Exfil 임계
 
     def test_brute_force_auth_fail(self) -> None:
         row = brute_force_session(0).to_row()

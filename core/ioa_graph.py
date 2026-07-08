@@ -127,11 +127,7 @@ class IoAGraphBuilder:
         merged: dict[str, object] = {**existing.attrs}
         for k, v in node.attrs.items():
             existing_v = merged.get(k)
-            if (
-                k == "count"
-                and isinstance(v, int)
-                and isinstance(existing_v, int)
-            ):
+            if k == "count" and isinstance(v, int) and isinstance(existing_v, int):
                 merged[k] = existing_v + v
             else:
                 merged[k] = v

@@ -17,7 +17,10 @@ class TestTacticOrder:
         """후반 tactic 이 초기보다 큰 order."""
         matrix = CoverageMatrix.from_yaml()
 
-        assert matrix.tactic_order("Collection") > matrix.tactic_order("InitialAccess")
+        collection = matrix.tactic_order("Collection")
+        initial = matrix.tactic_order("InitialAccess")
+        assert collection is not None and initial is not None
+        assert collection > initial
 
     def test_unknown_tactic_none(self) -> None:
         """매핑 없는 tactic(예: ATLAS MLAttackStaging)은 None."""

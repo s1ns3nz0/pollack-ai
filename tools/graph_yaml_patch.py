@@ -66,7 +66,7 @@ class GraphYamlPatchTool:
     def compute_diff(self, snap: FeedSnapshot) -> LandscapeDiff:
         """현재 yaml 과 snap 비교 — added/removed 만 산정(변경 차후)."""
         if snap.source == "kev":
-            # KEV 는 yaml 갱신 대상 아님 — kev_new 만 수집(저장은 vuln_tool 캐시 무효화).
+            # KEV 는 yaml 갱신 대상 아님 — kev_new 만 수집(저장은 vuln_tool 무효화).
             return LandscapeDiff(source=snap.source, kev_new=snap.cves)
         current = self._current_techs()
         latest = set(snap.techniques)

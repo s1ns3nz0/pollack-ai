@@ -6,6 +6,8 @@ Codex 하드닝 회귀 가드 포함:
 - engagement 서명 포함(변조 → read gate 거부), 단 기본값은 레거시 해시 호환.
 """
 
+from typing import cast
+
 import pytest
 
 from core.actors import (
@@ -52,11 +54,13 @@ class TestEngageAdvancer:
         adv.advance(p, _alert(aid="a1"))
         assert p.engagement.state == EngageGoal.EXPOSE
         adv.advance(p, _alert(aid="a2"))
-        assert p.engagement.state == EngageGoal.ELICIT
+        # cast: advance 변이하나 mypy 가 이전 리터럴 narrowing 유지(오탐)
+        assert cast(EngageGoal, p.engagement.state) == EngageGoal.ELICIT
         adv.advance(p, _alert(aid="a3"))
-        assert p.engagement.state == EngageGoal.ELICIT  # round 3 아직 ELICIT
+        # round 3 아직 ELICIT
+        assert cast(EngageGoal, p.engagement.state) == EngageGoal.ELICIT
         adv.advance(p, _alert(aid="a4"))
-        assert p.engagement.state == EngageGoal.UNDERSTAND
+        assert cast(EngageGoal, p.engagement.state) == EngageGoal.UNDERSTAND
 
     def test_adversary_cost_accrues_stage_order(self) -> None:
         """후반단계(C2 order=11) 교전이 정찰(order=1)보다 큰 cost 를 누적."""
@@ -147,7 +151,7 @@ class TestEngageThroughGate:
         # actor_id 없음 → fingerprint 기반(is_explicit=False)
         await self._write(gate, _alert(actor_id=None), engagement=True)
         # 적립은 되나 engagement 은 NONE 유지
-        loaded = [await store.aload(k) for k in store._by_id]  # type: ignore[attr-defined]
+        loaded = [await store.aload(k) for k in store._by_id]
         assert loaded and all(
             p is not None and p.engagement.state == EngageGoal.NONE for p in loaded
         )

@@ -6,10 +6,24 @@ _StubKql 은 AutoKqlRuleAgent 인터페이스 duck-typed — main 에 A-2 미머
 
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
 
+from agents.outcome_probe_agent import OutcomeProbeAgent
+from agents.threat_landscape_agent import ThreatLandscapeAgent
 from app.learning import _extract_added_techniques, run_cycle
 from core.models import LandscapeDiff, WorkerReport
+
+
+def _as_op(stub: object) -> OutcomeProbeAgent:
+    """duck-typed stub 을 실 에이전트 타입으로 표기(테스트 대역)."""
+    return cast(OutcomeProbeAgent, stub)
+
+
+def _as_tl(stub: object) -> ThreatLandscapeAgent:
+    """duck-typed stub 을 ThreatLandscapeAgent 대역으로 표기."""
+    return cast(ThreatLandscapeAgent, stub)
 
 
 class _StubOutcome:
@@ -83,7 +97,7 @@ class TestRunCycle:
     @pytest.mark.asyncio
     async def test_outcome_only_invoked(self) -> None:
         probe = _StubOutcome()
-        await run_cycle(outcome_probe=probe)
+        await run_cycle(outcome_probe=_as_op(probe))
         assert probe.calls == 1
 
     @pytest.mark.asyncio
@@ -93,14 +107,14 @@ class TestRunCycle:
         import time as _t
 
         recent = [_t.time()]
-        await run_cycle(threat_landscape=threat, last_landscape_refresh=recent)
+        await run_cycle(threat_landscape=_as_tl(threat), last_landscape_refresh=recent)
         assert threat.calls == 0
 
     @pytest.mark.asyncio
     async def test_landscape_runs_when_stale(self) -> None:
         threat = _StubThreat(diffs=[LandscapeDiff(source="attack", added=["T9999"])])
         # last_refresh 오래 전 → 실행
-        await run_cycle(threat_landscape=threat, last_landscape_refresh=[0.0])
+        await run_cycle(threat_landscape=_as_tl(threat), last_landscape_refresh=[0.0])
         assert threat.calls == 1
 
     @pytest.mark.asyncio
@@ -108,7 +122,7 @@ class TestRunCycle:
         threat = _StubThreat(diffs=[LandscapeDiff(source="attack", added=["T1", "T2"])])
         kql = _StubKql()
         await run_cycle(
-            threat_landscape=threat,
+            threat_landscape=_as_tl(threat),
             auto_kql=kql,
             last_landscape_refresh=[0.0],
         )
@@ -119,7 +133,7 @@ class TestRunCycle:
         threat = _StubThreat(diffs=[])
         kql = _StubKql()
         await run_cycle(
-            threat_landscape=threat,
+            threat_landscape=_as_tl(threat),
             auto_kql=kql,
             last_landscape_refresh=[0.0],
         )
@@ -135,8 +149,8 @@ class TestRunCycle:
     async def test_outcome_failure_isolated_from_threat(self) -> None:
         threat = _StubThreat(diffs=[])
         await run_cycle(
-            outcome_probe=_FailingOutcome(),
-            threat_landscape=threat,
+            outcome_probe=_as_op(_FailingOutcome()),
+            threat_landscape=_as_tl(threat),
             last_landscape_refresh=[0.0],
         )
         # threat 는 여전히 호출됨
@@ -147,7 +161,7 @@ class TestRunCycle:
         # threat 실패 시 report 없음 → auto_kql 호출 안 됨
         kql = _StubKql()
         await run_cycle(
-            threat_landscape=_FailingThreat(),
+            threat_landscape=_as_tl(_FailingThreat()),
             auto_kql=kql,
             last_landscape_refresh=[0.0],
         )
@@ -159,8 +173,8 @@ class TestRunCycle:
         threat = _StubThreat(diffs=[LandscapeDiff(source="attack", added=["T7"])])
         kql = _StubKql()
         await run_cycle(
-            outcome_probe=probe,
-            threat_landscape=threat,
+            outcome_probe=_as_op(probe),
+            threat_landscape=_as_tl(threat),
             auto_kql=kql,
             last_landscape_refresh=[0.0],
         )

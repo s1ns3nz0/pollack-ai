@@ -1,8 +1,11 @@
 """분석 엔진 배선 — diamond→report, cato→metrics, bda→worker 가 실제로 돎."""
 
+from typing import cast
+
 import pytest
 
 from app.metrics import _cato_metrics
+from core.bda import BdaAssessor
 from core.models import Severity
 
 
@@ -99,7 +102,9 @@ class TestBdaInWorker:
                 {"alert_id": "a1", "scenario_id": "S1", "ts": "t"}
             )
         )
-        agent = OutcomeProbeAgent(get_settings(), src, ProbeEngine(), bda=_BoomBda())
+        agent = OutcomeProbeAgent(
+            get_settings(), src, ProbeEngine(), bda=cast(BdaAssessor, _BoomBda())
+        )
         report = await agent.run()  # 예외 전파 안 됨
         assert any("bda[a1]" in e for e in report.errors)
 
@@ -112,4 +117,4 @@ class TestBdaInWorker:
         agent = OutcomeProbeAgent(
             get_settings(), InMemoryObservationSource(), ProbeEngine()
         )
-        assert agent._bda is not None  # type: ignore[attr-defined]
+        assert agent._bda is not None
