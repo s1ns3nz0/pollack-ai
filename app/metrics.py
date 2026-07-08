@@ -39,6 +39,12 @@ class _Counters:
         self.eviction_failed_total = 0
         # graceful degradation: 임무 중단(ABORT) 판정 누적(Report 노드가 갱신)
         self.mission_abort_total = 0
+        # deception: decoy 자산/canary 미끼 접촉 격상 누적(Report 노드가 갱신)
+        self.decoy_hit_total = 0
+        # MBCRA: 사이버 핵심지형(KT-C) 자산 침해 격상 누적(Report 노드가 갱신)
+        self.key_terrain_total = 0
+        # BDA: 교전피해평가 복구/재교전 권고 누적(OutcomeProbeAgent 가 갱신)
+        self.bda_restore_total = 0
 
     def record_alert(self, verdict: str) -> None:
         """경보 1건 처리 + 판정 집계."""
@@ -83,6 +89,21 @@ class _Counters:
         """임무 중단(ABORT) 판정 1건 누적."""
         with self._lock:
             self.mission_abort_total += 1
+
+    def record_decoy_hit(self) -> None:
+        """decoy/canary 미끼 접촉 격상 1건 누적."""
+        with self._lock:
+            self.decoy_hit_total += 1
+
+    def record_key_terrain(self) -> None:
+        """사이버 핵심지형(KT-C) 침해 격상 1건 누적."""
+        with self._lock:
+            self.key_terrain_total += 1
+
+    def record_bda_restore(self, n: int = 1) -> None:
+        """교전피해평가 복구/재교전 권고 n건 누적."""
+        with self._lock:
+            self.bda_restore_total += n
 
     def record_prediction(self, *, hit: bool) -> None:
         """예측 판정 1건 누적(예측 폐루프)."""
@@ -183,6 +204,20 @@ def render_text() -> str:
         out.append("# HELP soc_mission_abort_total 임무 중단(ABORT) 판정 수")
         out.append("# TYPE soc_mission_abort_total counter")
         out.append(_line("soc_mission_abort_total", c.mission_abort_total))
+
+    # deception/MBCRA/BDA: 신규 격상·조치 신호 카운터
+    if c.decoy_hit_total:
+        out.append("# HELP soc_decoy_hit_total decoy/canary 미끼 접촉 격상 수")
+        out.append("# TYPE soc_decoy_hit_total counter")
+        out.append(_line("soc_decoy_hit_total", c.decoy_hit_total))
+    if c.key_terrain_total:
+        out.append("# HELP soc_key_terrain_total 사이버 핵심지형(KT-C) 침해 격상 수")
+        out.append("# TYPE soc_key_terrain_total counter")
+        out.append(_line("soc_key_terrain_total", c.key_terrain_total))
+    if c.bda_restore_total:
+        out.append("# HELP soc_bda_restore_total 교전피해평가 복구/재교전 권고 수")
+        out.append("# TYPE soc_bda_restore_total counter")
+        out.append(_line("soc_bda_restore_total", c.bda_restore_total))
 
     # 예측 폐루프: hit/miss 카운터 + 적중률 게이지
     pred = c.prediction_stats()

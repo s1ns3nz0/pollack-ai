@@ -11,6 +11,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from agents.base import BaseWorkerAgent
+from app.metrics import metrics
 from core.actors import ActorWriteGate
 from core.bda import BdaAssessor
 from core.exceptions import SOCPlatformError
@@ -84,6 +85,8 @@ class OutcomeProbeAgent(BaseWorkerAgent):
             actor_n += await self._submit_actor(obs, decision, errors)
             pb_n += await self._submit_pb(obs, decision, errors)
             restore_n += self._assess_bda(obs, decision, errors)
+        if restore_n:
+            metrics().record_bda_restore(restore_n)
         self._logger.info(
             "outcome_probe: obs=%d exp=%d actor=%d pb=%d restore=%d errors=%d",
             len(obs_list),
