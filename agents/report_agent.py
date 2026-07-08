@@ -17,11 +17,14 @@ from core.causal import CausalReasoner
 from core.coa import CoaPlanner
 from core.coerce import opt_str
 from core.degradation import DegradationAssessor
+from core.diamond import DiamondAnalyzer
 from core.lineage import LineageCollector
 from core.models import (
+    ActorProfile,
     Alert,
     CampaignMatch,
     CoaOption,
+    DiamondEvent,
     InvestigationResult,
     MissionContinuity,
     RecoveryPlan,
@@ -65,10 +68,12 @@ class ReportAgent(BaseSOCAgent):
         vuln: VulnLookup | None = None,
         campaign_detector: CampaignDetector | None = None,
         mission_risk: MissionRiskAssessor | None = None,
+        diamond: DiamondAnalyzer | None = None,
     ) -> None:
         super().__init__(settings)
         self._engine = engine
         self._mission_risk = mission_risk
+        self._diamond = diamond
         self._coa_planner = coa_planner
         self._recovery_planner = recovery_planner
         self._degradation = degradation
@@ -97,8 +102,11 @@ class ReportAgent(BaseSOCAgent):
             if self._stager is not None:
                 staged_defenses = self._stager.stage(inv.predictions)
 
-        coa_options = await self._build_coa(alert, inv)
-        recovery_plan = await self._build_recovery(alert, verdict)
+        # actor 프로필은 report 소비처(coa·diamond·campaign·recovery·pb_scores)가 공유 —
+        # 지연민감 노드라 1회만 회상해 재사용(Codex 중복 recall 반영).
+        profile = await self._recall_profile(alert)
+        coa_options = await self._build_coa(alert, inv, profile)
+        recovery_plan = await self._build_recovery(alert, verdict, profile)
         mission_continuity: MissionContinuity | None = None
         if self._degradation is not None:
             mission_continuity = self._degradation.assess(alert, verdict)
@@ -116,10 +124,11 @@ class ReportAgent(BaseSOCAgent):
             sbom_findings = await self._sbom.averify(
                 alert.sbom_components, vuln=self._vuln
             )
-        campaign_matches = await self._build_campaign(alert)
+        campaign_matches = await self._build_campaign(alert, profile)
         mission_risk = (
             self._mission_risk.assess(alert) if self._mission_risk is not None else None
         )
+        diamond = self._build_diamond(alert, profile)
 
         report = SOCReport(
             alert_id=alert.id,
@@ -137,6 +146,7 @@ class ReportAgent(BaseSOCAgent):
             staged_defenses=staged_defenses,
             coa_options=coa_options,
             mission_risk=mission_risk,
+            diamond=diamond,
             recovery_plan=recovery_plan,
             mission_continuity=mission_continuity,
             stride_threats=stride_threats,
@@ -156,19 +166,15 @@ class ReportAgent(BaseSOCAgent):
             if chain.steps:
                 report.causal_summary = chain
 
-        # spec B-1: actor.pb_scores top-3 노출
-        if self._actor_read is not None and alert.actor_id:
-            profile = await self._actor_read.recall(alert.actor_id.strip())
-            if profile is not None and profile.pb_scores:
-                top = sorted(profile.pb_scores.values(), key=lambda s: -s.avg_effect)[
-                    :3
-                ]
-                top_str = ", ".join(
-                    f"{s.playbook_id}={s.avg_effect:.2f}({s.count})" for s in top
-                )
-                report.guardrail_flags = list(report.guardrail_flags) + [
-                    f"actor[{profile.actor_id}] PB 효과 top-3: {top_str}"
-                ]
+        # spec B-1: actor.pb_scores top-3 노출(위에서 회상한 profile 재사용)
+        if profile is not None and profile.pb_scores:
+            top = sorted(profile.pb_scores.values(), key=lambda s: -s.avg_effect)[:3]
+            top_str = ", ".join(
+                f"{s.playbook_id}={s.avg_effect:.2f}({s.count})" for s in top
+            )
+            report.guardrail_flags = list(report.guardrail_flags) + [
+                f"actor[{profile.actor_id}] PB 효과 top-3: {top_str}"
+            ]
 
         evidence = oscal.build_evidence(state, evidence_level)
         if report.causal_summary is not None:
@@ -186,8 +192,17 @@ class ReportAgent(BaseSOCAgent):
         )
         return {"report": report, "oscal_evidence": evidence, "trace": ["report"]}
 
+    async def _recall_profile(self, alert: Alert) -> ActorProfile | None:
+        """report 노드 소비처 공용 — actor 프로필을 한 번만 회상한다."""
+        if self._actor_read is None or not alert.actor_id:
+            return None
+        return await self._actor_read.recall(alert.actor_id.strip())
+
     async def _build_coa(
-        self, alert: Alert, inv: InvestigationResult | None
+        self,
+        alert: Alert,
+        inv: InvestigationResult | None,
+        profile: ActorProfile | None,
     ) -> list[CoaOption]:
         """현재 도달 단계 + 예측 다음 단계의 COA 옵션을 집계한다.
 
@@ -207,17 +222,33 @@ class ReportAgent(BaseSOCAgent):
         tactics = [str(t) for t in raw] if isinstance(raw, list) else []
         # actor 누적 tactic 이력 합류(진행도 반영) + Engage 교전 상태(Deceive enrich).
         engagement = None
-        if self._actor_read is not None and alert.actor_id:
-            profile = await self._actor_read.recall(alert.actor_id.strip())
-            if profile is not None:
-                tactics.extend(s.tactic for s in profile.ttp_stats)
-                engagement = profile.engagement
+        if profile is not None:
+            tactics.extend(s.tactic for s in profile.ttp_stats)
+            engagement = profile.engagement
         predicted = (
             [p.next_technique for p in inv.predictions] if inv is not None else []
         )
         return self._coa_planner.plan(tactics, predicted, engagement)
 
-    async def _build_campaign(self, alert: Alert) -> list[CampaignMatch]:
+    def _build_diamond(
+        self, alert: Alert, profile: ActorProfile | None
+    ) -> DiamondEvent | None:
+        """현 alert(+신뢰 actor 프로필)을 침입분석 다이아몬드 4정점으로 사상한다.
+
+        Args:
+            alert: 대상 알람.
+            profile: 재사용 actor 프로필(run 에서 1회 회상).
+
+        Returns:
+            DiamondEvent(analyzer 미주입 시 None). 프로필 있으면 정점 보강.
+        """
+        if self._diamond is None:
+            return None
+        return self._diamond.build(alert, profile)
+
+    async def _build_campaign(
+        self, alert: Alert, profile: ActorProfile | None
+    ) -> list[CampaignMatch]:
         """actor 시나리오 이력 + 현 alert → 진행 중 캠페인 체인을 식별한다.
 
         actor kill_chain 의 scenario_id 시퀀스에 현 alert scenario_id 를 이어
@@ -230,11 +261,8 @@ class ReportAgent(BaseSOCAgent):
         Returns:
             CampaignMatch 목록. detector/actor 미주입·미매칭 시 빈 리스트.
         """
-        if self._campaign_detector is None or self._actor_read is None:
+        if self._campaign_detector is None:
             return []
-        if not alert.actor_id:
-            return []
-        profile = await self._actor_read.recall(alert.actor_id.strip())
         history: list[str] = []
         if profile is not None:
             history = [_scenario_prefix(s.scenario_id) for s in profile.kill_chain]
@@ -242,7 +270,7 @@ class ReportAgent(BaseSOCAgent):
         return self._campaign_detector.detect(history)
 
     async def _build_recovery(
-        self, alert: Alert, verdict: Verdict
+        self, alert: Alert, verdict: Verdict, profile: ActorProfile | None
     ) -> RecoveryPlan | None:
         """정탐 확정 시 도달 tactic 의 축출/복구/검증 플랜을 조립한다.
 
@@ -260,8 +288,6 @@ class ReportAgent(BaseSOCAgent):
             return None
         raw = alert.mitre.get("tactics", [])
         tactics = [str(t) for t in raw] if isinstance(raw, list) else []
-        if self._actor_read is not None and alert.actor_id:
-            profile = await self._actor_read.recall(alert.actor_id.strip())
-            if profile is not None:
-                tactics.extend(s.tactic for s in profile.ttp_stats)
+        if profile is not None:
+            tactics.extend(s.tactic for s in profile.ttp_stats)
         return self._recovery_planner.plan(tactics)

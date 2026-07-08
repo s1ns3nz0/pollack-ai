@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 
 from agents.base import BaseWorkerAgent
 from core.actors import ActorWriteGate
+from core.bda import BdaAssessor
 from core.exceptions import SOCPlatformError
 from core.experience import MemoryWriteGate
 from core.models import (
@@ -60,6 +61,7 @@ class OutcomeProbeAgent(BaseWorkerAgent):
         exp_gate: MemoryWriteGate | None = None,
         actor_gate: ActorWriteGate | None = None,
         pb_gate: ActorPlaybookOutcomeGate | None = None,
+        bda: BdaAssessor | None = None,
     ) -> None:
         super().__init__(settings)
         self._source = source
@@ -67,25 +69,28 @@ class OutcomeProbeAgent(BaseWorkerAgent):
         self._exp_gate = exp_gate
         self._actor_gate = actor_gate
         self._pb_gate = pb_gate
+        self._bda = bda or BdaAssessor()
 
     async def run(self) -> WorkerReport:
         try:
             obs_list = await self._source.apoll()
         except SOCPlatformError as exc:
             return WorkerReport(cycle_at=_now_iso(), errors=[f"source: {exc}"])
-        exp_n, actor_n, pb_n = 0, 0, 0
+        exp_n, actor_n, pb_n, restore_n = 0, 0, 0, 0
         errors: list[str] = []
         for obs in obs_list:
             decision = self._engine.decide(obs)
             exp_n += await self._submit_exp(obs, decision, errors)
             actor_n += await self._submit_actor(obs, decision, errors)
             pb_n += await self._submit_pb(obs, decision, errors)
+            restore_n += self._assess_bda(obs, decision, errors)
         self._logger.info(
-            "outcome_probe: obs=%d exp=%d actor=%d pb=%d errors=%d",
+            "outcome_probe: obs=%d exp=%d actor=%d pb=%d restore=%d errors=%d",
             len(obs_list),
             exp_n,
             actor_n,
             pb_n,
+            restore_n,
             len(errors),
         )
         return WorkerReport(
@@ -93,6 +98,38 @@ class OutcomeProbeAgent(BaseWorkerAgent):
             auto_applied=exp_n + actor_n + pb_n,
             errors=errors,
         )
+
+    def _assess_bda(self, obs: Observation, decision: object, errors: list[str]) -> int:
+        """교전피해평가(BDA) 산정 — 유의미 피해/복구권고 시 로깅. 복구권고면 1 반환.
+
+        BDA 오류는 사이클을 깨지 않게 격리한다(Codex: 워커 루프 보호). 다른 gate
+        제출과 동일 방침 — 실패는 errors 에 담고 0 반환.
+
+        Args:
+            obs: 후속 관측(복구 적용/재발/윈도우).
+            decision: ProbeEngine 결정(effect 보유).
+            errors: 사이클 오류 누적 목록.
+
+        Returns:
+            복구/재교전 권고 시 1, 아니면 0(집계용).
+        """
+        if self._bda is None:
+            return 0
+        try:
+            effect = getattr(decision, "effect", 1.0)
+            report = self._bda.assess(effect, obs)
+        except (SOCPlatformError, ValueError, TypeError) as exc:
+            errors.append(f"bda[{obs.alert_id}]: {exc}")
+            return 0
+        if report.damage_level != "none":
+            self._logger.info(
+                "bda: alert=%s 피해=%s restore=%s conf=%s",
+                obs.alert_id,
+                report.damage_level,
+                report.restore_recommended,
+                report.confidence,
+            )
+        return 1 if report.restore_recommended else 0
 
     async def _submit_exp(
         self, obs: Observation, decision: object, errors: list[str]
