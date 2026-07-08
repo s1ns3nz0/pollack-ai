@@ -43,6 +43,7 @@ from agents.validation_agent import (
     route_after_validation,
 )
 from core.actors import ActorReadGate, ActorWriteGate, InMemoryActorStore
+from core.campaign import CampaignChains, CampaignDetector
 from core.causal import CausalReasoner
 from core.coa import CoaMatrix, CoaPlanner
 from core.degradation import DegradationAssessor, DegradationMatrix
@@ -304,6 +305,13 @@ def build_soc_graph(
             "승인 SBOM 로드 실패 — 공급망 검증 비활성(정책 파일 점검 필요): %s", exc
         )
         sbom = None
+    # 캠페인 체인: campaign-chains.yaml 있으면 2층 상관 탐지기 배선.
+    try:
+        campaign_detector: CampaignDetector | None = CampaignDetector(
+            CampaignChains.from_yaml()
+        )
+    except SOCPlatformError:
+        campaign_detector = None
     report = ReportAgent(
         settings,
         engine,
@@ -317,6 +325,7 @@ def build_soc_graph(
         stride=stride,
         sbom=sbom,
         vuln=vuln,  # SBOM CVE 검증에 vuln 컨텍스트 전달(Codex #1)
+        campaign_detector=campaign_detector,
     )
 
     graph: StateGraph[SOCState] = StateGraph(SOCState)

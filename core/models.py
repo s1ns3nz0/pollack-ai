@@ -594,6 +594,26 @@ class CoaOption(BaseModel):
     stage: str = "current"
 
 
+class CampaignMatch(BaseModel):
+    """진행 중 캠페인 체인 매칭 한 건(2층 상관 — 시나리오 시퀀스).
+
+    Attributes:
+        chain_id: 캠페인 체인 id(C1~C7).
+        name: 캠페인명(공격 흐름).
+        matched: 관측된 시퀀스 단계 수(prefix subsequence 매칭).
+        total: 캠페인 전체 시퀀스 길이.
+        next_expected: 다음 예상 시나리오 id(완료 시 빈값).
+        severity: 캠페인 심각도(critical/high).
+    """
+
+    chain_id: str
+    name: str = ""
+    matched: int = 0
+    total: int = 0
+    next_expected: str = ""
+    severity: str = ""
+
+
 class StrideThreat(BaseModel):
     """UAV STRIDE 위협 분류 한 건(2025 IET UAV STRIDE 모델).
 
@@ -805,6 +825,10 @@ class SOCReport(BaseModel):
     sbom_findings: list[SbomFinding] = Field(
         default_factory=list,
         description="공급망 검증: 미등록/변조/취약 컴포넌트(SBOM 무결성).",
+    )
+    campaign_matches: list[CampaignMatch] = Field(
+        default_factory=list,
+        description="캠페인 체인(2층 상관): actor 시나리오 시퀀스 → 진행 중 캠페인.",
     )
     causal_summary: CausalChain | None = Field(
         default=None, description="spec A1: 결정론 인과 체인 요약."
