@@ -34,6 +34,10 @@ class Observation(BaseModel):
     # 이 신뢰 관측 채널만 CONFIRMED_TP 승격권을 가진다 — untrusted alert 본문의
     # canary 매칭(DecoyDetector)은 enrich 까지만이라 위조로 TP 를 만들 수 없다.
     canary_hit: bool = False
+    # 공급망: 신뢰 센서가 확정 SBOM/펌웨어 변조를 관측(악성로직 = CJCSM 6510 CAT7).
+    # 분류전용 신뢰신호 — Incident CAT7 산정에만. TP/severity 는 안 건드림
+    # (canary_hit 과 달리 verdict 구동 아님). untrusted alert.sbom_components 와 별개.
+    sbom_tampered: bool = False
     # 검증 폐루프: 이 관측 이전에 RecoveryPlan(축출/복구)이 실행됐는지.
     # True + reoccurred → 축출 실패(공격자 잔존) 판정(RecoveryVerifier).
     recovery_applied: bool = False
