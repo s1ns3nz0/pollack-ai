@@ -30,6 +30,9 @@ class BASScenario(BaseModel):
     detection_rule: str = ""
     tactic: str = ""
     stride: list[str] = Field(default_factory=list)
+    campaign: list[str] = Field(
+        default_factory=list, description="소속 캠페인 체인 id(C1~C7)."
+    )
 
     @property
     def detected(self) -> bool:

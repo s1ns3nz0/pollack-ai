@@ -12,6 +12,7 @@ from agents.base import BaseSOCAgent
 from app.metrics import metrics
 from core import oscal
 from core.actors import ActorReadGate
+from core.campaign import CampaignDetector
 from core.causal import CausalReasoner
 from core.coa import CoaPlanner
 from core.coerce import opt_str
@@ -19,6 +20,7 @@ from core.degradation import DegradationAssessor
 from core.lineage import LineageCollector
 from core.models import (
     Alert,
+    CampaignMatch,
     CoaOption,
     InvestigationResult,
     MissionContinuity,
@@ -38,6 +40,11 @@ from core.staging import DefenseStager
 from core.stride import StrideClassifier
 
 
+def _scenario_prefix(scenario_id: str) -> str:
+    """scenario_id 를 캠페인 시퀀스 접두("S6-GCS-..." → "S6")로 정규화한다."""
+    return scenario_id.split("-", 1)[0]
+
+
 class ReportAgent(BaseSOCAgent):
     """리포트 + OSCAL 증거 생성 Agent."""
 
@@ -55,6 +62,7 @@ class ReportAgent(BaseSOCAgent):
         stride: StrideClassifier | None = None,
         sbom: SBOMVerifier | None = None,
         vuln: VulnLookup | None = None,
+        campaign_detector: CampaignDetector | None = None,
     ) -> None:
         super().__init__(settings)
         self._engine = engine
@@ -64,6 +72,7 @@ class ReportAgent(BaseSOCAgent):
         self._stride = stride
         self._sbom = sbom
         self._vuln = vuln
+        self._campaign_detector = campaign_detector
         self._reasoner = reasoner
         self._actor_read = actor_read
         self._lineage = lineage
@@ -104,6 +113,7 @@ class ReportAgent(BaseSOCAgent):
             sbom_findings = await self._sbom.averify(
                 alert.sbom_components, vuln=self._vuln
             )
+        campaign_matches = await self._build_campaign(alert)
 
         report = SOCReport(
             alert_id=alert.id,
@@ -124,6 +134,7 @@ class ReportAgent(BaseSOCAgent):
             mission_continuity=mission_continuity,
             stride_threats=stride_threats,
             sbom_findings=sbom_findings,
+            campaign_matches=campaign_matches,
         )
         # kill chain: 후반단계 도달 시 guardrail 노출 + 메트릭 계측.
         if alert.kill_chain_advanced:
@@ -196,6 +207,30 @@ class ReportAgent(BaseSOCAgent):
             [p.next_technique for p in inv.predictions] if inv is not None else []
         )
         return self._coa_planner.plan(tactics, predicted)
+
+    async def _build_campaign(self, alert: Alert) -> list[CampaignMatch]:
+        """actor 시나리오 이력 + 현 alert → 진행 중 캠페인 체인을 식별한다.
+
+        actor kill_chain 의 scenario_id 시퀀스에 현 alert scenario_id 를 이어
+        캠페인 시퀀스(S{n} 접두)와 대조한다. scenario_id 는 "S6-GCS-..." 형식이라
+        캠페인 시퀀스의 "S6" 접두로 정규화한다.
+
+        Args:
+            alert: 대상 알람(actor_id·scenario_id 포함).
+
+        Returns:
+            CampaignMatch 목록. detector/actor 미주입·미매칭 시 빈 리스트.
+        """
+        if self._campaign_detector is None or self._actor_read is None:
+            return []
+        if not alert.actor_id:
+            return []
+        profile = await self._actor_read.recall(alert.actor_id.strip())
+        history: list[str] = []
+        if profile is not None:
+            history = [_scenario_prefix(s.scenario_id) for s in profile.kill_chain]
+        history.append(_scenario_prefix(alert.scenario_id))
+        return self._campaign_detector.detect(history)
 
     async def _build_recovery(
         self, alert: Alert, verdict: Verdict

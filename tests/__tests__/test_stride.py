@@ -76,13 +76,16 @@ class TestStrideCoverage:
     """BAS by_stride 연계 — STRIDE 유형별 방어 커버리지."""
 
     def test_coverage_from_bas(self) -> None:
-        """BAS 검증 결과로 STRIDE 커버리지 산출 — I 축에 갭."""
+        """BAS 검증 결과로 STRIDE 커버리지 산출 — 미배포 시나리오에 갭."""
         from core.bas import BASRunner
 
         bas = BASRunner.from_yaml().run()
         cov = StrideClassifier(StrideModel.from_yaml()).coverage(bas)
 
+        # I(Info Disclosure): S7 미배포 → 1.0 미만
         assert "I" in cov
-        # I(Info Disclosure): S12 미탐 → 1.0 미만
         assert cov["I"] < 1.0
-        assert cov["D"] == 1.0
+        # D(DoS): S8 미배포 → 1.0 미만(방어 공백 노출)
+        assert cov["D"] < 1.0
+        # S(Spoofing): 전부 배포 → 완비
+        assert cov["S"] == 1.0

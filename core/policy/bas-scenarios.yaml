@@ -5,96 +5,218 @@
 # 방어 판정(신호 존재 + 매칭 탐지룰 존재)에 통과시켜 탐지 성공/미탐(gap)을 집계하고,
 # tactic·STRIDE 별 커버리지를 산출한다. detection_rule 이 비면 = 미탐 갭(방어 공백).
 #
-# STRIDE(UAV STRIDE 모델, 2025 IET): S(Spoofing) T(Tampering) R(Repudiation)
-#   I(Info Disclosure) D(DoS) E(Elevation of Privilege). STRIDE 기능이 재사용한다.
+# 출처: Notion 「전체 시나리오 S1~S29 마스터 목록」(DAH 2026 Blue Team, 2026-06-30).
+# 신번호 체계(구 코드 S1~S11 과 다름 — 온보드AI=S7, 군집=S8, SATCOM무력화=S9,
+# 모바일GCS=S10, 무장명령=S11). detection_rule = Notion AnalyticsRules JSON 명.
+# STRIDE(2025 IET UAV STRIDE): S/T/R/I/D/E. campaign = 소속 캠페인 체인(C1~C7).
 # tactic 키는 data/attack_coverage.yaml tactic 이름과 일치.
 # =============================================================================
 
-version: 0.1
+version: 0.2
 owner: 황준식
 
 scenarios:
   - id: S1-GNSS-SPOOF
     name: GPS/GNSS 스푸핑
     signals: ["GNSS-INS 잔차 급증", "C/N0 비정상 상승"]
-    detection_rule: uav_gps_spoof_residual.yml
-    tactic: ImpairProcessControl
+    detection_rule: S1_GNSS_Spoofing.json
+    tactic: Collection
     stride: [S, T]
+    campaign: [C2]
 
   - id: S2-C2-HIJACK
     name: C2 재밍·하이재킹
     signals: ["지상국 미발신 명령 수신", "명령 시퀀스 불연속"]
-    detection_rule: uav_c2_unauthorized_cmd.yml
+    detection_rule: S2_C2_Hijacking.json
     tactic: CommandAndControl
     stride: [S, E]
 
   - id: S3-SATCOM-MITM
     name: SATCOM MITM
     signals: ["MAC 검증 실패율 상승", "페이로드 체크섬 불일치"]
-    detection_rule: uav_satcom_integrity_fail.yml
-    tactic: CommandAndControl
+    detection_rule: S3_SATCOM_MITM.json
+    tactic: Collection
     stride: [T, I]
+    campaign: [C3]
 
   - id: S4-FW-TAMPER
     name: 펌웨어·공급망 변조
     signals: ["펌웨어 서명·해시 불일치", "SBOM 미등록 컴포넌트"]
-    detection_rule: uav_fw_signature_mismatch.yml
+    detection_rule: S4_Firmware_Tampering.json
     tactic: Persistence
     stride: [T, E]
+    campaign: [C2, C6]
 
   - id: S5-RAG-POISON
     name: RAG 포이즈닝(AI SOC)
     signals: ["정책 기대등급-판정 괴리", "미서명 컨텍스트 검색"]
-    detection_rule: aisoc_severity_anomaly.yml
+    detection_rule: ""  # AISOC_RAG_Logs_CL 테이블 대기 — 미배포
     tactic: Impact
     stride: [T, E]
 
   - id: S6-GCS-COMPROMISE
-    name: GCS 침해·횡적확산
+    name: GCS 침해·브루트포스
     signals: ["비정상 로그인", "다수 기체 재지정"]
-    detection_rule: gcs_mass_retasking.yml
+    detection_rule: S6_Operator_BruteForce.json
     tactic: LateralMovement
     stride: [S, E]
+    campaign: [C1, C4, C7]
 
-  - id: S7-UGV-HIJACK
-    name: UGV 원격조종 탈취
-    signals: ["제어 두절", "탈취 자격증명 재사용"]
-    detection_rule: ugv_teleop_hijack_capture.yml
-    tactic: CommandAndControl
-    stride: [S, E]
-
-  - id: S8-ONBOARD-AI-EVADE
-    name: 온보드 AI 적대공격
+  - id: S7-ONBOARD-AI-EVADE
+    name: 온보드 표적인식 AI 적대공격
     signals: ["센서간 표적 불일치", "탐지 신뢰도 이상분포"]
-    detection_rule: onboard_ai_adversarial_evade.yml
+    detection_rule: ""  # pollack-ai 독립 SOC — Sentinel 외부, 미배포
     tactic: Impact
     stride: [T, I]
 
-  - id: S9-SWARM-SATURATION
+  - id: S8-SWARM-SATURATION
     name: 군집 포화·SOC 과부하
     signals: ["경보 레이트 이상", "다축 상관 클러스터"]
-    detection_rule: swarm_saturation_alertstorm.yml
+    detection_rule: ""  # SOC_Alert_Stream_CL 선행설계 대기 — 미배포
     tactic: InhibitResponseFunction
     stride: [D]
 
-  - id: S10-SATCOM-DISABLE
-    name: SATCOM 단말 무력화
+  - id: S9-SATCOM-DISABLE
+    name: SATCOM 단말/관리망 무력화
     signals: ["다수 단말 동시 접속실패", "관리채널 이상"]
-    detection_rule: satcom_terminal_mass_failure.yml
-    tactic: InhibitResponseFunction
+    detection_rule: S9_SATCOM_Disruption.json
+    tactic: Impact
     stride: [D]
 
-  - id: S11-MOBILE-GCS
+  - id: S10-MOBILE-GCS
     name: 모바일/전술 GCS 침해
     signals: ["비인가 앱", "세션 토큰 재사용"]
-    detection_rule: mobile_gcs_compromise.yml
-    tactic: LateralMovement
+    detection_rule: S10_Mobile_GCS_Compromise.json
+    tactic: Persistence
     stride: [S, R, E]
 
-  # 미탐 갭 케이스 — 탐지룰 미보유(BAS 가 방어 공백으로 표기).
-  - id: S12-COVERT-EXFIL
-    name: 은닉 매체 데이터 유출(미계측 채널)
-    signals: ["미계측 매체 대용량 전송 흔적"]
-    detection_rule: ""
+  - id: S11-WEAPON-CMD
+    name: 비인가 무장 명령 주입
+    signals: ["미인가 운용자 무장 명령", "화이트리스트 외 무장 코드"]
+    detection_rule: S11_Unauthorized_Weapon_Cmd.json
+    tactic: Impact
+    stride: [S, E]
+    campaign: [C1, C4]
+
+  - id: S12-MISSION-SELFAPPROVAL
+    name: 임무계획 2인통제 우회(자기승인)
+    signals: ["임무계획 자기승인", "2인통제 미충족 배포"]
+    detection_rule: S12_Mission_SelfApproval.json
+    tactic: Impact
+    stride: [R, E]
+    campaign: [C3, C4]
+
+  - id: S13-CT-LEVEL-TAMPER
+    name: CT 레벨 비인가 변경(사이버 태세 하향)
+    signals: ["비인가 CT 전이", "승인 목록 외 태세 하향"]
+    detection_rule: S13_CT_Level_Tamper.json
+    tactic: Impact
+    stride: [T, E]
+    campaign: [C1]
+
+  - id: S14-TI-SOURCE-POISON
+    name: TI 소스 오염
+    signals: ["미신뢰 TI 소스 유입", "TI 피드 서명 불일치"]
+    detection_rule: S14_TI_Source_Poison.json
+    tactic: Collection
+    stride: [T, I]
+    campaign: [C2]
+
+  - id: S15-OFFHOURS-C4I-CMD
+    name: 야간 비인가 C4I 명령
+    signals: ["근무시간 외 C4I 명령", "승인 명령 목록 이탈"]
+    detection_rule: S15_OffHours_C4I_Cmd.json
+    tactic: Execution
+    stride: [S, E]
+    campaign: [C1]
+
+  - id: S16-AOI-EXCURSION
+    name: AOI 이탈 및 카메라 ROI 위반
+    signals: ["AOI 경계 이탈", "카메라 ROI 허가구역 외"]
+    detection_rule: S16_AOI_Excursion.json
+    tactic: Collection
+    stride: [I]
+    campaign: [C3]
+
+  - id: S17-SAR-EXFIL
+    name: SAR 표적 좌표 허가구역 외 유출
+    signals: ["SAR 좌표 허가구역 외 송신", "C4I 교차검증 실패"]
+    detection_rule: S17_SAR_Exfil.json
     tactic: Exfiltration
     stride: [I]
+    campaign: [C6]
+
+  - id: S18-MAVLINK-UNSIGNED
+    name: MAVLink 무서명 메시지 급증(중간자)
+    signals: ["MAVLink 무서명 메시지 급증", "비인가 GCS 연결"]
+    detection_rule: S18_MAVLink_Unsigned_Burst.json
+    tactic: Collection
+    stride: [T, I]
+    campaign: [C5]
+
+  - id: S19-FAILSAFE-PARAM-TAMPER
+    name: Failsafe 파라미터 비인가 변조
+    signals: ["Failsafe 파라미터 변조", "설정감사 이상"]
+    detection_rule: S19_Failsafe_Param_Tamper.json
+    tactic: Impact
+    stride: [T, E]
+    campaign: [C5]
+
+  - id: S20-FAILSAFE-SUPPRESSED
+    name: Failsafe 억제 후 위험비행 지속
+    signals: ["Failsafe 억제", "임계 초과 비행 지속"]
+    detection_rule: S20_Failsafe_Suppressed.json
+    tactic: Impact
+    stride: [T, D]
+
+  - id: S21-MAINTENANCE-IMPLANT
+    name: 정비 중 임플란트 삽입
+    signals: ["정비창 임플란트", "펌웨어 해시 불일치"]
+    detection_rule: S21_Maintenance_Implant.json
+    tactic: Persistence
+    stride: [T, E]
+    campaign: [C6]
+
+  - id: S22-MISSION-RESET-LOOP
+    name: 임무 시퀀스 강제 반복 리셋
+    signals: ["임무 시퀀스 강제 리셋 반복", "Seq 비정상"]
+    detection_rule: S22_Mission_Reset_Loop.json
+    tactic: Impact
+    stride: [D]
+
+  - id: S23-CONTAINER-SERVICE-KILL
+    name: 핵심 컨테이너 서비스 강제 중단
+    signals: ["핵심 서비스 강제 종료", "서비스감사 이상"]
+    detection_rule: S23_Container_Service_Kill.json
+    tactic: Impact
+    stride: [D]
+    campaign: [C7]
+
+  - id: S24-DATALINK-C2-TAKEOVER
+    name: 데이터링크 트래픽 이상 — C2 채널 탈취
+    signals: ["데이터링크 트래픽 이상", "비인가 GCS 연결"]
+    detection_rule: S24_Datalink_C2_Takeover.json
+    tactic: Collection
+    stride: [S, E]
+
+  - id: S25-CONTAINER-RESOURCE-DOS
+    name: 컨테이너 자원 고갈 DoS
+    signals: ["컨테이너 메모리 고갈", "연결 폭주"]
+    detection_rule: S25_Container_Resource_DoS.json
+    tactic: Impact
+    stride: [D]
+    campaign: [C5]
+
+  - id: S26-ROUTER-ENDPOINT-ROGUE
+    name: mavlink-router 비인가 엔드포인트 추가
+    signals: ["라우터 비인가 엔드포인트", "화이트리스트 외 피어"]
+    detection_rule: S26_Router_Endpoint_Rogue.json
+    tactic: CommandAndControl
+    stride: [S, E]
+
+  - id: S28-IMAGERY-STREAM-LOST
+    name: 영상 스트림 두절 — 상황인식 차단
+    signals: ["영상 스트림 GapMs 급증", "FrameRate 급락"]
+    detection_rule: S28_Imagery_Stream_Lost.json
+    tactic: Impact
+    stride: [D]

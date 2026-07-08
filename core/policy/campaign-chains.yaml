@@ -1,0 +1,68 @@
+# =============================================================================
+# 캠페인 체인 — 2층 상관 룰(전술 간 시간 상관관계로 정의된 공격 캠페인)
+# -----------------------------------------------------------------------------
+# 출처: Notion 「전체 시나리오 S1~S29 마스터 목록」§5 캠페인 체인 C1~C7.
+# "단일 룰은 누구나 만든다. 창의성은 전술 간 시간 상관관계에서 나온다"(황준식).
+# 개별 시나리오(1층 Alert)의 시퀀스가 알려진 캠페인 패턴과 일치하면 진행 중인
+# 캠페인으로 식별한다(2층 Campaign Incident 격상).
+#
+# CampaignDetector 가 actor 의 관측 시나리오 이력을 이 시퀀스와 prefix 대조해
+# 진행 중 캠페인 + 진행도 + 다음 예상 시나리오를 산출한다. 우리 예측 폐루프
+# (SequencePredictor: technique n-gram)의 상위 레이어 — 알려진 캠페인 템플릿 매칭.
+#
+# sequence: 캠페인 킬체인 시나리오 순서(BAS/eval id 접두 S{n}- 와 매칭).
+# connect_key: 노션 연결키(Operator/UAVId 등). connect_type: 연결고리 유형.
+# =============================================================================
+
+version: 0.1
+owner: 황준식
+
+chains:
+  - id: C1
+    name: GCS침해→CT하향→야간C4I→무장
+    sequence: [S6, S13, S15, S11]
+    connect_key: Operator
+    connect_type: 공유 식별자 + 시간
+    severity: critical
+
+  - id: C2
+    name: TI오염→펌웨어변조→GNSS스푸핑
+    sequence: [S14, S4, S1]
+    connect_key: UAVId
+    connect_type: 전역시각 + 인과
+    severity: critical
+
+  - id: C3
+    name: 자기승인임무→AOI이탈→SATCOM유출
+    sequence: [S12, S16, S3]
+    connect_key: UAVId
+    connect_type: 인과 의존성
+    severity: high
+
+  - id: C4
+    name: 계정탈취→임무자기승인→무장
+    sequence: [S6, S12, S11]
+    connect_key: Operator
+    connect_type: 공유 식별자
+    severity: critical
+
+  - id: C5
+    name: Failsafe무력화→중간자삽입→DoS
+    sequence: [S19, S18, S25]
+    connect_key: UAVId + 전역시각
+    connect_type: 공유 식별자 + 인과
+    severity: critical
+
+  - id: C6
+    name: 정비임플란트→펌웨어변조→SAR표적유출
+    sequence: [S21, S4, S17]
+    connect_key: UAVId
+    connect_type: 인과 의존성
+    severity: high
+
+  - id: C7
+    name: 서비스중단→탐지맹점→GCS침해
+    sequence: [S23, S6]
+    connect_key: 전역시각
+    connect_type: 시간 인접성 + 인과
+    severity: high
