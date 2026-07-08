@@ -1,8 +1,12 @@
 # 프롬프트 인젝션 탐지 패턴(OWASP LLM01 / MITRE ATLAS AML.T0051).
 # 결정론 정규식 — LlmJudge 프롬프트에 들어가는 untrusted 텍스트(alert 내용 + RAG
 # 컨텍스트)의 *능동적 지시 시도* 를 텔레메트리로 표식한다. 탐지는 판정을 바꾸지
-# 않는다(펜싱이 실보호). SOC alert 는 정당히 공격문자열을 포함하므로(H2) 패턴은
-# 보수적으로 — 우리 LLM 에게 직접 지시하려는 표현에 한정한다.
+# 않는다(펜싱이 실보호).
+#
+# SOC alert 는 정당히 공격문자열을 포함한다(H2) — "actor may act as admin", telemetry
+# "score=7", "print system prompt from file", "new instruction: rotate keys" 는 정상.
+# 따라서 패턴은 *우리 LLM 에게 직접 명령하는* 형태(2인칭 "your"/명령형 override+follow
+# 조합/우리 출력형식 score=[01] 강제)에 한정해 오탐을 줄인다.
 prompt_injection:
   atlas_id: "AML.T0051"
   patterns:
@@ -11,16 +15,16 @@ prompt_injection:
       regex: "(?i)\\b(ignore|disregard|forget)\\b[^.\\n]{0,30}\\b(previous|prior|above|earlier|all)\\b[^.\\n]{0,20}\\b(instruction|rule|context|prompt|direction)"
     - id: role_switch
       atlas: "AML.T0051"
-      regex: "(?i)(you\\s+are\\s+now\\b|from\\s+now\\s+on\\s+you\\b|act\\s+as\\s+(an?\\s+)?|pretend\\s+to\\s+be\\b)"
+      regex: "(?i)(you\\s+are\\s+now\\s+(a|an|the|no\\s+longer)\\b|from\\s+now\\s+on,?\\s+you\\s+(are|must|will|should)\\b|ignore\\s+your\\s+(instruction|role|guideline|rule))"
     - id: score_manipulation
       atlas: "AML.T0051"
-      regex: "(?i)(score|reason)\\s*=\\s*[0-9\"']"
+      regex: "(?i)\\b(score|verdict)\\s*=\\s*[01](\\.\\d+)?\\b"
     - id: system_exfil
       atlas: "AML.T0051.000"
-      regex: "(?i)(reveal|repeat|print|show|output)\\b[^.\\n]{0,20}\\b(your\\s+)?(system\\s+)?(prompt|instruction)"
+      regex: "(?i)(reveal|repeat|print|show|output|dump|leak)\\s+(your|the)\\s+(system\\s+)?(prompt|instruction|rule)s?\\b"
     - id: fence_breakout
       atlas: "AML.T0051"
       regex: "(?i)<<\\s*(end|untrusted)[:_ ]|end[_ ]of[_ ]untrusted"
-    - id: new_instructions
+    - id: follow_new_instructions
       atlas: "AML.T0051"
-      regex: "(?i)(new|updated|real|true)\\s+(instruction|task|objective|directive)s?\\b\\s*[:\\-]"
+      regex: "(?i)\\b(follow|obey|use|apply|adhere\\s+to)\\s+(these\\s+|the\\s+)?(new|updated|following|real|true)\\s+(instruction|rule|directive|command)s?\\b"

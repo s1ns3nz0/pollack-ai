@@ -71,7 +71,8 @@ def _untrusted_texts(state: SOCState) -> list[str]:
     texts = [alert.title, ", ".join(alert.signals), str(alert.mitre)]
     inv = state.get("investigation")
     if inv is not None:
-        texts.extend(c.text for c in inv.similar_cases[:3])
+        # 프롬프트에 들어가는 그대로(source+text) 스캔 — source 오염 누락 방지.
+        texts.extend(f"{c.source}: {c.text}" for c in inv.similar_cases[:3])
     return texts
 
 
