@@ -827,6 +827,7 @@ class IncidentCase(BaseModel):
     kill_chain_stage: int = 0
     member_alert_ids: list[str] = Field(default_factory=list)
     provisional: bool = True
+    reopen_count: int = Field(default=0, ge=0)  # 재범(CLOSED 재확정) 횟수
     opened_at: str = ""
     updated_at: str = ""
 
