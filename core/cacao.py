@@ -22,7 +22,8 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 import yaml
 
-from core.exceptions import PlaybookError
+from core.exceptions import PlaybookError, SOCPlatformError
+from core.models import MissionRisk
 
 _POLICY_DIR = Path(__file__).resolve().parent / "policy"
 _CATALOG = _POLICY_DIR / "cacao-playbooks.yaml"
@@ -179,6 +180,137 @@ def validate_condition(expr: str) -> None:
     # 상수-only(mission_risk 미참조) 게이트 거부 — 의미없는 게이트 방지.
     if not any(_is_mr(n) for n in ast.walk(tree)):
         raise PlaybookError(f"조건식이 mission_risk 를 참조하지 않음: {expr!r}")
+
+
+def _term_value(node: ast.expr, mr: MissionRisk) -> object:
+    """허용 term 을 MissionRisk 값으로 바인딩(validate_condition 이 형태 보장)."""
+    if isinstance(node, ast.Constant):
+        return node.value
+    if isinstance(node, ast.Attribute):
+        if node.attr == "score":
+            return mr.score
+        if node.attr == "is_key_terrain":
+            return mr.is_key_terrain
+    if isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant):
+        # mission_risk.factors["<키>"] — 결측 키는 0(크래시 방지).
+        return mr.factors.get(str(node.slice.value), 0)
+    raise PlaybookError(f"평가 불가 term: {ast.dump(node)}")
+
+
+def _eval_node(node: ast.expr, mr: MissionRisk) -> bool:
+    """검증된 조건식 AST 를 결정론 평가(eval 없음)."""
+    if isinstance(node, ast.BoolOp):
+        vals = [_eval_node(v, mr) for v in node.values]
+        return all(vals) if isinstance(node.op, ast.And) else any(vals)
+    if isinstance(node, ast.Compare):
+        cur = _term_value(node.left, mr)
+        ok = True
+        for op, comp in zip(node.ops, node.comparators, strict=True):
+            rhs = _term_value(comp, mr)
+            if isinstance(op, ast.GtE):
+                ok = ok and cur >= rhs  # type: ignore[operator]
+            elif isinstance(op, ast.Gt):
+                ok = ok and cur > rhs  # type: ignore[operator]
+            elif isinstance(op, ast.Eq):
+                ok = ok and cur == rhs
+            else:
+                ok = False
+            cur = rhs
+        return ok
+    # bare bool term(예 mission_risk.is_key_terrain)
+    return bool(_term_value(node, mr))
+
+
+def evaluate_condition(expr: str, mr: MissionRisk) -> bool:
+    """mission-gate 조건식을 MissionRisk 로 **결정론 평가**한다(eval/exec 없음).
+
+    validate_condition 으로 whitelist 재검증 후, 검증된 AST 만 계산한다.
+
+    Args:
+        expr: if-condition 조건식.
+        mr: 평가 컨텍스트(triage 산출 MissionRisk).
+
+    Returns:
+        조건 충족 여부.
+
+    Raises:
+        PlaybookError: 조건식이 비허용(재검증 실패) 시.
+    """
+    validate_condition(expr)
+    return _eval_node(ast.parse(expr, mode="eval").body, mr)
+
+
+class ResolvedPlan(BaseModel):
+    """CACAO workflow 워크 결과(권고전용 표면용)."""
+
+    playbook_id: str
+    steps: list[dict[str, object]] = Field(default_factory=list)
+    mission_branch: str = "auto"
+    hitl_required: bool = False
+
+
+def select_playbook(tactic: str, catalog: list[CacaoPlaybook]) -> CacaoPlaybook | None:
+    """전술로 카탈로그 플레이북 선택(없으면 None → 폴백 유도)."""
+    if not tactic:
+        return None
+    return next((pb for pb in catalog if pb.tactic == tactic), None)
+
+
+def resolve_playbook(pb: CacaoPlaybook, mr: MissionRisk | None) -> ResolvedPlan:
+    """workflow 를 start→...→end 워크해 임무-분기 행동을 resolve(평가 없이 표면).
+
+    if-condition 은 evaluate_condition 으로 분기(mr None → **보수 on_true/HITL**
+    fail-safe). action 은 manual command 를 순서대로 수집(권고전용 — 실행 없음).
+    """
+    steps: list[dict[str, object]] = []
+    branch = "auto"
+    hitl = False
+    sid = pb.workflow_start
+    visited: set[str] = set()
+    while sid:
+        if sid in visited:  # 루프 → 부분 plan 대신 실패(Codex M — 폴백 유도)
+            raise PlaybookError(f"{pb.id}: workflow 루프 {sid}")
+        visited.add(sid)
+        step = pb.workflow.get(sid)
+        if step is None:  # 미해결 step → 실패(조용한 부분 plan 금지)
+            raise PlaybookError(f"{pb.id}: 미해결 workflow step {sid!r}")
+        if step.type == "action":
+            steps.append(
+                {
+                    "name": step.name,
+                    "phase": step.labels.get("phase"),
+                    "nist_ir": step.labels.get("nist_ir"),
+                    "commands": [c.command for c in step.commands],
+                }
+            )
+            sid = step.on_completion
+        elif step.type == "if-condition":
+            take_true = True if mr is None else evaluate_condition(step.condition, mr)
+            if take_true:
+                branch, hitl = "conservative", True
+                sid = step.on_true
+            else:
+                branch = "auto"
+                sid = step.on_false
+        elif step.type == "end":
+            break
+        else:  # start
+            sid = step.on_completion
+    return ResolvedPlan(
+        playbook_id=pb.id, steps=steps, mission_branch=branch, hitl_required=hitl
+    )
+
+
+def scenario_tactic_map(path: str | Path | None = None) -> dict[str, str]:
+    """bas-scenarios 에서 scenario_id→tactic 맵(로드 실패 → 빈 맵 → 폴백)."""
+    try:
+        from core.bas import BASRunner
+
+        return {
+            s.id: s.tactic for s in BASRunner.from_yaml(path)._scenarios if s.tactic
+        }
+    except SOCPlatformError:
+        return {}
 
 
 def _check_external_refs(refs: list[CacaoExternalReference]) -> None:

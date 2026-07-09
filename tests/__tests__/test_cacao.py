@@ -12,8 +12,10 @@ import pytest
 
 from core.cacao import (
     CacaoPlaybook,
+    CacaoStep,
     _load_matrix_raw,
     load_playbooks,
+    resolve_playbook,
     validate_condition,
     validate_playbook,
 )
@@ -122,6 +124,41 @@ class TestMissionGateParser:
             validate_condition("secret >= 1")
         with pytest.raises(PlaybookError):
             validate_condition("mission_risk.__class__ >= 1")
+
+
+class TestResolveWalk:
+    def _pb(self, workflow: dict[str, CacaoStep], start: str) -> CacaoPlaybook:
+        return CacaoPlaybook(
+            type="playbook",
+            spec_version="cacao-2.0",
+            id="playbook--test",
+            name="t",
+            created="2026-07-09T00:00:00Z",
+            modified="2026-07-09T00:00:00Z",
+            tactic="Impact",
+            workflow_start=start,
+            workflow=workflow,
+        )
+
+    def test_missing_step_raises(self) -> None:
+        """미해결 workflow step → PlaybookError(Codex diff M — 부분 plan 금지)."""
+        pb = self._pb(
+            {"start--1": CacaoStep(type="start", on_completion="gone--x")}, "start--1"
+        )
+        with pytest.raises(PlaybookError):
+            resolve_playbook(pb, None)
+
+    def test_loop_raises(self) -> None:
+        """workflow 루프 → PlaybookError(폴백 유도)."""
+        pb = self._pb(
+            {
+                "start--1": CacaoStep(type="start", on_completion="a--1"),
+                "a--1": CacaoStep(type="action", on_completion="a--1"),
+            },
+            "start--1",
+        )
+        with pytest.raises(PlaybookError):
+            resolve_playbook(pb, None)
 
 
 class TestInvariants:
