@@ -175,6 +175,33 @@ class NvdTool:
         return VulnFinding(cve=cve, cvss_score=score, severity=severity, source="nvd")
 
 
+class BoundedVuln:
+    """VulnEnricher 를 벽시계 데드라인으로 감싸는 어댑터(fail-open).
+
+    report-side SBOM 검증 등 InvestigationAgent 의 `_bounded` 밖에서 `vuln.aenrich` 를
+    직접 호출하는 경로도 데드라인/graceful fallback 을 갖게 한다(Codex diff High).
+    초과·오류 시 빈 목록 반환(비crash) — 외부 조회가 hotpath 를 무한정 붙잡지 않는다.
+
+    Args:
+        inner: 감쌀 취약점 어댑터.
+        deadline_seconds: 벽시계 데드라인(초).
+    """
+
+    def __init__(self, inner: VulnEnricher, deadline_seconds: float) -> None:
+        self._inner = inner
+        self._deadline = deadline_seconds
+
+    async def aenrich(self, cves: list[str]) -> list[VulnFinding]:
+        """데드라인 내 조회. 초과·조회오류 시 빈 목록(fail-open)."""
+        try:
+            return await asyncio.wait_for(
+                self._inner.aenrich(cves), timeout=self._deadline
+            )
+        except (TimeoutError, VulnLookupError) as exc:
+            _logger.warning("취약점 보강 데드라인/오류, 강등(fail-open): %s", exc)
+            return []
+
+
 class CompositeVuln:
     """여러 취약점 소스를 묶어 CVE 별 1건으로 병합한다.
 

@@ -22,10 +22,10 @@ class SignalJudge:
             alert.expected_detection.get("sigma_rule")
             or alert.expected_detection.get("sentinel_rule")
         )
+        # 외부 enrich confidence 는 코로보레이션서 제외(Codex diff High) — 외부
+        # TI/sandbox/KEV 가 verdict 를 간접 좌우 못하게. 내부신호(유사사례·경험)만 기여.
         corroborated = inv is not None and (
-            bool(inv.similar_cases)
-            or inv.confidence >= 0.5
-            or inv.experience_corroboration > 0
+            bool(inv.similar_cases) or inv.experience_corroboration > 0
         )
         suppression = inv.suppression_corroboration if inv is not None else 0
 

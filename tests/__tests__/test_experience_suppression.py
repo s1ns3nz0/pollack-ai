@@ -142,10 +142,16 @@ class TestJudgeSuppression:
         assert signal_judge(state) == Verdict.FALSE_POSITIVE
 
     def test_tp_unchanged_without_suppression(self) -> None:
-        """억제 근거 없으면 기본 TP 유지(과억제 방지)."""
+        """억제 근거 없으면 기본 TP 유지(과억제 방지).
+
+        내부 코로보레이션(경험 자문)으로 corroborated — 외부 confidence 는 더 이상
+        단독 코로보레이션이 아니므로 experience_corroboration 로 baseline TP 성립.
+        """
         state: SOCState = {
             "alert": _alert(),
-            "investigation": _inv(suppression_corroboration=0),
+            "investigation": _inv(
+                suppression_corroboration=0, experience_corroboration=1
+            ),
         }
         assert signal_judge(state) == Verdict.TRUE_POSITIVE
 

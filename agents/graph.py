@@ -49,6 +49,7 @@ from core.coa import CoaMatrix, CoaPlanner
 from core.deception import DecoyDetector
 from core.degradation import DegradationAssessor, DegradationMatrix
 from core.diamond import DiamondAnalyzer
+from core.egress import IocEgressFilter
 from core.engage import EngageAdvancer, EngageMatrix
 from core.exceptions import SOCPlatformError
 from core.experience import MemoryReadGate
@@ -159,6 +160,64 @@ def _default_airspace(settings: Settings) -> AirspaceProvider | None:
     return OpenSkyRetriever(settings)
 
 
+def _default_ti(settings: Settings) -> ThreatIntelTool | None:
+    """멀티소스 TI 어댑터를 구성한다.
+
+    방산 OPSEC: `external_enrichment_enabled`(마스터, 기본 False)가 꺼져있으면 어떤
+    outbound 도 안 만든다. 켜져있으면 API 키가 있는 소스만 합성한다(키 없으면 소스별
+    비활성). 소스가 하나도 없으면 None. (GNSS/Airspace 는 이 플래그와 무관 — 각자
+    URL 게이트로 기본 배선, 스코프 밖.)
+    """
+    if not settings.external_enrichment_enabled:
+        return None
+    from tools.ti_tool import (
+        AbuseIpdbTool,
+        CompositeThreatIntel,
+        GreyNoiseTool,
+        ThreatFoxTool,
+        ThreatIntelSource,
+        VirusTotalTool,
+    )
+
+    sources: list[ThreatIntelSource] = []
+    if settings.virustotal_api_key.get_secret_value():
+        sources.append(VirusTotalTool(settings))
+    if settings.greynoise_api_key.get_secret_value():
+        sources.append(GreyNoiseTool(settings))
+    if settings.abuseipdb_api_key.get_secret_value():
+        sources.append(AbuseIpdbTool(settings))
+    if settings.threatfox_api_key.get_secret_value():
+        sources.append(ThreatFoxTool(settings))
+    return CompositeThreatIntel(sources) if sources else None
+
+
+def _default_sandbox(settings: Settings) -> SandboxDetonator | None:
+    """Hybrid Analysis 샌드박스 어댑터를 구성한다(마스터 off·키 없으면 None)."""
+    if not settings.external_enrichment_enabled:
+        return None
+    if not settings.hybridanalysis_api_key.get_secret_value():
+        return None
+    from tools.sandbox_tool import HybridAnalysisTool
+
+    return HybridAnalysisTool(settings)
+
+
+def _default_vuln(settings: Settings) -> VulnContext | None:
+    """취약점 컨텍스트(CISA KEV[키불요] + NVD[키선택])를 구성한다.
+
+    마스터 off 면 None. 켜지면 CISA KEV(공개)는 항상, NVD 는 키 유무와 무관하게
+    합성(NVD 는 키 없으면 낮은 레이트리밋으로 동작).
+    """
+    if not settings.external_enrichment_enabled:
+        return None
+    from tools.vuln_tool import BoundedVuln, CisaKevTool, CompositeVuln, NvdTool
+
+    # BoundedVuln 으로 감싸 investigation(_bounded) 밖 report-side SBOM CVE 경로도
+    # 벽시계 데드라인/fail-open 을 갖게 한다(Codex diff High).
+    inner = CompositeVuln([CisaKevTool(settings), NvdTool(settings)])
+    return BoundedVuln(inner, settings.enrichment_deadline_seconds)
+
+
 def build_soc_graph(
     *,
     settings: Settings | None = None,
@@ -214,6 +273,20 @@ def build_soc_graph(
         gnss_jam = _default_gnss_jam(settings)
     if airspace is None:
         airspace = _default_airspace(settings)
+    # 외부 enrich(TI/샌드박스/vuln) 기본 배선 — 마스터 플래그·API 키 게이트(OPSEC).
+    if ti is None:
+        ti = _default_ti(settings)
+    if sandbox is None:
+        sandbox = _default_sandbox(settings)
+    if vuln is None:
+        vuln = _default_vuln(settings)
+    else:
+        # 주입된 raw vuln 도 report-side SBOM CVE 경로에서 데드라인/fail-open 갖게
+        # 래핑(Codex diff High residual — 기본 경로만이 아니라 주입 경로도 bounded).
+        from tools.vuln_tool import BoundedVuln
+
+        if not isinstance(vuln, BoundedVuln):
+            vuln = BoundedVuln(vuln, settings.enrichment_deadline_seconds)
 
     # spec C1: predictor 미주입 시 인메모리 SequencePredictor 자동 배선.
     if predictor is None:
@@ -300,6 +373,7 @@ def build_soc_graph(
         actor_read=actor_read,
         ragas=ragas,  # type: ignore[arg-type]
         predictor=predictor,  # type: ignore[arg-type]
+        egress=IocEgressFilter(),  # untrusted wire IOC egress 정제(내부누설·쿼터번)
     )
     # spec B1: ensemble_judges 명시 주입 우선. 없고 llm_judge_enabled 일 때만 자동 배선.
     if ensemble_judges is None and llm_judge_enabled:
