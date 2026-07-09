@@ -1133,6 +1133,10 @@ class ResponseResult(BaseModel):
     # METT-TC 임무위험 맥락(triage 산출 mission_risk 반영 — 표시/감사용).
     mission_risk_score: int | None = None
     mission_risk_note: str | None = None
+    # CACAO 플레이북 배선(카탈로그 선택 + mission-gate 분기 — 권고전용 표면).
+    cacao_playbook_id: str | None = None
+    cacao_steps: list[dict[str, object]] | None = None
+    mission_branch: str | None = None
 
 
 class ApprovalResult(BaseModel):

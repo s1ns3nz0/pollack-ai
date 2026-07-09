@@ -43,6 +43,7 @@ from agents.validation_agent import (
     route_after_validation,
 )
 from core.actors import ActorReadGate, ActorWriteGate, InMemoryActorStore
+from core.cacao import CacaoPlaybook, load_playbooks, scenario_tactic_map
 from core.campaign import CampaignChains, CampaignDetector
 from core.causal import CausalReasoner
 from core.coa import CoaMatrix, CoaPlanner
@@ -381,7 +382,16 @@ def build_soc_graph(
     if ensemble_judges is None and llm_judge_enabled:
         ensemble_judges = [SignalJudge(), LlmJudge(llm), ExperienceJudge()]
     validation = ValidationAgent(settings, judge, ensemble_judges=ensemble_judges)
-    response = ResponseAgent(settings, engine)
+    # CACAO 대응 플레이북 카탈로그 + scenario→tactic 맵 배선(로드 실패 → None/빈맵
+    # → ResponseAgent 가 기존 defense_playbook 경로로 폴백, 회귀 안전).
+    try:
+        _playbooks: list[CacaoPlaybook] | None = load_playbooks()
+    except SOCPlatformError as exc:
+        get_logger("graph").warning("CACAO 카탈로그 로드 실패, 폴백: %s", exc)
+        _playbooks = None
+    response = ResponseAgent(
+        settings, engine, playbooks=_playbooks, scenario_tactic=scenario_tactic_map()
+    )
     rule_update = RuleUpdateAgent(settings, rule_publisher)
     # spec D-1: lineage opt-in.
     if lineage is None and settings.lineage_enabled:

@@ -24,7 +24,8 @@ CACAO 카탈로그(별 PR — core/cacao.py 모델·validator + cacao-playbooks.
 ### 3.1 core/cacao.py (카탈로그 PR 확장)
 - `evaluate_condition(expr: str, mission_risk: MissionRisk) -> bool` — `validate_condition`
   과 **동일 AST whitelist** 를 실제 값으로 평가(결정론). 허용 변수만 바인딩:
-  `mission_risk.score`, `mission_risk.factors.get("civil_geo",0)`, `mission_risk.is_key_terrain`.
+  `mission_risk.score`, `mission_risk.factors.get(<검증된 임의 키>, 0)`(결측 키 0 —
+  crash 방지, civil_geo 는 대표 예), `mission_risk.is_key_terrain`.
   파싱은 validate 가 이미 보장 → 여기선 whitelisted 노드만 평가(Call/Import 없음).
 - `select_playbook(tactic, catalog) -> CacaoPlaybook | None`.
 - `resolve_playbook(pb, mission_risk | None) -> ResolvedPlan` — workflow 를 start 부터
@@ -44,9 +45,14 @@ CACAO 카탈로그(별 PR — core/cacao.py 모델·validator + cacao-playbooks.
 - `run()`:
   1. tactic = scenario_tactic.get(alert.scenario_id) (있으면).
   2. pb = select_playbook(tactic, playbooks) (tactic·카탈로그 있으면).
-  3. pb 있으면: `plan = resolve_playbook(pb, state.get("mission_risk"))` →
+  3. pb 있으면: `plan = resolve_playbook(pb, state.get("mission_risk"))`
+     (malformed 워크 → PlaybookError → **defense_playbook 폴백**, Codex M) →
      ResponseResult 에 `cacao_playbook_id`, `cacao_steps`(권고 행동 순서), `mission_branch`.
-     **HITL**: plan.hitl_required 또는 기존 mission_risk≥임계(#66) → hitl 상향(기존 로직).
+     **HITL(Codex High 정직화)**: plan.hitl_required 는 **권고 표면**(mr_note). 실제 HITL
+     **강제**는 approval 노드(`severity==h` OR `mission_risk.score≥임계`, #66)가 처리하며
+     conservative 조건(score≥임계)과 **정렬** → score 기반은 이미 강제됨. `mission_risk
+     None` 케이스의 approval 강제는 **후속**(그래프 라우팅 — cacao_hitl_required 를 state
+     로 approval 전달). 여기선 권고 표기까지.
      **auto_response**: 기존 severity level_meta + approval 게이트 그대로(분기는 라벨만).
   4. pb 없으면(미커버/로드실패): **현행 defense_playbook 경로**(불변 — 회귀 안전).
 - 권고전용: cacao_steps = manual command 서술 표면. actuator 호출 0(카탈로그가 이미
@@ -80,6 +86,10 @@ CACAO 카탈로그(별 PR — core/cacao.py 모델·validator + cacao-playbooks.
 - `test_resolve_walks_phases`: contain→recover→adapt step 순서 수집.
 
 ## 6. 미결 / 후속
+- **CACAO HITL approval 강제(Codex High)**: mission_risk None 시 conservative 분기의
+  HITL 을 approval 노드가 강제하려면 CACAO resolve 를 approval 전(前)에 수행하거나
+  cacao_hitl_required 를 state 로 approval 에 전달. 별 PR(그래프 라우팅). 현재는 score≥
+  임계 정렬로 강제되고 None 은 권고 표기.
 - 전체 15전술 카탈로그(별 작업) — 미커버는 폴백.
 - 다중-tactic scenario(현 bas 1-tactic) — 확장 시 우선순위.
 - 게이트: **카탈로그 PR 머지 후** → Codex 설계리뷰→구현→black/ruff/mypy/pytest→
