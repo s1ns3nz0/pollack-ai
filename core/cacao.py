@@ -301,6 +301,18 @@ def resolve_playbook(pb: CacaoPlaybook, mr: MissionRisk | None) -> ResolvedPlan:
     )
 
 
+def playbook_requires_hitl(pb: CacaoPlaybook, mr: MissionRisk | None) -> bool:
+    """플레이북 mission-gate 가 보수(HITL) 분기를 요구하는지(approval 게이트용).
+
+    resolve_playbook 의 보수분기 판정 재사용 — mission_risk None → 보수(fail-safe).
+    malformed 워크(PlaybookError) → True(불명=인간, 안전방향).
+    """
+    try:
+        return resolve_playbook(pb, mr).hitl_required
+    except PlaybookError:
+        return True
+
+
 def scenario_tactic_map(path: str | Path | None = None) -> dict[str, str]:
     """bas-scenarios 에서 scenario_id→tactic 맵(로드 실패 → 빈 맵 → 폴백)."""
     try:

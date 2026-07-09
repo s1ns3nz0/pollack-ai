@@ -4,14 +4,17 @@
 파이프라인을 멈추고 운용자 결정을 기다린 뒤 재개한다. 게이트 조건 미해당이면 멈추지
 않고 자동 승인한다(불필요한 개입 방지).
 
-게이트 발동 조건(둘 중 하나 — 상향만, 절대 하향 없음):
+게이트 발동 조건(셋 중 하나 — 상향만, 절대 하향 없음):
   (1) severity == h (기존).
   (2) METT-TC 임무위험 score ≥ hitl_force_threshold — severity 가 h 미만이어도
       임무위험 高(핵심지형·의존자산·민간 부수피해·적 진행)면 인간 게이트 강제.
       mission_risk 는 wire 필드 파생이라 위조 시 과-게이트(안전 방향)일 뿐.
+  (3) CACAO 플레이북(전술) mission-gate 가 보수분기 요구 — mission_risk None(불명)·
+      malformed 플레이북 포함 fail-safe. resolve 를 approval 에서 강제해 ResponseAgent
+      뒤가 아닌 실제 interrupt 로 게이트한다(Codex High 후속).
 
 이 노드는 `build_soc_graph(hitl=True)`(checkpointer 동반) 에서만 그래프에 삽입된다.
-Spec: docs/superpowers/specs/2026-07-09-mett-tc-weighted-triage-design.md
+Spec: docs/superpowers/specs/2026-07-09-cacao-approval-hitl-design.md
 """
 
 from __future__ import annotations
@@ -19,6 +22,7 @@ from __future__ import annotations
 from langgraph.types import interrupt
 
 from agents.base import BaseSOCAgent
+from core.cacao import CacaoPlaybook, playbook_requires_hitl, select_playbook
 from core.models import ApprovalResult, Severity, SOCState
 from core.settings import Settings
 
@@ -35,9 +39,27 @@ def _coerce_approved(raw: object) -> bool:
 class ApprovalAgent(BaseSOCAgent):
     """고위험 대응 전 HITL 승인 게이트."""
 
-    def __init__(self, settings: Settings, hitl_force_threshold: int = 6) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        hitl_force_threshold: int = 6,
+        playbooks: list[CacaoPlaybook] | None = None,
+        scenario_tactic: dict[str, str] | None = None,
+    ) -> None:
         super().__init__(settings)
         self._hitl_force_threshold = hitl_force_threshold
+        self._playbooks = playbooks
+        self._scenario_tactic = scenario_tactic or {}
+
+    def _cacao_forces_hitl(self, state: SOCState) -> bool:
+        """alert 전술의 CACAO 플레이북이 보수(HITL) 분기를 요구하는지."""
+        if not self._playbooks:
+            return False
+        tactic = self._scenario_tactic.get(state["alert"].scenario_id, "")
+        pb = select_playbook(tactic, self._playbooks)
+        if pb is None:
+            return False
+        return playbook_requires_hitl(pb, state.get("mission_risk"))
 
     async def run(self, state: SOCState) -> SOCState:
         """severity h 또는 임무위험 高면 운용자 승인 대기(interrupt), 그 외 자동 승인.
@@ -56,7 +78,8 @@ class ApprovalAgent(BaseSOCAgent):
             mission_risk is not None
             and mission_risk.score >= self._hitl_force_threshold
         )
-        if not (force_high or force_mission):
+        force_cacao = self._cacao_forces_hitl(state)
+        if not (force_high or force_mission or force_cacao):
             return {
                 "approval": ApprovalResult(
                     required=False,
@@ -66,7 +89,12 @@ class ApprovalAgent(BaseSOCAgent):
                 "trace": ["approval"],
             }
 
-        reason = "고위험(h) 자동대응" if force_high else "임무위험 高"
+        if force_high:
+            reason = "고위험(h) 자동대응"
+        elif force_mission:
+            reason = "임무위험 高"
+        else:
+            reason = "CACAO 보수분기(임무게이트)"
         mr_score = mission_risk.score if mission_risk is not None else None
         self._logger.info(
             "approval: HITL 승인 대기 alert=%s severity=%s mission_risk=%s(%s)",
