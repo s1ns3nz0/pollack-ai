@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from agents.investigation_agent import InvestigationAgent
 from core.exceptions import HypothesisCatalogError, SOCPlatformError
 from core.hypothesis import (
     EVIDENCE_KEYS,
@@ -27,6 +28,7 @@ from core.models import (
     TiVerdict,
     VulnFinding,
 )
+from core.settings import Settings
 
 _VALID_YAML = """
 hypotheses:
@@ -342,3 +344,48 @@ class TestAchEvaluator:
         out = AchEvaluator((bad, good)).evaluate({"kev_present": 1.0})
         assert [a.hypothesis_id for a in out] == ["HYP-GOOD"]
         assert out[0].rank == 1
+
+
+class TestInvestigationWiring:
+    """InvestigationAgent ACH 비권위 배선 테스트."""
+
+    @pytest.mark.asyncio
+    async def test_run_populates_assessments_nonauthoritative(self) -> None:
+        agent = InvestigationAgent(Settings(), retriever=None)
+        out = await agent.run({"alert": _alert()})
+        inv = out["investigation"]
+        assert len(inv.hypothesis_assessments) >= 5
+        assert all(a.rank is None for a in inv.hypothesis_assessments)
+
+    @pytest.mark.asyncio
+    async def test_evaluator_failure_isolated(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        agent = InvestigationAgent(Settings(), retriever=None)
+
+        def _boom(evidence: dict[str, float]) -> list[HypothesisAssessment]:
+            raise RuntimeError("ach boom")
+
+        monkeypatch.setattr(agent._ach, "evaluate", _boom)
+        out = await agent.run({"alert": _alert()})
+        inv = out["investigation"]
+        assert inv.hypothesis_assessments == []
+        assert inv.matched_signals == ["GPS_GLITCH_FLAG"]
+
+    @pytest.mark.asyncio
+    async def test_confidence_and_fields_unchanged_by_ach(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        agent_on = InvestigationAgent(Settings(), retriever=None)
+        agent_off = InvestigationAgent(Settings(), retriever=None)
+
+        def _boom(evidence: dict[str, float]) -> list[HypothesisAssessment]:
+            raise RuntimeError("ach boom")
+
+        monkeypatch.setattr(agent_off._ach, "evaluate", _boom)
+        inv_on = (await agent_on.run({"alert": _alert()}))["investigation"]
+        inv_off = (await agent_off.run({"alert": _alert()}))["investigation"]
+        dump_on = inv_on.model_dump(exclude={"hypothesis_assessments"})
+        dump_off = inv_off.model_dump(exclude={"hypothesis_assessments"})
+        assert dump_on == dump_off
+        assert inv_on.confidence == inv_off.confidence
