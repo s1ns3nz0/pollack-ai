@@ -17,6 +17,7 @@ from core.aibom import (
     AIBOMVerifier,
     ApprovedAibom,
     expected_component_types,
+    settings_datasets,
 )
 from core.campaign import CampaignDetector
 from core.causal import CausalReasoner
@@ -70,7 +71,8 @@ def _load_aibom_findings(settings: Settings) -> list[AibomFinding]:
     """
     try:
         approved = ApprovedAibom.from_yaml()
-        components = AibomInventory.from_manifest()
+        # 선언 매니페스트 + 실행 중 RAG corpus(dataset 실행값 관측) 병합.
+        components = AibomInventory.from_manifest() + settings_datasets(settings)
     except SOCPlatformError as exc:
         # 정책 로드 실패 — "AIBOM 부재"를 "AIBOM 정상"과 구분(관측가능 degraded, Codex).
         get_logger("report").warning("AIBOM 정책 로드 실패, degraded: %s", exc)

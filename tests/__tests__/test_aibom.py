@@ -140,6 +140,37 @@ class TestExpectedTypes:
         assert AIBOMVerifier(approved).verify(comps, exp) == []
 
 
+class TestDatasetLineage:
+    """RAG corpus(dataset) 실행값 관측 — poisoning 공급망 거버넌스."""
+
+    def test_default_no_dataset(self) -> None:
+        from core.aibom import settings_datasets
+        from core.settings import Settings
+
+        assert settings_datasets(Settings()) == []
+        assert "dataset" not in expected_component_types(Settings())
+
+    def test_configured_dataset_observed(self) -> None:
+        from core.aibom import settings_datasets
+        from core.settings import Settings
+
+        s = Settings(ragflow_dataset_id="kb-prod-01")
+        comps = settings_datasets(s)
+        assert [c.name for c in comps] == ["kb-prod-01"]
+        assert comps[0].component_type == "dataset"
+        assert "dataset" in expected_component_types(s)
+
+    def test_shadow_dataset_unregistered(self) -> None:
+        from core.aibom import settings_datasets
+        from core.settings import Settings
+
+        s = Settings(ragflow_dataset_id="shadow-kb")
+        exp = expected_component_types(s)
+        comps = AibomInventory.from_manifest() + settings_datasets(s)
+        f = AIBOMVerifier(ApprovedAibom.from_yaml()).verify(comps, exp)
+        assert any(x.component == "shadow-kb" and x.issue == "unregistered" for x in f)
+
+
 class TestPolicyDegraded:
     def test_clean_default(self) -> None:
         from agents.report_agent import _load_aibom_findings
