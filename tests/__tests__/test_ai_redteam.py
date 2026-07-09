@@ -52,6 +52,20 @@ class TestGraceful:
         with pytest.raises(PolicyError):
             AiRedTeamRunner.from_yaml("/tmp/__no_redteam__.yaml")
 
+    def test_bad_expect_raises(self, tmp_path: object) -> None:
+        """Codex Low — expect 오타는 조용한 benign 아니라 PolicyError."""
+        import pytest
+
+        from core.exceptions import PolicyError
+
+        p = tmp_path / "bad.yaml"  # type: ignore[operator]
+        p.write_text(
+            "scenarios:\n  - id: x\n    payload: p\n    expect: deteced\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(PolicyError):
+            AiRedTeamRunner.from_yaml(str(p))
+
     def test_degraded_guard_benign_only_pass(self) -> None:
         """가드 degraded(탐지 비활성) → high/detected 케이스 실패로 노출."""
         g = PromptInjectionGuard.degraded_fence_only()
