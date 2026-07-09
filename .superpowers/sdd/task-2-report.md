@@ -86,3 +86,39 @@ Results:
   passed
 - `mypy core/dashboard.py tests/__tests__/test_dashboard_snapshot.py` ->
   passed
+
+## Follow-up Review Fixes
+
+Fixed the remaining Task 2 review findings:
+
+- `_has_hitl_signal()` now uses exact allowlist parsing, so explicit negative
+  values like `NOT_REQUIRED`, `AUTO`, and empty strings no longer force HITL.
+- `_next_expected_tactic()` now skips blank staged-defense tactics and falls
+  back to campaign `next_expected` mapping when needed.
+- Added regressions for:
+  - `report.hitl = NOT_REQUIRED` and `response.hitl = NOT_REQUIRED` producing
+    `story.hitl_status = NOT_REQUIRED`, `summary.hitl_pending_count = 0`, and
+    `bluf.hitl_badge = NOT_REQUIRED`
+  - blank first staged-defense tactic still allowing campaign
+    `scenario_tactic_map()` fallback to mark a predicted navigator cell
+
+## Follow-up Verification
+
+Command:
+
+```bash
+pytest tests/__tests__/test_dashboard_snapshot.py -v
+black core/dashboard.py tests/__tests__/test_dashboard_snapshot.py
+ruff check core/dashboard.py tests/__tests__/test_dashboard_snapshot.py
+mypy core/dashboard.py tests/__tests__/test_dashboard_snapshot.py
+```
+
+Results:
+
+- `pytest tests/__tests__/test_dashboard_snapshot.py -v` -> 9 passed
+- `black core/dashboard.py tests/__tests__/test_dashboard_snapshot.py` ->
+  2 files left unchanged
+- `ruff check core/dashboard.py tests/__tests__/test_dashboard_snapshot.py` ->
+  passed
+- `mypy core/dashboard.py tests/__tests__/test_dashboard_snapshot.py` ->
+  passed

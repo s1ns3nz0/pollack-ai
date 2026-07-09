@@ -339,8 +339,10 @@ def _next_expected_tactic(report: SOCReport | None) -> str:
     """
     if report is None:
         return ""
-    if report.staged_defenses:
-        return report.staged_defenses[0].tactic
+    for staged in report.staged_defenses:
+        tactic = staged.tactic.strip()
+        if tactic:
+            return tactic
     if report.campaign_matches and report.campaign_matches[0].next_expected:
         return scenario_tactic_map().get(report.campaign_matches[0].next_expected, "")
     return ""
@@ -360,7 +362,7 @@ def _has_hitl_signal(value: str | None) -> bool:
     normalized = value.strip().upper()
     if not normalized:
         return False
-    return "HITL" in normalized or "REQUIRED" in normalized
+    return normalized in {"HITL_REQUIRED", "REQUIRED"}
 
 
 def _hitl_status(

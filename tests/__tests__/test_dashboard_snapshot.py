@@ -153,6 +153,21 @@ def test_hitl_required_without_approval_stays_required() -> None:
     assert snap.summary.hitl_pending_count == 0
 
 
+def test_explicit_not_required_hitl_remains_not_required() -> None:
+    """Explicit negative HITL signals do not create a required state."""
+    snap = build_dashboard_snapshot(
+        _state(
+            approval=None,
+            response_hitl="NOT_REQUIRED",
+            report_hitl="NOT_REQUIRED",
+        )
+    )
+
+    assert snap.stories[0].hitl_status == "NOT_REQUIRED"
+    assert snap.summary.hitl_pending_count == 0
+    assert snap.bluf.hitl_badge == "NOT_REQUIRED"
+
+
 def test_navigator_uses_scenario_tactic_map_for_campaign_prediction(
     monkeypatch: MonkeyPatch,
 ) -> None:
@@ -167,6 +182,32 @@ def test_navigator_uses_scenario_tactic_map_for_campaign_prediction(
 
     assert by_tactic["Collection"].predicted is True
     assert by_tactic["CommandAndControl"].predicted is False
+
+
+def test_blank_staged_defense_tactic_falls_back_to_campaign_prediction(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Blank staged defense tactics do not suppress campaign prediction."""
+    monkeypatch.setattr(
+        "core.dashboard.scenario_tactic_map",
+        lambda path=None: {"S117-BLOS-SATCOM-MITM": "Collection"},
+    )
+
+    snap = build_dashboard_snapshot(
+        _state(
+            staged_defenses=[
+                StagedDefense(
+                    technique="T1071",
+                    status="gap",
+                    tactic="",
+                    probability=0.8,
+                )
+            ]
+        )
+    )
+    by_tactic = {cell.tactic: cell for cell in snap.navigator}
+
+    assert by_tactic["Collection"].predicted is True
 
 
 def test_hunt_candidates_do_not_mark_predicted_tactic(
