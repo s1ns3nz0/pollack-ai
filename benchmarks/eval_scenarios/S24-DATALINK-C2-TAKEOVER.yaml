@@ -1,0 +1,34 @@
+# 골든 픽스처(issue #83) — C2 재밍·데이터링크 나포.
+# 출처: dah-sentinel-content AnalyticsRules/S24_Datalink_C2_Takeover.json.
+# 구 S2-C2-HIJACK(존재하지 않는 옛 번호)를 대체 — 새 S1~S126 체계 기준 재매핑.
+fixture_id: FX-S24-C2-TAKEOVER
+scenario_id: S24-DATALINK-C2-TAKEOVER
+title: C2 재밍·데이터링크 채널 나포
+asset_id: C2_LINK
+target_asset:
+  id: C2_LINK
+  tier: T1-Critical
+mission_context:
+  phase: on-station
+severity_baseline: h
+telemetry:
+  signals:
+    - "비인가 PeerIp(C2_Whitelisted_GCS_List 미포함)로 데이터링크 연결"
+    - "연결 상태(State) 비정상(ESTAB 아님)"
+expected_detection:
+  sentinel_rule: S24_Datalink_C2_Takeover.json
+mitre:
+  attack_ics: ["T1499"]
+expected_tactic: InhibitResponseFunction
+expected_techniques: ["T1499"]
+expected_cacao_playbook_id: "playbook--uav-irf-0001"
+expected_resilience_level: MINIMAL
+expected_fallback_contains: "페일세이프"
+expected_report_evidence: "실시간 지상 지휘통제"
+defense_playbook:
+  id: PB-C2-REROUTE-01
+  actions:
+    - "비인가 피어 차단, 화이트리스트 외 명령 거부"
+    - "링크 재라우팅·주파수 재할당"
+    - "이중화 링크(SATCOM/LOS) 페일오버 시도"
+  failover: "자율 페일세이프 모드 전환, 미복구 시 RTB"
