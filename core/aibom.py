@@ -31,6 +31,9 @@ _MANIFEST_POLICY = Path(__file__).resolve().parent / "policy" / "ai-components.y
 # 부동(비고정) 버전 토큰 — 공급망 드리프트 위험.
 _MUTABLE_TAGS = frozenset({"", "latest", "main", "stable", "dev", "edge"})
 
+# 모델카드(문서화) 요구 유형 — 모델만. dataset 은 계보 별도, 카드 불요.
+_MODEL_TYPES = frozenset({"chat_llm", "embedding", "graphrag", "ragflow", "ragas"})
+
 
 def _is_unpinned(version: str) -> bool:
     """버전이 비고정(부동 태그)인지 판정한다."""
@@ -107,6 +110,7 @@ class AibomInventory:
                         version=str(item.get("version", "")),
                         digest=str(item.get("digest", "")),
                         source=str(item.get("source", "")),
+                        model_card=str(item.get("model_card", "")),
                     )
                 )
         return out
@@ -241,6 +245,16 @@ class AIBOMVerifier:
                 )
             )
         out.extend(self._verify_digest(comp, entry))
+        # 모델카드 문서화(NIST AI RMF) — 모델유형인데 카드 미선언 → 갭.
+        if comp.component_type in _MODEL_TYPES and not comp.model_card:
+            out.append(
+                AibomFinding(
+                    component=comp.name,
+                    component_type=comp.component_type,
+                    issue="missing_model_card",
+                    detail="모델카드 미선언 — 의도/한계/데이터 문서화 갭(AI RMF)",
+                )
+            )
         return out
 
     @staticmethod

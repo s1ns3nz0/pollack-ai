@@ -20,7 +20,12 @@ def _approved() -> ApprovedAibom:
 
 
 def _c(**kw: object) -> AibomComponent:
-    base: dict[str, object] = {"name": "m1", "component_type": "chat_llm"}
+    # 기본 카드 선언 — 모델카드 무관 테스트가 missing_model_card 로 오염되지 않게.
+    base: dict[str, object] = {
+        "name": "m1",
+        "component_type": "chat_llm",
+        "model_card": "card.md",
+    }
     base.update(kw)
     return AibomComponent.model_validate(base)
 
@@ -178,6 +183,27 @@ class TestDatasetLineage:
         # 기본(dataset_id 빈값): dataset 컴포넌트 0 → dataset findings 없음.
         out = _load_aibom_findings(Settings())
         assert not any(f.component_type == "dataset" for f in out)
+
+
+class TestModelCard:
+    """모델카드 문서화(NIST AI RMF) — 모델유형만, dataset 면제."""
+
+    def test_missing_card_flagged(self) -> None:
+        c = _c(version="1.0", source="reg-ok", model_card="")  # 카드 미선언
+        assert "missing_model_card" in _issues([c])
+
+    def test_card_present_clean(self) -> None:
+        c = _c(version="1.0", source="reg-ok", model_card="docs/card.md")
+        assert "missing_model_card" not in _issues([c])
+
+    def test_dataset_exempt(self) -> None:
+        c = _c(name="m2", component_type="dataset", version="2.0", source="reg-ok")
+        assert "missing_model_card" not in _issues([c])
+
+    def test_manifest_models_have_cards(self) -> None:
+        comps = AibomInventory.from_manifest()
+        models = [c for c in comps if c.component_type != "dataset"]
+        assert models and all(c.model_card for c in models)
 
 
 class TestPolicyDegraded:

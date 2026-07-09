@@ -175,6 +175,7 @@ class AibomComponent(BaseModel):
         version: 선언 버전/태그.
         digest: 선언 무결성 digest(있으면 승인값과 대조). 없으면 검증 불가.
         source: 출처(레지스트리/URL/제공자).
+        model_card: 모델카드 참조(경로/URL). 모델유형인데 빈값이면 문서화 갭.
     """
 
     name: str
@@ -182,6 +183,7 @@ class AibomComponent(BaseModel):
     version: str = ""
     digest: str = ""
     source: str = ""
+    model_card: str = ""
 
 
 class AibomFinding(BaseModel):
@@ -191,7 +193,8 @@ class AibomFinding(BaseModel):
         component: 대상 컴포넌트명(coverage_gap 은 기대 유형명).
         component_type: 컴포넌트 유형.
         issue: "unregistered"|"untrusted_source"|"unpinned"|"version_mismatch"|
-            "tampered"|"integrity_unverifiable"|"coverage_gap"|"policy_unavailable".
+            "tampered"|"integrity_unverifiable"|"coverage_gap"|"policy_unavailable"|
+            "missing_model_card".
         detail: 사람이 읽을 위험 상세.
     """
 
