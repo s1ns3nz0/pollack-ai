@@ -303,6 +303,13 @@ class InvestigationResult(BaseModel):
         default_factory=list,
         description="경보 CVE 취약점 컨텍스트(KEV 악용 시 confidence 보강).",
     )
+    malware_reports: list[dict[str, object]] = Field(
+        default_factory=list,
+        description=(
+            "검증된 malware analysis report payload. core.malware 모델로 검증 후 "
+            "dict 로 보관해 core.models 순환 import 를 피한다."
+        ),
+    )
     gnss_jam_findings: list[GnssJamFinding] = Field(
         default_factory=list,
         description="외부 GPSJam 회상(S1 시나리오 + level≥2 시 confidence 보강).",

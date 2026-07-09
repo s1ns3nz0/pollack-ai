@@ -165,6 +165,57 @@ class Settings(BaseSettings):
         description="샌드박스 조회 요청 타임아웃(초).",
     )
 
+    # ── Malware analysis MCP adapter (UAV firmware / Linux GCS) ──────────────
+    malware_analysis_enabled: bool = Field(
+        default=False,
+        description=(
+            "Malware analysis MCP adapter master switch. Default False keeps "
+            "firmware/GCS artifact analysis out of the SOC hotpath unless "
+            "explicitly enabled."
+        ),
+    )
+    malware_analysis_auto_static_enabled: bool = Field(
+        default=False,
+        description="Allow bounded static analysis for small Linux/script artifacts.",
+    )
+    malware_analysis_manual_execution_enabled: bool = Field(
+        default=False,
+        description=(
+            "Allow manually approved heavyweight analysis such as firmware "
+            "unpack/emulation, Ghidra, or dynamic execution."
+        ),
+    )
+    external_sample_upload_enabled: bool = Field(
+        default=False,
+        description="Allow public/external sample upload. Default False for OPSEC.",
+    )
+    malware_analysis_auto_max_bytes: int = Field(
+        default=10_485_760,
+        gt=0,
+        description="Maximum artifact size for automatic static malware analysis.",
+    )
+    malware_analysis_deadline_seconds: float = Field(
+        default=30.0,
+        gt=0.0,
+        description="Wall-clock deadline for malware analysis enrichment.",
+    )
+    malware_mcp_firmware_server: str = Field(
+        default="",
+        description="Configured firmware-analysis MCP server identifier.",
+    )
+    malware_mcp_linux_server: str = Field(
+        default="",
+        description="Configured Linux static-analysis MCP server identifier.",
+    )
+    malware_mcp_ghidra_server: str = Field(
+        default="",
+        description="Configured Ghidra headless MCP server identifier.",
+    )
+    malware_mcp_sandbox_server: str = Field(
+        default="",
+        description="Configured local sandbox MCP server identifier.",
+    )
+
     # ── 취약점 컨텍스트 (CISA KEV / NVD) ──────────────
     cisa_kev_url: str = Field(
         default=(

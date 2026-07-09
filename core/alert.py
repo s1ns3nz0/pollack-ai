@@ -34,6 +34,10 @@ class Alert(BaseModel):
     mitre: dict[str, object] = Field(default_factory=dict)
     signals: list[str] = Field(default_factory=list)
     iocs: list[str] = Field(default_factory=list)  # 외부 TI 조회용 지표(해시/IP/도메인)
+    artifacts: list[str] = Field(
+        default_factory=list,
+        description="Malware analysis artifact refs(paths/object ids). Default empty.",
+    )
     cves: list[str] = Field(default_factory=list)  # 취약점 컨텍스트 조회용 CVE 식별자
     sbom_components: list[SbomComponent] = Field(
         default_factory=list,
@@ -117,6 +121,7 @@ class UntrustedAlertPayload(BaseModel):
     mitre: dict[str, object] = Field(default_factory=dict)
     signals: list[str] = Field(default_factory=list)
     iocs: list[str] = Field(default_factory=list)
+    artifacts: list[str] = Field(default_factory=list)
     cves: list[str] = Field(default_factory=list)
     sbom_components: list[SbomComponent] = Field(default_factory=list)
     llm_suggested_severity: Severity | None = None
