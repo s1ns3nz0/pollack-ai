@@ -268,6 +268,16 @@ class Settings(BaseSettings):
         gt=0,
         description="윈도우 내 서로 다른 자산 수가 이 값 이상이면 다축 동시침해.",
     )
+    correlation_cluster_min: int = Field(
+        default=3,
+        gt=0,
+        description="의미 연결요소(공유IOC·의존엣지) 크기 이 값 이상 → 상관 클러스터.",
+    )
+    correlation_window_max_alerts: int = Field(
+        default=512,
+        gt=0,
+        description="상관 윈도우 하드 상한(위조 고속 스트림 DoS·compute 폭발 방지).",
+    )
 
     # ── dynamics(체류시간·횡적상관) — 죽은 severity 룰 활성 ──────────────
     dynamics_enabled: bool = Field(
