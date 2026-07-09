@@ -167,6 +167,7 @@ warn_return_any = false
 # ─────────────────────────────────────────
 [tool.pytest.ini_options]
 asyncio_mode = "auto"            # pytest-asyncio 자동 모드
+pythonpath = ["."]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]

@@ -220,6 +220,7 @@ def _default_vuln(settings: Settings) -> VulnContext | None:
     inner = CompositeVuln([CisaKevTool(settings), NvdTool(settings)])
     return BoundedVuln(inner, settings.enrichment_deadline_seconds)
 
+
 def _default_malware(settings: Settings) -> MalwareAnalysisClient | None:
     """Malware analysis MCP router 를 구성한다(default-deny, client 는 후속 주입)."""
     if not settings.malware_analysis_enabled:
