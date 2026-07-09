@@ -1,0 +1,69 @@
+# UAV 경쟁가설 카탈로그 — ACH(Analysis of Competing Hypotheses)
+# 반증(inconsistent) 최소가 승자. 귀무가설 HYP-BENIGN-ENV 필수(로더가 강제).
+# 조건식 3형태만: key(truthy) / key>0 / key>=n (n 은 int 또는 float).
+# 가중치 0.0 < w <= 1.0. 판정 비권위 — confidence/라우팅에 관여하지 않는다.
+hypotheses:
+  - id: HYP-GNSS-SPOOF
+    name: "GNSS 스푸핑/재밍"
+    mitre: ["T1600"]
+    evidence:
+      "gnss_jam_level>=2": {consistent: 0.9}
+      "key_terrain": {consistent: 0.3}
+      "airspace_hostile": {consistent: 0.4}
+      "suppression_corroboration>0": {inconsistent: 0.5}
+
+  - id: HYP-C2-HIJACK
+    name: "C2 링크 탈취"
+    mitre: []
+    evidence:
+      "ti_malicious_count>0": {consistent: 0.7}
+      "prediction_match": {consistent: 0.5}
+      "kill_chain_advanced": {consistent: 0.6}
+      "decoy_hit": {consistent: 0.5}
+      "gnss_jam_level>=2": {inconsistent: 0.2}
+
+  - id: HYP-DATALINK-INTERCEPT
+    name: "데이터링크 감청"
+    mitre: []
+    evidence:
+      "airspace_hostile": {consistent: 0.6}
+      "actor_ttp_overlap": {consistent: 0.5}
+      "trusted_chunk_coverage>=3": {consistent: 0.2}
+      "sandbox_malicious": {inconsistent: 0.3}
+
+  - id: HYP-SUPPLY-CHAIN
+    name: "공급망/펌웨어 침해"
+    mitre: []
+    evidence:
+      "sandbox_malicious": {consistent: 0.9}
+      "kev_present": {consistent: 0.7}
+      "ti_malicious_count>0": {consistent: 0.4}
+      "gnss_jam_level>=2": {inconsistent: 0.3}
+
+  - id: HYP-RECON-TRACK
+    name: "정찰/추적"
+    mitre: []
+    evidence:
+      "airspace_hostile": {consistent: 0.7}
+      "decoy_hit": {consistent: 0.6}
+      "prediction_probability>=0.6": {consistent: 0.4}
+      "kev_present": {inconsistent: 0.2}
+
+  - id: HYP-INSIDER
+    name: "내부자 위협"
+    mitre: []
+    evidence:
+      "key_terrain": {consistent: 0.4}
+      "experience_corroboration>0": {consistent: 0.3}
+      "ti_malicious_count>0": {inconsistent: 0.4}
+      "airspace_hostile": {inconsistent: 0.3}
+
+  - id: HYP-BENIGN-ENV
+    name: "오탐/환경요인"
+    mitre: []
+    evidence:
+      "suppression_corroboration>0": {consistent: 0.8}
+      "ti_malicious_count>0": {inconsistent: 0.9}
+      "sandbox_malicious": {inconsistent: 0.8}
+      "kill_chain_advanced": {inconsistent: 0.5}
+      "decoy_hit": {inconsistent: 0.7}

@@ -293,6 +293,14 @@ class HypothesisAssessment(BaseModel):
 
     ACH: 반증(inconsistency) 최소가 승자. rank 는 1부터, 매칭 증거가 전무하면
     None(근거 없는 순위 금지 — 정직성 불변식).
+
+    Attributes:
+        hypothesis_id: 카탈로그 가설 id.
+        name: 가설 표시명.
+        consistency: 지지 가중합(0.0~, 소수 4자리 반올림).
+        inconsistency: 반증 가중합(0.0~, 소수 4자리 반올림).
+        rank: 1부터 시작하는 순위. 매칭 증거 전무 시 None.
+        ledger: 매칭된 증거 원장.
     """
 
     hypothesis_id: str
