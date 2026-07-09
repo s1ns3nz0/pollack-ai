@@ -8,12 +8,15 @@ or mission impact decisions.
 from __future__ import annotations
 
 from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, Field, ValidationError
 import yaml
 
 from core.exceptions import PolicyError
+from core.models import SOCReport, SOCState
 
 _POLICY_DIR = Path(__file__).resolve().parent / "policy"
 _TOPOLOGY_POLICY = _POLICY_DIR / "asset-topology.yaml"
@@ -45,6 +48,93 @@ class DashboardTopology(BaseModel):
 
     nodes: list[DashboardNode] = Field(default_factory=list)
     edges: list[DashboardEdge] = Field(default_factory=list)
+
+
+DashboardMode = Literal["replay", "live"]
+
+
+class DashboardSummary(BaseModel):
+    """Top strip summary values."""
+
+    active_story_count: int = 0
+    max_mission_impact: str = "UNKNOWN"
+    hitl_pending_count: int = 0
+    decision_advantage: str = "unknown"
+
+
+class DashboardAlertRef(BaseModel):
+    """Alert reference nested under a story card."""
+
+    alert_id: str
+    scenario_id: str
+    title: str = ""
+    tactic: str = ""
+    order: int = 0
+
+
+class DashboardStory(BaseModel):
+    """Story rail card view model."""
+
+    story_id: str
+    actor: str = ""
+    campaign_id: str = ""
+    campaign_name: str = ""
+    matched: int = 0
+    total: int = 0
+    next_expected: str = ""
+    target_asset: str = ""
+    mission_impact: str = "UNKNOWN"
+    hitl_status: str = "NOT_REQUIRED"
+    alerts: list[DashboardAlertRef] = Field(default_factory=list)
+
+
+class DashboardNavigatorCell(BaseModel):
+    """UAV ATT&CK navigator cell."""
+
+    tactic: str
+    order: int
+    observed: bool = False
+    current: bool = False
+    predicted: bool = False
+    gap: bool = False
+    observed_order: int | None = None
+    note: str = ""
+
+
+class DashboardBluf(BaseModel):
+    """BLUF staff advice card view model."""
+
+    situation: str = ""
+    mission_impact: str = ""
+    recommendation: str = ""
+    next_move: str = ""
+    confidence: str = "unknown"
+    hitl_badge: str = "NOT_REQUIRED"
+    caveats: list[str] = Field(default_factory=list)
+
+
+class DashboardSource(BaseModel):
+    """Audit pointer for a dashboard snapshot."""
+
+    alert_id: str = ""
+    scenario_id: str = ""
+    trace: list[str] = Field(default_factory=list)
+
+
+class DashboardSnapshot(BaseModel):
+    """Dashboard wire-format snapshot."""
+
+    schema_version: str = "dashboard.snapshot.v1"
+    step: int = 0
+    mode: DashboardMode = "replay"
+    generated_at: str = ""
+    summary: DashboardSummary = Field(default_factory=DashboardSummary)
+    stories: list[DashboardStory] = Field(default_factory=list)
+    selected_story_id: str = ""
+    navigator: list[DashboardNavigatorCell] = Field(default_factory=list)
+    topology: DashboardTopology = Field(default_factory=DashboardTopology)
+    bluf: DashboardBluf = Field(default_factory=DashboardBluf)
+    source: DashboardSource = Field(default_factory=DashboardSource)
 
 
 class TopologyNode(BaseModel):
@@ -163,3 +253,302 @@ class TopologyPolicy(BaseModel):
                 for edge in self.edges
             ],
         )
+
+
+_ATTACK_COVERAGE = Path(__file__).resolve().parents[1] / "data" / "attack_coverage.yaml"
+
+
+def _now_iso() -> str:
+    """Return current UTC timestamp for snapshot metadata."""
+    return datetime.now(UTC).isoformat()
+
+
+def _report(state: SOCState) -> SOCReport | None:
+    """Return SOC report from state if present.
+
+    Args:
+        state: Current SOC pipeline state.
+
+    Returns:
+        SOC report when available, otherwise None.
+    """
+    if "report" not in state:
+        return None
+    return state["report"]
+
+
+def _tactic_from_report(report: SOCReport | None) -> str:
+    """Extract current tactic from report MITRE mapping.
+
+    Args:
+        report: Final SOC report.
+
+    Returns:
+        MITRE tactic string or an empty string when unavailable.
+    """
+    if report is None:
+        return ""
+    tactic = report.mitre.get("tactic", "")
+    return tactic if isinstance(tactic, str) else ""
+
+
+def _coverage_cells() -> list[DashboardNavigatorCell]:
+    """Load tactic order and gap status from attack_coverage.yaml.
+
+    Returns:
+        Navigator cells in authoritative tactic order.
+
+    Raises:
+        PolicyError: Coverage policy cannot be read or parsed.
+    """
+    try:
+        raw = yaml.safe_load(_ATTACK_COVERAGE.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as exc:
+        raise PolicyError(f"attack coverage load failed: {exc}") from exc
+    tactics = raw.get("tactics", []) if isinstance(raw, dict) else []
+    cells: list[DashboardNavigatorCell] = []
+    for item in tactics:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("name", "")
+        order = item.get("order", 0)
+        if not isinstance(name, str) or not isinstance(order, int):
+            continue
+        uncovered = item.get("uncovered", [])
+        planned = item.get("planned", [])
+        cells.append(
+            DashboardNavigatorCell(
+                tactic=name,
+                order=order,
+                gap=bool(uncovered) or bool(planned),
+            )
+        )
+    cells.sort(key=lambda cell: cell.order)
+    return cells
+
+
+def _next_expected_tactic(report: SOCReport | None) -> str:
+    """Return predicted next tactic from available report fields.
+
+    Args:
+        report: Final SOC report.
+
+    Returns:
+        Predicted next tactic string or empty string when unavailable.
+    """
+    if report is None:
+        return ""
+    if report.staged_defenses:
+        return report.staged_defenses[0].tactic
+    if report.hunt_candidates:
+        return str(report.hunt_candidates[0])
+    if report.campaign_matches and report.campaign_matches[0].next_expected:
+        scenario = report.campaign_matches[0].next_expected
+        if "SATCOM" in scenario or "C2" in scenario:
+            return "CommandAndControl"
+        if "GNSS" in scenario or "SPOOF" in scenario:
+            return "Collection"
+        if "WEAPON" in scenario or "IMPACT" in scenario:
+            return "Impact"
+    return ""
+
+
+def _build_story(state: SOCState, report: SOCReport | None) -> DashboardStory:
+    """Build a single story card from the current SOC state.
+
+    Args:
+        state: Current SOC pipeline state.
+        report: Final SOC report when available.
+
+    Returns:
+        One story card for the dashboard rail.
+    """
+    alert = state["alert"]
+    campaign = None
+    if report is not None and report.campaign_matches:
+        campaign = report.campaign_matches[0]
+    continuity = report.mission_continuity if report is not None else None
+    approval = state["approval"] if "approval" in state else None
+    hitl_status = (
+        "PENDING"
+        if approval is not None and approval.required and not approval.approved
+        else "NOT_REQUIRED"
+    )
+    actor = alert.actor_id or "UNKNOWN-ACTOR"
+    tactic = _tactic_from_report(report) or str(alert.mitre.get("tactic", ""))
+    return DashboardStory(
+        story_id=actor,
+        actor=actor,
+        campaign_id=campaign.chain_id if campaign else "",
+        campaign_name=campaign.name if campaign else "",
+        matched=campaign.matched if campaign else 0,
+        total=campaign.total if campaign else 0,
+        next_expected=campaign.next_expected if campaign else "",
+        target_asset=alert.asset_id,
+        mission_impact=continuity.level if continuity else "UNKNOWN",
+        hitl_status=hitl_status,
+        alerts=[
+            DashboardAlertRef(
+                alert_id=alert.id,
+                scenario_id=alert.scenario_id,
+                title=alert.title,
+                tactic=tactic,
+                order=1,
+            )
+        ],
+    )
+
+
+def _build_navigator(report: SOCReport | None) -> list[DashboardNavigatorCell]:
+    """Build UAV ATT&CK navigator cells for the selected story.
+
+    Args:
+        report: Final SOC report.
+
+    Returns:
+        Ordered tactic cells with current/predicted/gap flags.
+    """
+    current = _tactic_from_report(report)
+    predicted = _next_expected_tactic(report)
+    cells = _coverage_cells()
+    for cell in cells:
+        if cell.tactic == current:
+            cell.current = True
+            cell.observed = True
+            cell.observed_order = 1
+        if cell.tactic == predicted:
+            cell.predicted = True
+        if cell.predicted and cell.gap:
+            cell.note = "다음 예상 수순이 현재 미커버 전술입니다."
+    return cells
+
+
+def _build_bluf(
+    state: SOCState,
+    report: SOCReport | None,
+    story: DashboardStory,
+) -> DashboardBluf:
+    """Build the BLUF staff advice card.
+
+    Args:
+        state: Current SOC pipeline state.
+        report: Final SOC report when available.
+        story: Selected story card.
+
+    Returns:
+        BLUF card view model.
+    """
+    response = state["response"] if "response" in state else None
+    brief = report.commander_brief if report is not None else None
+    continuity = report.mission_continuity if report is not None else None
+    steps: list[str] = []
+    if response is not None and response.cacao_steps:
+        for step in response.cacao_steps[:2]:
+            name = step.get("name", "")
+            if isinstance(name, str) and name:
+                steps.append(name)
+    if steps:
+        recommendation = " / ".join(steps)
+    elif report is not None:
+        recommendation = report.action_taken
+    else:
+        recommendation = ""
+    next_move = story.next_expected or "UNKNOWN"
+    return DashboardBluf(
+        situation=(
+            brief.bluf
+            if brief is not None
+            else f"{story.actor} -> {story.target_asset}"
+        ),
+        mission_impact=(
+            f"{continuity.level}: {continuity.fallback}" if continuity else "UNKNOWN"
+        ),
+        recommendation=recommendation,
+        next_move=next_move,
+        confidence=brief.confidence if brief is not None else "unknown",
+        hitl_badge=story.hitl_status,
+        caveats=list(brief.caveats) if brief is not None else [],
+    )
+
+
+def _overlay_topology(
+    topology: TopologyPolicy,
+    report: SOCReport | None,
+) -> DashboardTopology:
+    """Overlay report mission continuity onto topology nodes.
+
+    Args:
+        topology: Static topology policy.
+        report: Final SOC report when available.
+
+    Returns:
+        Dashboard topology with active mission-impact nodes highlighted.
+    """
+    view = topology.to_view_model()
+    continuity = report.mission_continuity if report is not None else None
+    if continuity is None:
+        return view
+    node_id = topology.node_for_degradation(continuity.asset_id)
+    if node_id is None:
+        return view
+    active_nodes = {node_id}
+    node_by_id = {node.id: node for node in view.nodes}
+    if node_id in node_by_id:
+        node_by_id[node_id].active = True
+        node_by_id[node_id].status = continuity.level
+    for edge in view.edges:
+        if edge.source in active_nodes or edge.target in active_nodes:
+            edge.active = True
+    return view
+
+
+def build_dashboard_snapshot(
+    state: SOCState,
+    *,
+    step: int = 0,
+    mode: DashboardMode = "replay",
+    topology: TopologyPolicy | None = None,
+) -> DashboardSnapshot:
+    """Build a dashboard snapshot from one SOC state.
+
+    Args:
+        state: Completed or partial SOC state.
+        step: Replay/live sequence number.
+        mode: Snapshot source mode.
+        topology: Optional preloaded topology policy.
+
+    Returns:
+        Dashboard snapshot view model.
+    """
+    report = _report(state)
+    policy = topology or TopologyPolicy.from_yaml()
+    story = _build_story(state, report)
+    bluf = _build_bluf(state, report, story)
+    decision = (
+        report.decision_advantage.verdict
+        if report is not None and report.decision_advantage is not None
+        else "unknown"
+    )
+    trace = list(state["trace"]) if "trace" in state else []
+    alert = state["alert"]
+    return DashboardSnapshot(
+        step=step,
+        mode=mode,
+        generated_at=_now_iso(),
+        summary=DashboardSummary(
+            active_story_count=1,
+            max_mission_impact=story.mission_impact,
+            hitl_pending_count=1 if story.hitl_status == "PENDING" else 0,
+            decision_advantage=decision,
+        ),
+        stories=[story],
+        selected_story_id=story.story_id,
+        navigator=_build_navigator(report),
+        topology=_overlay_topology(policy, report),
+        bluf=bluf,
+        source=DashboardSource(
+            alert_id=alert.id,
+            scenario_id=alert.scenario_id,
+            trace=trace,
+        ),
+    )
