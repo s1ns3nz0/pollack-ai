@@ -191,7 +191,7 @@ class AibomFinding(BaseModel):
         component: 대상 컴포넌트명(coverage_gap 은 기대 유형명).
         component_type: 컴포넌트 유형.
         issue: "unregistered"|"untrusted_source"|"unpinned"|"version_mismatch"|
-            "tampered"|"integrity_unverifiable"|"coverage_gap".
+            "tampered"|"integrity_unverifiable"|"coverage_gap"|"policy_unavailable".
         detail: 사람이 읽을 위험 상세.
     """
 

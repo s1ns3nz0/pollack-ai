@@ -54,6 +54,7 @@ from core.severity import SeverityEngine
 from core.staging import DefenseStager
 from core.stride import StrideClassifier
 from core.terrain import MissionRiskAssessor
+from utils.logging import get_logger
 
 
 def _load_aibom_findings(settings: Settings) -> list[AibomFinding]:
@@ -70,8 +71,17 @@ def _load_aibom_findings(settings: Settings) -> list[AibomFinding]:
     try:
         approved = ApprovedAibom.from_yaml()
         components = AibomInventory.from_manifest()
-    except SOCPlatformError:
-        return []
+    except SOCPlatformError as exc:
+        # 정책 로드 실패 — "AIBOM 부재"를 "AIBOM 정상"과 구분(관측가능 degraded, Codex).
+        get_logger("report").warning("AIBOM 정책 로드 실패, degraded: %s", exc)
+        metrics().record_aibom_violation()
+        return [
+            AibomFinding(
+                component="aibom_policy",
+                issue="policy_unavailable",
+                detail="AIBOM 정책 로드 실패 — 거버넌스 검증 불가(degraded)",
+            )
+        ]
     findings = AIBOMVerifier(approved).verify(
         components, expected_component_types(settings)
     )

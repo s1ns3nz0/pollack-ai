@@ -117,3 +117,51 @@ class TestExpectedTypes:
         from core.settings import Settings
 
         assert "chat_llm" in expected_component_types(Settings())
+
+    def test_ragflow_default_expects_embedding(self) -> None:
+        """기본 ragflow_base_url 설정 → ragflow+embedding 기대(M-a)."""
+        from core.settings import Settings
+
+        exp = expected_component_types(Settings())
+        assert {"ragflow", "embedding"} <= exp
+
+    def test_graphrag_when_enabled(self) -> None:
+        from core.settings import Settings
+
+        assert "graphrag" in expected_component_types(Settings(graph_rag_enabled=True))
+
+    def test_default_settings_stack_clean(self) -> None:
+        """실제 기본 설정 → 기본 매니페스트 정합(coverage_gap 없음)."""
+        from core.settings import Settings
+
+        approved = ApprovedAibom.from_yaml()
+        comps = AibomInventory.from_manifest()
+        exp = expected_component_types(Settings())
+        assert AIBOMVerifier(approved).verify(comps, exp) == []
+
+
+class TestPolicyDegraded:
+    def test_clean_default(self) -> None:
+        from agents.report_agent import _load_aibom_findings
+        from app.metrics import metrics
+        from core.settings import Settings
+
+        before = metrics().aibom_violation_total
+        assert _load_aibom_findings(Settings()) == []
+        assert metrics().aibom_violation_total == before  # 정상 → 불변
+
+    def test_policy_unavailable_observable(self, monkeypatch: object) -> None:
+        """M-b — 정책 로드 실패는 침묵 [] 아니라 관측가능 finding + metric."""
+        import agents.report_agent as ra
+        from app.metrics import metrics
+        from core.exceptions import PolicyError
+        from core.settings import Settings
+
+        def _boom(*_a: object, **_k: object) -> ApprovedAibom:
+            raise PolicyError("정책 손상")
+
+        monkeypatch.setattr(ra.ApprovedAibom, "from_yaml", _boom)  # type: ignore[attr-defined]
+        before = metrics().aibom_violation_total
+        out = ra._load_aibom_findings(Settings())
+        assert len(out) == 1 and out[0].issue == "policy_unavailable"
+        assert metrics().aibom_violation_total == before + 1  # 관측됨
