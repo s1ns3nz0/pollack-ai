@@ -49,6 +49,7 @@ class _Counters:
         self.active_injection_total = 0
         self.aibom_violation_total = 0
         self.cisa_reportable_total = 0
+        self.ztmm_unverified_total = 0
 
     def record_alert(self, verdict: str) -> None:
         """경보 1건 처리 + 판정 집계."""
@@ -128,6 +129,11 @@ class _Counters:
         """CIRCIA 연방(CISA) 72h 보고 대상 권위 case 1건 누적."""
         with self._lock:
             self.cisa_reportable_total += 1
+
+    def record_ztmm_unverified(self, n: int = 1) -> None:
+        """ZTMM 근거 미검증 성숙도 주장(씨어터) n건 누적. 정적 — 로드 시 1회."""
+        with self._lock:
+            self.ztmm_unverified_total += n
 
     def record_prediction(self, *, hit: bool) -> None:
         """예측 판정 1건 누적(예측 폐루프)."""
@@ -256,6 +262,10 @@ def render_text() -> str:
         out.append("# HELP soc_aibom_violation_total AIBOM 거버넌스 위반 수(AI 공급망)")
         out.append("# TYPE soc_aibom_violation_total counter")
         out.append(_line("soc_aibom_violation_total", c.aibom_violation_total))
+    if c.ztmm_unverified_total:
+        out.append("# HELP soc_ztmm_unverified_total ZTMM 근거 미검증 성숙도 주장 수")
+        out.append("# TYPE soc_ztmm_unverified_total counter")
+        out.append(_line("soc_ztmm_unverified_total", c.ztmm_unverified_total))
     if c.cisa_reportable_total:
         out.append(
             "# HELP soc_cisa_reportable_total CIRCIA 연방 72h 보고 대상 권위 case 수"

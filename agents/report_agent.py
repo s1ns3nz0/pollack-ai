@@ -55,6 +55,7 @@ from core.severity import SeverityEngine
 from core.staging import DefenseStager
 from core.stride import StrideClassifier
 from core.terrain import MissionRiskAssessor
+from core.zero_trust import load_zt_mapping
 from utils.logging import get_logger
 
 
@@ -143,6 +144,11 @@ class ReportAgent(BaseSOCAgent):
         self._stager = stager
         # AIBOM 은 정적 posture — 로드 시 1회 계산·캐시(per-alert 재계산·재계상 금지).
         self._aibom_findings = _load_aibom_findings(settings)
+        # ZTMM self-attested 매핑도 정적 — 로드 시 1회 캐시.
+        self._zt_mapping = load_zt_mapping()
+        _unverified = [f for f in self._zt_mapping.findings if "unverified" in f]
+        if _unverified:
+            metrics().record_ztmm_unverified(len(_unverified))
 
     async def run(self, state: SOCState) -> SOCState:
         """리포트 + OSCAL 증거 구성."""
@@ -221,6 +227,7 @@ class ReportAgent(BaseSOCAgent):
             incident_case=incident_case,
             incident_directive=incident_directive,
             aibom_findings=self._aibom_findings,
+            zt_mapping=self._zt_mapping,
             recovery_plan=recovery_plan,
             mission_continuity=mission_continuity,
             stride_threats=stride_threats,
