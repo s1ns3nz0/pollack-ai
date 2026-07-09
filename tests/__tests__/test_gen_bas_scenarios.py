@@ -1,4 +1,7 @@
-"""bas-scenarios.yaml 자동 추출기 — MaGMA UCF status 병합 로직(deprecated 보존/orphan 캐리포워드)."""
+"""bas-scenarios.yaml 자동 추출기 — MaGMA UCF status 병합 로직.
+
+deprecated 보존 + orphan 캐리포워드 검증.
+"""
 
 from pathlib import Path
 
@@ -13,7 +16,7 @@ def _write(tmp_path: Path, text: str) -> Path:
 
 class TestMergeWithExisting:
     def test_no_existing_file_returns_as_is(self, tmp_path: Path) -> None:
-        entries = [{"id": "S1-X", "status": "deployed"}]
+        entries: list[dict[str, object]] = [{"id": "S1-X", "status": "deployed"}]
         merged = merge_with_existing(entries, tmp_path / "nope.yaml")
         assert merged == entries
 
@@ -31,7 +34,7 @@ scenarios:
     stride: [S]
 """,
         )
-        new_entries = [
+        new_entries: list[dict[str, object]] = [
             {
                 "id": "S1-GNSS-SPOOFING",
                 "name": "new",
@@ -62,7 +65,7 @@ scenarios:
     stride: [S]
 """,
         )
-        new_entries = [
+        new_entries: list[dict[str, object]] = [
             {
                 "id": "S1-GNSS-SPOOFING",
                 "name": "new",
@@ -100,7 +103,7 @@ scenarios:
 
 class TestRenderYaml:
     def test_status_field_rendered_and_sorted_by_number(self) -> None:
-        entries = [
+        entries: list[dict[str, object]] = [
             {
                 "id": "S2-B",
                 "name": "b",

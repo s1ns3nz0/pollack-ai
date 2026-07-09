@@ -88,34 +88,44 @@ def _stride(display_name: str, description: str) -> list[str]:
     return letters or ["T"]  # 매칭 없으면 Tampering 기본값(대부분 조작/주입류)
 
 
-def _load_properties(path: Path) -> dict:
+def _match_group1(pattern: str, text: str) -> str:
+    """정규식 첫 그룹을 반환한다(매칭 실패는 호출자가 보장한 전제 위반이라 예외)."""
+    m = re.match(pattern, text)
+    if m is None:
+        raise ValueError(f"{pattern!r}가 {text!r}에 매칭 안 됨")
+    return m.group(1)
+
+
+def _load_properties(path: Path) -> dict[str, object]:
     data = json.loads(path.read_text(encoding="utf-8"))
-    return data["resources"][0]["properties"]
+    props = data["resources"][0]["properties"]
+    return props if isinstance(props, dict) else {}
 
 
-def build(rules_dir: Path) -> list[dict]:
+def build(rules_dir: Path) -> list[dict[str, object]]:
     """AnalyticsRules 디렉토리에서 시나리오 카탈로그 항목을 추출한다."""
     scenario_files = sorted(
-        rules_dir.glob("S*.json"), key=lambda p: int(re.match(r"S(\d+)", p.stem).group(1))
+        rules_dir.glob("S*.json"), key=lambda p: int(_match_group1(r"S(\d+)", p.stem))
     )
     campaign_files = sorted(
-        rules_dir.glob("C*.json"), key=lambda p: int(re.match(r"C(\d+)", p.stem).group(1))
+        rules_dir.glob("C*.json"), key=lambda p: int(_match_group1(r"C(\d+)", p.stem))
     )
 
     scenario_to_campaigns: dict[str, list[str]] = {}
     for cf in campaign_files:
         props = _load_properties(cf)
-        cnum = re.match(r"(C\d+)", cf.stem).group(1)
-        for snum in re.findall(r"\(S(\d+)\)", props.get("description", "")):
+        cnum = _match_group1(r"(C\d+)", cf.stem)
+        for snum in re.findall(r"\(S(\d+)\)", str(props.get("description", ""))):
             scenario_to_campaigns.setdefault(f"S{snum}", []).append(cnum)
 
-    entries = []
+    entries: list[dict[str, object]] = []
     for sf in scenario_files:
         props = _load_properties(sf)
-        num = re.match(r"(S\d+)", sf.stem).group(1)
-        display_name = props.get("displayName", "")
-        description = props.get("description", "")
-        tactics = props.get("tactics") or ["Execution"]
+        num = _match_group1(r"(S\d+)", sf.stem)
+        display_name = str(props.get("displayName", ""))
+        description = str(props.get("description", ""))
+        tactics_raw = props.get("tactics")
+        tactics: list[str] = list(tactics_raw) if isinstance(tactics_raw, list) else ["Execution"]
         entries.append(
             {
                 "id": _slug_id(sf.stem),
@@ -131,7 +141,9 @@ def build(rules_dir: Path) -> list[dict]:
     return entries
 
 
-def merge_with_existing(entries: list[dict], existing_path: Path) -> list[dict]:
+def merge_with_existing(
+    entries: list[dict[str, object]], existing_path: Path
+) -> list[dict[str, object]]:
     """이전 출력 YAML과 병합 — deprecated 보존 + 소스 사라진 항목 캐리포워드.
 
     Args:
@@ -147,7 +159,9 @@ def merge_with_existing(entries: list[dict], existing_path: Path) -> list[dict]:
     import yaml as _yaml
 
     existing = _yaml.safe_load(existing_path.read_text(encoding="utf-8")) or {}
-    existing_by_id = {s["id"]: s for s in existing.get("scenarios", []) if isinstance(s, dict)}
+    existing_by_id: dict[object, dict[str, object]] = {
+        s["id"]: s for s in existing.get("scenarios", []) if isinstance(s, dict)
+    }
 
     new_ids = {e["id"] for e in entries}
     for e in entries:
@@ -160,16 +174,17 @@ def merge_with_existing(entries: list[dict], existing_path: Path) -> list[dict]:
     return entries + orphans
 
 
-def render_yaml(entries: list[dict]) -> str:
+def render_yaml(entries: list[dict[str, object]]) -> str:
     """추출 결과를 프로젝트 컨벤션 스타일(flow-list) YAML 텍스트로 렌더링한다."""
 
     def q(s: str) -> str:
         return json.dumps(s, ensure_ascii=False)
 
-    def flow(items: list[str], quote: bool = True) -> str:
-        if not items:
+    def flow(items: object, quote: bool = True) -> str:
+        if not isinstance(items, list) or not items:
             return "[]"
-        return "[" + ", ".join(q(i) if quote else i for i in items) + "]"
+        strs = [str(i) for i in items]
+        return "[" + ", ".join(q(i) if quote else i for i in strs) + "]"
 
     lines = [
         "# " + "=" * 77,
@@ -190,14 +205,15 @@ def render_yaml(entries: list[dict]) -> str:
         "",
         "scenarios:",
     ]
-    def sort_key(e: dict) -> tuple[int, str]:
-        m = re.match(r"S(\d+)", e["id"])
-        return (int(m.group(1)) if m else 0, e["id"])
+    def sort_key(e: dict[str, object]) -> tuple[int, str]:
+        eid = str(e["id"])
+        m = re.match(r"S(\d+)", eid)
+        return (int(m.group(1)) if m else 0, eid)
 
     for e in sorted(entries, key=sort_key):
-        rule = e.get("detection_rule") or ""
+        rule = str(e.get("detection_rule") or "")
         lines.append(f"  - id: {e['id']}")
-        lines.append(f"    name: {q(e['name'])}")
+        lines.append(f"    name: {q(str(e['name']))}")
         lines.append(f"    status: {e.get('status', 'deployed')}")
         lines.append(f"    signals: {flow(e['signals'])}")
         lines.append(f"    detection_rule: {q(rule) if not rule else rule}")

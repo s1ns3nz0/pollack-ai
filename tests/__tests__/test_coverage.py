@@ -106,7 +106,9 @@ class TestDataQuality:
 
     def test_out_of_range_visibility_raises(self, tmp_path: Path) -> None:
         p = tmp_path / "cov.yaml"
-        p.write_text(_SAMPLE + "data_quality:\n  T1595: {visibility: 9}\n", encoding="utf-8")
+        p.write_text(
+            _SAMPLE + "data_quality:\n  T1595: {visibility: 9}\n", encoding="utf-8"
+        )
         with pytest.raises(CoverageDataError):
             CoverageMatrix.from_yaml(p)
 
@@ -123,7 +125,9 @@ class TestDataQuality:
         # PR #74 예시 3건(T0835/T1692.001/T1195) 조회.
         m = CoverageMatrix.from_yaml(_DATA)
         gnss = m.data_quality_for("T0835")
-        assert gnss is not None and gnss.visibility == 3 and gnss.detection_maturity == 3
+        assert (
+            gnss is not None and gnss.visibility == 3 and gnss.detection_maturity == 3
+        )
         cmd = m.data_quality_for("T1692.001")
         assert cmd is not None and cmd.log_source
         supply_chain = m.data_quality_for("T1195")
@@ -135,7 +139,8 @@ class TestDataQuality:
         without_dq = _matrix(tmp_path).report()
         p = tmp_path / "cov_with_dq.yaml"
         p.write_text(
-            _SAMPLE + "data_quality:\n  T1595: {visibility: 2, detection_maturity: 1}\n",
+            _SAMPLE
+            + "data_quality:\n  T1595: {visibility: 2, detection_maturity: 1}\n",
             encoding="utf-8",
         )
         with_dq = CoverageMatrix.from_yaml(p).report()
