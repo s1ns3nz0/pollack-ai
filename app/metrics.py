@@ -289,6 +289,7 @@ def render_text() -> str:
         out.append(_line("soc_prediction_hit_ratio", pred["hit_ratio"]))
 
     out.extend(_coverage_metrics())
+    out.extend(_ground_metrics())
     out.extend(_bas_metrics())
     out.extend(_cato_metrics())
     return "\n".join(out) + "\n"
@@ -343,6 +344,41 @@ def _bas_metrics() -> list[str]:
         out.append(
             _line("soc_bas_stride_detection_ratio", stat.ratio, f'{{stride="{cat}"}}')
         )
+    return out
+
+
+def _ground_metrics() -> list[str]:
+    """지상 세그먼트 사각 게이지 — 정적 posture 이므로 스크레이프 시점 계산(gauge).
+
+    카운터가 아니다: blind 는 누적 이벤트가 아니라 고정 인벤토리(14). 정책 로드
+    실패는 soc_ground_policy_unavailable=1 로 관측 가능하게 노출.
+    """
+    try:
+        from tools.coverage import GroundSegmentCoverage
+
+        report = GroundSegmentCoverage.from_yaml().ground_report()
+    except Exception:  # noqa: BLE001 - 조회 실패가 스크레이프를 깨지 않게
+        return [
+            "# HELP soc_ground_policy_unavailable 지상 정책 로드 실패(1=degraded)",
+            "# TYPE soc_ground_policy_unavailable gauge",
+            _line("soc_ground_policy_unavailable", 1),
+        ]
+
+    out: list[str] = [
+        "# HELP soc_ground_blind 지상 세그먼트 구조적 사각 수(미계측 공격면)",
+        "# TYPE soc_ground_blind gauge",
+        _line("soc_ground_blind", report.blind),
+        "# HELP soc_ground_surface_total 지상 공격면 총수",
+        "# TYPE soc_ground_surface_total gauge",
+        _line("soc_ground_surface_total", report.total_surfaces),
+        "# HELP soc_ground_blind_segment 세그먼트별 사각 수",
+        "# TYPE soc_ground_blind_segment gauge",
+    ]
+    for segment, n in sorted(report.blind_by_segment.items()):
+        out.append(_line("soc_ground_blind_segment", n, f'{{segment="{segment}"}}'))
+    out.append("# HELP soc_ground_policy_unavailable 지상 커버리지 정책 로드 실패")
+    out.append("# TYPE soc_ground_policy_unavailable gauge")
+    out.append(_line("soc_ground_policy_unavailable", 0))
     return out
 
 

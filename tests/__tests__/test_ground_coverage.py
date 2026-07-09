@@ -121,6 +121,44 @@ class TestEvidenceGate:
             GroundSegmentCoverage.from_yaml(str(p))
 
 
+class TestWiring:
+    def test_loader_reports_posture(self) -> None:
+        """리포트 노드 로더 — 14 blind 계량(카운터 계상 없음, gauge 로 노출)."""
+        from agents.report_agent import _load_ground_segment
+
+        r = _load_ground_segment()
+        assert r is not None and r.blind == 14
+
+    def test_socreport_field_default_none(self) -> None:
+        """SOCReport 에 ground_segment 필드 존재(기본 None)."""
+        from core.models import SOCReport
+
+        assert "ground_segment" in SOCReport.model_fields
+        assert SOCReport.model_fields["ground_segment"].default is None
+
+    def test_gauge_is_scrape_time_not_traffic(self) -> None:
+        """High — blind 은 스크레이프 gauge(고정 14), 트래픽 무관·누적 아님."""
+        from app.metrics import render_text
+
+        body = render_text()
+        assert "# TYPE soc_ground_blind gauge" in body
+        assert "soc_ground_blind 14" in body
+        # 카운터 흔적 없어야(트래픽 의존 재계상 제거).
+        assert "soc_ground_blind_total" not in body
+
+    def test_gauge_degraded_on_policy_failure(self) -> None:
+        """Medium — 정책 로드 실패는 gauge 로 관측 가능(silent 아님)."""
+        from unittest.mock import patch
+
+        from app.metrics import _ground_metrics
+
+        with patch.object(
+            GroundSegmentCoverage, "from_yaml", side_effect=RuntimeError("no policy")
+        ):
+            lines = _ground_metrics()
+        assert any("soc_ground_policy_unavailable 1" in ln for ln in lines)
+
+
 class TestGraceful:
     def test_missing_policy_raises(self) -> None:
         with pytest.raises(CoverageDataError):

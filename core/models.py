@@ -15,6 +15,8 @@ from typing import Annotated, Literal, TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from tools.coverage import GroundSegmentReport
+
 
 class RetrievedChunk(BaseModel):
     """RAG 지식베이스에서 검색된 컨텍스트 청크 한 건.
@@ -1269,6 +1271,10 @@ class SOCReport(BaseModel):
     zt_mapping: ZtMapping | None = Field(
         default=None,
         description="ZTMM self-attested 통제 매핑(측정 아님) — 정적 거버넌스(캐시).",
+    )
+    ground_segment: GroundSegmentReport | None = Field(
+        default=None,
+        description="지상 세그먼트 방어 사각(UAV*_CL 밖) + 계측 백로그 — 정적 posture.",
     )
 
 
