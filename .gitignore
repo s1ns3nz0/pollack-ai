@@ -62,6 +62,9 @@ pyrit_results/
 *.log
 logs/
 
+# ── Node (대시보드 vendor CSS 빌드용 — vendor/ 산출물만 커밋) ──
+node_modules/
+
 # ── 기타 ──────────────────────────────────
 *.tmp
 *.bak

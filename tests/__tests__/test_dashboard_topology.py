@@ -51,6 +51,24 @@ def test_to_view_model_preserves_planes_and_labels() -> None:
     assert topology.edges
 
 
+def test_stub_nodes_are_explicitly_marked_in_view_model() -> None:
+    """Dashboard must not present simulated integration nodes as fully enabled."""
+    topology = TopologyPolicy.from_yaml().to_view_model()
+    weapon = next(node for node in topology.nodes if node.id == "weapon-stub")
+
+    assert weapon.status == "STUB"
+    assert weapon.metadata["implementation_status"] == "stub"
+
+
+def test_non_stub_nodes_default_to_policy_status() -> None:
+    """Deployable nodes remain normal policy nodes, not implicit stubs."""
+    topology = TopologyPolicy.from_yaml().to_view_model()
+    av = next(node for node in topology.nodes if node.id == "av-muav")
+
+    assert av.status == "UNKNOWN"
+    assert av.metadata.get("implementation_status") != "stub"
+
+
 def test_from_yaml_rejects_unknown_edge_endpoint(tmp_path: Path) -> None:
     """Malformed topology policies fail closed."""
     bad_policy = tmp_path / "asset-topology.yaml"

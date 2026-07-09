@@ -70,6 +70,7 @@ class DashboardAlertRef(BaseModel):
     scenario_id: str
     title: str = ""
     tactic: str = ""
+    technique: str = ""
     order: int = 0
 
 
@@ -147,6 +148,16 @@ class TopologyNode(BaseModel):
     kind: str = ""
     degradation_asset_ids: list[str] = Field(default_factory=list)
     metadata: dict[str, str] = Field(default_factory=dict)
+
+    @property
+    def implementation_status(self) -> str:
+        """Return explicit implementation status for the topology node."""
+        status = self.metadata.get("implementation_status", "").strip().lower()
+        if status:
+            return status
+        if self.id.endswith("-stub"):
+            return "stub"
+        return "enabled"
 
 
 class TopologyEdge(BaseModel):
@@ -238,6 +249,13 @@ class TopologyPolicy(BaseModel):
         Returns:
             Topology view model with inactive UNKNOWN nodes.
         """
+
+        def _metadata(node: TopologyNode) -> dict[str, str]:
+            metadata = dict(node.metadata)
+            if node.implementation_status == "stub":
+                metadata.setdefault("implementation_status", "stub")
+            return metadata
+
         return DashboardTopology(
             nodes=[
                 DashboardNode(
@@ -245,7 +263,10 @@ class TopologyPolicy(BaseModel):
                     label=node.label,
                     plane=node.plane,
                     kind=node.kind,
-                    metadata=dict(node.metadata),
+                    status=(
+                        "STUB" if node.implementation_status == "stub" else "UNKNOWN"
+                    ),
+                    metadata=_metadata(node),
                 )
                 for node in self.nodes
             ],
@@ -410,6 +431,7 @@ def _build_story(state: SOCState, report: SOCReport | None) -> DashboardStory:
     hitl_status = _hitl_status(approval, report, response)
     actor = alert.actor_id or "UNKNOWN-ACTOR"
     tactic = _tactic_from_report(report) or str(alert.mitre.get("tactic", ""))
+    technique = str(alert.mitre.get("technique", ""))
     return DashboardStory(
         story_id=actor,
         actor=actor,
@@ -427,6 +449,7 @@ def _build_story(state: SOCState, report: SOCReport | None) -> DashboardStory:
                 scenario_id=alert.scenario_id,
                 title=alert.title,
                 tactic=tactic,
+                technique=technique,
                 order=1,
             )
         ],

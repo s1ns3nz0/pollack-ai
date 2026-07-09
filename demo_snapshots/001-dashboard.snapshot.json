@@ -1,0 +1,74 @@
+{
+  "schema_version": "dashboard.snapshot.v1",
+  "step": 1,
+  "mode": "replay",
+  "generated_at": "2026-07-10T04:10:00+09:00",
+  "summary": {
+    "active_story_count": 1,
+    "max_mission_impact": "SUSTAINED",
+    "hitl_pending_count": 0,
+    "decision_advantage": "margin"
+  },
+  "stories": [
+    {
+      "story_id": "RED-01",
+      "actor": "RED-01",
+      "campaign_id": "C2",
+      "campaign_name": "BLOS 링크 무결성 교란에서 C2 장악으로 전개 중인 캠페인",
+      "matched": 1,
+      "total": 4,
+      "next_expected": "S24-DATALINK-C2-TAKEOVER",
+      "target_asset": "SATCOM",
+      "mission_impact": "SUSTAINED",
+      "hitl_status": "NOT_REQUIRED",
+      "alerts": [
+        {
+          "alert_id": "ALERT-SATCOM-001",
+          "scenario_id": "S117-BLOS-SATCOM-MITM",
+          "title": "BLOS SATCOM 자율명령 위조/지연",
+          "tactic": "CommandAndControl",
+          "technique": "T1071",
+          "order": 1
+        }
+      ]
+    }
+  ],
+  "selected_story_id": "RED-01",
+  "navigator": [
+    { "tactic": "Reconnaissance", "order": 1, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "ResourceDevelopment", "order": 2, "observed": false, "current": false, "predicted": false, "gap": true, "observed_order": null, "note": "" },
+    { "tactic": "InitialAccess", "order": 3, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "Execution", "order": 4, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "Persistence", "order": 5, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "PrivilegeEscalation", "order": 6, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "StealthEvasion", "order": 7, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "Discovery", "order": 8, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "LateralMovement", "order": 9, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "Collection", "order": 10, "observed": false, "current": false, "predicted": false, "gap": true, "observed_order": null, "note": "" },
+    { "tactic": "CommandAndControl", "order": 11, "observed": true, "current": true, "predicted": true, "gap": true, "observed_order": 1, "note": "다음 예상 수순이 현재 미커버 전술입니다." },
+    { "tactic": "Exfiltration", "order": 12, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "ImpairProcessControl", "order": 13, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "InhibitResponseFunction", "order": 14, "observed": false, "current": false, "predicted": false, "gap": true, "observed_order": null, "note": "" },
+    { "tactic": "Impact", "order": 15, "observed": false, "current": false, "predicted": false, "gap": true, "observed_order": null, "note": "" }
+  ],
+  "topology": {
+    "nodes": [
+      { "id": "datalink-satcom", "label": "BLOS SATCOM Link", "plane": "link", "kind": "data_link", "status": "SUSTAINED", "active": true, "metadata": {} }
+    ],
+    "edges": []
+  },
+  "bluf": {
+    "situation": "RED-01 세력이 BLOS SATCOM 링크 무결성을 교란하고 있습니다.",
+    "mission_impact": "임무 지속 가능. 링크 신뢰도는 저하되었으나 LOS 직접링크 또는 대체 통신경로로 임무 유지가 가능합니다.",
+    "recommendation": "SATCOM 세션 검증, 명령 재검증, 대체 링크 준비.",
+    "next_move": "S24-DATALINK-C2-TAKEOVER",
+    "confidence": "authoritative",
+    "hitl_badge": "NOT_REQUIRED",
+    "caveats": []
+  },
+  "source": {
+    "alert_id": "ALERT-SATCOM-001",
+    "scenario_id": "S117-BLOS-SATCOM-MITM",
+    "trace": ["triage", "investigation", "validation", "response", "report"]
+  }
+}

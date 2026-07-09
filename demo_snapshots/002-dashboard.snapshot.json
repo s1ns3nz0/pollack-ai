@@ -1,0 +1,83 @@
+{
+  "schema_version": "dashboard.snapshot.v1",
+  "step": 2,
+  "mode": "replay",
+  "generated_at": "2026-07-10T04:11:00+09:00",
+  "summary": {
+    "active_story_count": 1,
+    "max_mission_impact": "MINIMAL",
+    "hitl_pending_count": 1,
+    "decision_advantage": "contested"
+  },
+  "stories": [
+    {
+      "story_id": "RED-01",
+      "actor": "RED-01",
+      "campaign_id": "C2",
+      "campaign_name": "BLOS 링크 무결성 교란에서 C2 장악으로 전개 중인 캠페인",
+      "matched": 2,
+      "total": 4,
+      "next_expected": "S3-UNAUTHORIZED-WEAPON-CMD",
+      "target_asset": "C2_LINK",
+      "mission_impact": "MINIMAL",
+      "hitl_status": "PENDING",
+      "alerts": [
+        {
+          "alert_id": "ALERT-SATCOM-001",
+          "scenario_id": "S117-BLOS-SATCOM-MITM",
+          "title": "BLOS SATCOM 자율명령 위조/지연",
+          "tactic": "CommandAndControl",
+          "technique": "T1071",
+          "order": 1
+        },
+        {
+          "alert_id": "ALERT-C2-002",
+          "scenario_id": "S24-DATALINK-C2-TAKEOVER",
+          "title": "데이터링크 C2 세션 장악",
+          "tactic": "CommandAndControl",
+          "technique": "T1071",
+          "order": 2
+        }
+      ]
+    }
+  ],
+  "selected_story_id": "RED-01",
+  "navigator": [
+    { "tactic": "Reconnaissance", "order": 1, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "ResourceDevelopment", "order": 2, "observed": false, "current": false, "predicted": false, "gap": true, "observed_order": null, "note": "" },
+    { "tactic": "InitialAccess", "order": 3, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "Execution", "order": 4, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "Persistence", "order": 5, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "PrivilegeEscalation", "order": 6, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "StealthEvasion", "order": 7, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "Discovery", "order": 8, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "LateralMovement", "order": 9, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "Collection", "order": 10, "observed": false, "current": false, "predicted": false, "gap": true, "observed_order": null, "note": "" },
+    { "tactic": "CommandAndControl", "order": 11, "observed": true, "current": true, "predicted": false, "gap": true, "observed_order": 2, "note": "" },
+    { "tactic": "Exfiltration", "order": 12, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "ImpairProcessControl", "order": 13, "observed": false, "current": false, "predicted": false, "gap": false, "observed_order": null, "note": "" },
+    { "tactic": "InhibitResponseFunction", "order": 14, "observed": false, "current": false, "predicted": false, "gap": true, "observed_order": null, "note": "" },
+    { "tactic": "Impact", "order": 15, "observed": false, "current": false, "predicted": true, "gap": true, "observed_order": null, "note": "예상 다음 수순이 mission-risk gate 대상입니다." }
+  ],
+  "topology": {
+    "nodes": [
+      { "id": "datalink-los", "label": "LOS Data Link / GDT", "plane": "link", "kind": "data_link", "status": "MINIMAL", "active": true, "metadata": {} },
+      { "id": "datalink-satcom", "label": "BLOS SATCOM Link", "plane": "link", "kind": "data_link", "status": "SUSTAINED", "active": true, "metadata": {} }
+    ],
+    "edges": []
+  },
+  "bluf": {
+    "situation": "RED-01 세력이 C2 링크를 장악하고 있으며 같은 story 안에서 SATCOM 무결성 교란과 연결됩니다.",
+    "mission_impact": "제한적 임무 지속. 지상 지휘통제 신뢰도가 저하되어 자율 페일세이프와 대체 링크 전환이 필요합니다.",
+    "recommendation": "의심 C2 세션 차단, 대체 링크 전환, RTB 준비. 지휘관 결심 대기.",
+    "next_move": "S3-UNAUTHORIZED-WEAPON-CMD",
+    "confidence": "authoritative",
+    "hitl_badge": "PENDING",
+    "caveats": ["다음 예상 수순이 Impact 전술이며 HITL gate 대상입니다."]
+  },
+  "source": {
+    "alert_id": "ALERT-C2-002",
+    "scenario_id": "S24-DATALINK-C2-TAKEOVER",
+    "trace": ["triage", "investigation", "validation", "approval", "response", "report"]
+  }
+}

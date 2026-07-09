@@ -112,6 +112,7 @@ def test_snapshot_summary_and_story_are_decision_first() -> None:
     assert snap.summary.hitl_pending_count == 1
     assert snap.stories[0].story_id == "RED-01"
     assert snap.stories[0].alerts[0].alert_id == "alert-001"
+    assert snap.stories[0].alerts[0].technique == "T1071"
 
 
 def test_snapshot_uses_commander_brief_for_bluf() -> None:

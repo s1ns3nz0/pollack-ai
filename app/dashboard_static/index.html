@@ -1,13 +1,27 @@
 <!doctype html>
-<html lang="ko">
+<html lang="ko" data-astryx-theme="neutral">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>UAV AI SOC Defense Dashboard</title>
+    <link rel="stylesheet" href="/static/vendor/astryx/reset.css" />
+    <link rel="stylesheet" href="/static/vendor/astryx/astryx.css" />
+    <link rel="stylesheet" href="/static/vendor/astryx/theme-neutral.css" />
     <link rel="stylesheet" href="/static/dashboard.css" />
   </head>
   <body>
     <main class="dashboard-shell">
+      <header class="app-header" aria-label="대시보드 헤더">
+        <div>
+          <div class="app-kicker">UAV AI SOC / Defense Operations</div>
+          <h1>사이버 작전 참모 상황판</h1>
+        </div>
+        <div class="app-header-actions" aria-label="운용 상태">
+          <span>Replay</span>
+          <span>MITRE ATT&amp;CK for UAV</span>
+          <span>UAS Topology</span>
+        </div>
+      </header>
       <header class="top-strip" id="top-strip" aria-label="상태 요약"></header>
       <section class="workbench">
         <aside
@@ -17,7 +31,7 @@
         ></aside>
         <section class="main-panel">
           <section class="navigator-panel">
-            <div class="panel-title">UAV ATT&amp;CK Navigator</div>
+            <div class="panel-title">UAV ATT&amp;CK 전술/기법 매트릭스</div>
             <div class="navigator-grid" id="navigator"></div>
           </section>
           <section
@@ -28,7 +42,7 @@
         </section>
       </section>
       <section class="topology-panel">
-        <div class="panel-title">UAS Asset Topology</div>
+        <div class="panel-title">UAS 자산 구성도</div>
         <div class="topology-map" id="topology-map"></div>
       </section>
       <footer class="replay-controls" id="replay-controls"></footer>

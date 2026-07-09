@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "@astryxdesign/core": "^0.1.4",
+    "@astryxdesign/theme-neutral": "^0.1.4"
+  },
+  "devDependencies": {
+    "@astryxdesign/cli": "^0.1.4"
+  },
+  "scripts": {
+    "astryx": "node node_modules/@astryxdesign/cli/bin/astryx.mjs"
+  }
+}
