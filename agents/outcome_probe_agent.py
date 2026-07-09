@@ -190,6 +190,8 @@ class OutcomeProbeAgent(BaseWorkerAgent):
                 playbook_id=obs.playbook_id,
                 env_verdict=decision.env_verdict,  # type: ignore[attr-defined]
                 provenance=Provenance.ENV_VERIFIED,
+                # 재심 대조 키 — 후속 동일 actor TP 확정 시 이 억제를 revoke.
+                actor_fingerprint=obs.actor_id or "",
                 ts=obs.ts,
             )
             d = await self._exp_gate.submit(rec)

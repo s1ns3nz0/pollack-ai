@@ -33,6 +33,8 @@ class _Counters:
         # 예측 폐루프: hit/miss 판정 누적(ActorWriteGate on_settle 훅이 갱신)
         self.prediction_hits = 0
         self.prediction_misses = 0
+        # 재심(cold-case): 억제 무효화 누적(ColdCaseReopener on_reopen 훅이 갱신)
+        self.coldcase_reopened_total = 0
         # kill chain: 후반단계 도달 격상 누적(Report 노드가 갱신)
         self.killchain_advanced_total = 0
         # recovery: 축출 실패(축출 후 재발) 누적(RecoveryVerifier 가 갱신)
@@ -168,6 +170,11 @@ class _Counters:
         """
         with self._lock:
             self.ztmm_unverified_total += n
+
+    def record_reopen(self) -> None:
+        """재심 억제 무효화 1건 누적."""
+        with self._lock:
+            self.coldcase_reopened_total += 1
 
     def record_prediction(self, *, hit: bool) -> None:
         """예측 판정 1건 누적(예측 폐루프)."""
@@ -326,6 +333,12 @@ def render_text() -> str:
         out.append("# HELP soc_prediction_hit_ratio 예측 적중률")
         out.append("# TYPE soc_prediction_hit_ratio gauge")
         out.append(_line("soc_prediction_hit_ratio", pred["hit_ratio"]))
+
+    # 재심(cold-case): 억제 무효화 누적
+    if c.coldcase_reopened_total:
+        out.append("# HELP soc_coldcase_reopened_total 재심으로 무효화된 억제 수")
+        out.append("# TYPE soc_coldcase_reopened_total counter")
+        out.append(_line("soc_coldcase_reopened_total", c.coldcase_reopened_total))
 
     out.extend(_coverage_metrics())
     out.extend(_ground_metrics())
