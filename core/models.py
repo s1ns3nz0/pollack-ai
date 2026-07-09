@@ -1166,6 +1166,8 @@ class RulePullRequest(BaseModel):
         body: PR 본문.
         base_branch: PR 의 베이스 브랜치(머지 대상).
         watchlist_update: 발행기가 CSV 에 적용할 Watch List 변경 내용.
+        file_content: 신규/갱신 파일 원문(watchlist 아닌 raw 콘텐츠 PR — 예: KQL 룰).
+            watchlist_update 와 상호배타(둘 중 하나만).
         status: proposed | opened | failed.
         url: 생성된 PR URL(미생성 시 빈 문자열).
     """
@@ -1177,6 +1179,7 @@ class RulePullRequest(BaseModel):
     body: str = ""
     base_branch: str = "main"
     watchlist_update: WatchlistUpdate | None = None
+    file_content: str = ""
     status: str = "proposed"
     url: str = ""
 

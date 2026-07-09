@@ -197,6 +197,47 @@ def _pr(wl: WatchlistUpdate) -> RulePullRequest:
     )
 
 
+def _content_pr(
+    content: str = "SecurityEvent | where EventID == 4625",
+) -> RulePullRequest:
+    return RulePullRequest(
+        repo="s1ns3nz0/dah-sentinel-content",
+        branch="feat/auto-kql-t1059-x",
+        path="Analytics/T1059.kql",
+        title="feat(analytics): T1059 신규 KQL 룰 초안 (auto-suggest)",
+        base_branch="main",
+        file_content=content,
+    )
+
+
+class TestContentPublisher:
+    """raw 콘텐츠 PR 흐름(AutoKQL .kql) — watchlist 아닌 파일 create/update."""
+
+    @pytest.mark.asyncio
+    async def test_new_kql_file_opens_pr(self) -> None:
+        fake = _FakeGitHub(None, file_exists=False)  # 신규 파일(404)
+        out = await _publisher(fake).apublish(_content_pr())
+        assert out.status == "opened"
+        assert out.url.endswith("/pull/1")
+        assert fake.put_content == "SecurityEvent | where EventID == 4625"
+        assert fake.pr_created is True
+
+    @pytest.mark.asyncio
+    async def test_idempotent_same_content_skips_pr(self) -> None:
+        fake = _FakeGitHub("SecurityEvent | where EventID == 4625")
+        out = await _publisher(fake).apublish(_content_pr())
+        assert out.status == "unchanged"
+        assert fake.pr_created is False
+
+    @pytest.mark.asyncio
+    async def test_no_watchlist_no_content_raises(self) -> None:
+        pr = RulePullRequest(
+            repo="s1ns3nz0/x", branch="b", path="p", title="t", base_branch="main"
+        )
+        with pytest.raises(RulePublishError):
+            await _publisher(_FakeGitHub(None, file_exists=False)).apublish(pr)
+
+
 class TestGitHubPublisher:
     """ARM-JSON PR 흐름 — 모사 트랜스포트."""
 

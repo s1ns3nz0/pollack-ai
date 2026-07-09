@@ -206,8 +206,11 @@ class GitHubRulePublisher:
         """
         if not self._settings.github_token.get_secret_value():
             raise RulePublishError("GITHUB_TOKEN 미설정 — PR 발행 불가")
+        # raw 콘텐츠 PR(예: AutoKQL .kql 신규 파일) — watchlist JSON 경로와 분기.
         if pr.watchlist_update is None:
-            raise RulePublishError("watchlist_update 없음 — 발행할 변경 없음")
+            if pr.file_content:
+                return await self._publish_content(pr)
+            raise RulePublishError("watchlist_update/file_content 없음 — 변경 없음")
         try:
             async with self._make_client() as client:
                 base_sha = await self._base_sha(client, pr)
@@ -224,6 +227,31 @@ class GitHubRulePublisher:
         except httpx.HTTPError as exc:
             raise RulePublishError(f"GitHub PR 발행 실패: {exc}") from exc
         _logger.info("rule PR opened: %s", url)
+        return pr.model_copy(update={"status": "opened", "url": url})
+
+    async def _publish_content(self, pr: RulePullRequest) -> RulePullRequest:
+        """raw 파일 콘텐츠(file_content)를 신규/갱신 PR 로 발행한다.
+
+        watchlist JSON 적용이 아니라 임의 파일(예: KQL 룰)을 create-or-update 한다.
+        멱등: 대상 브랜치의 기존 내용과 동일하면 unchanged 반환.
+
+        Raises:
+            RulePublishError: API 응답 검증 실패 시.
+        """
+        try:
+            async with self._make_client() as client:
+                base_sha = await self._base_sha(client, pr)
+                existing, file_sha = await self._get_file(client, pr, pr.base_branch)
+                if existing is not None and existing == pr.file_content:
+                    _logger.info("content PR: 변경 없음(멱등) repo=%s", pr.repo)
+                    return pr.model_copy(update={"status": "unchanged"})
+                await self._ensure_branch(client, pr, base_sha)
+                _, branch_sha = await self._get_file(client, pr, pr.branch)
+                await self._put_file(client, pr, pr.file_content, branch_sha)
+                url = await self._open_pr(client, pr)
+        except httpx.HTTPError as exc:
+            raise RulePublishError(f"GitHub content PR 발행 실패: {exc}") from exc
+        _logger.info("content PR opened: %s", url)
         return pr.model_copy(update={"status": "opened", "url": url})
 
     async def _base_sha(self, client: httpx.AsyncClient, pr: RulePullRequest) -> str:
