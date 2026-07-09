@@ -169,7 +169,6 @@ warn_return_any = false
 asyncio_mode = "auto"            # pytest-asyncio 자동 모드
 pythonpath = ["."]
 testpaths = ["tests"]
-pythonpath = ["."]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
