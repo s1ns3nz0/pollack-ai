@@ -20,6 +20,7 @@ from core.actors import ActorReadGate
 from core.egress import IocEgressFilter
 from core.exceptions import LLMError, SOCPlatformError
 from core.experience import MemoryReadGate, RecallPurpose
+from core.hypothesis import AchEvaluator, extract_evidence, load_hypothesis_catalog
 from core.llm import LLMClient
 from core.malware import ArtifactRef, MalwareAnalysisClient, MalwareAnalysisReport
 from core.models import (
@@ -227,6 +228,8 @@ class InvestigationAgent(BaseSOCAgent):
         self._ragas = ragas
         self._predictor = predictor
         self._asset_coords = _load_asset_coords()
+        # ACH 경쟁가설 평가기 — 카탈로그 로드는 기동 시 fail-fast(스키마 보증).
+        self._ach = AchEvaluator(load_hypothesis_catalog())
 
     async def run(self, state: SOCState) -> SOCState:
         """유사사례 검색 + 출처 검증 + (LLM) 상관분석 요약.
@@ -337,6 +340,7 @@ class InvestigationAgent(BaseSOCAgent):
         # spec #2: actor 회상 후 TTP 매치 시 confidence +0.2 (한 번).
         profile = await self._recall_actor(alert)
         predictions: list[AttackPrediction] = []
+        actor_ttp_overlap = False
         if profile is not None:
             techs_raw = alert.mitre.get("techniques", [])
             current_techs = (
@@ -347,6 +351,7 @@ class InvestigationAgent(BaseSOCAgent):
                 for s in sorted(profile.ttp_stats, key=lambda x: -x.count)[:3]
             }
             if current_techs & top_techs:
+                actor_ttp_overlap = True
                 confidence = round(min(1.0, confidence + 0.2), 3)
                 flags.append(f"actor[{profile.actor_id}] TTP 매치 → conf +0.2")
             # spec C1: 다음 기법 예측 (profile + 현재 technique 첫 항목).
@@ -374,23 +379,32 @@ class InvestigationAgent(BaseSOCAgent):
             confidence,
         )
 
+        investigation = InvestigationResult(
+            matched_signals=alert.signals,
+            mitre=alert.mitre,
+            similar_cases=trusted,
+            summary=summary,
+            confidence=confidence,
+            ti_findings=ti_findings,
+            experience_corroboration=exp_corroboration,
+            suppression_corroboration=suppression,
+            sandbox_reports=sandbox_reports,
+            vuln_findings=vuln_findings,
+            malware_reports=[r.model_dump(mode="json") for r in malware_reports],
+            gnss_jam_findings=gnss_jam_findings,
+            airspace_findings=airspace_findings,
+            predictions=predictions,
+        )
+        try:
+            evidence = extract_evidence(
+                investigation, alert, actor_ttp_overlap=actor_ttp_overlap
+            )
+            investigation.hypothesis_assessments = self._ach.evaluate(evidence)
+        except Exception:  # noqa: BLE001 — 비권위 부가층 격리(조사 실패 금지)
+            self._logger.warning("ACH 평가 실패 — 가설 없이 진행", exc_info=True)
+
         result: SOCState = {
-            "investigation": InvestigationResult(
-                matched_signals=alert.signals,
-                mitre=alert.mitre,
-                similar_cases=trusted,
-                summary=summary,
-                confidence=confidence,
-                ti_findings=ti_findings,
-                experience_corroboration=exp_corroboration,
-                suppression_corroboration=suppression,
-                sandbox_reports=sandbox_reports,
-                vuln_findings=vuln_findings,
-                malware_reports=[r.model_dump(mode="json") for r in malware_reports],
-                gnss_jam_findings=gnss_jam_findings,
-                airspace_findings=airspace_findings,
-                predictions=predictions,
-            ),
+            "investigation": investigation,
             "trace": ["investigation"],
         }
         # spec D1: RAGAS 비동기 측정 — 결과 안 기다림 (fire-and-forget).

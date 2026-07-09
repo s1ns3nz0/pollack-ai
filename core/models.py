@@ -270,6 +270,47 @@ class EnvVerdict(StrEnum):
 # __getattr__ + TYPE_CHECKING(순환 임포트 회피, mypy 정합).
 
 
+class EvidenceEntry(BaseModel):
+    """ACH 원장 한 줄 — 매칭된 증거의 방향·가중치·변별력.
+
+    Attributes:
+        key: 증거 키(`core.hypothesis.EVIDENCE_KEYS` 폐쇄 집합).
+        value: 정규화 값(bool 계열 0.0/1.0, count/level/prob 은 원값).
+        direction: 가설 지지(consistent) / 반증(inconsistent).
+        weight: 카탈로그 선언 가중치(0.0 < w <= 1.0).
+        diagnostic: 변별력 — 활성 가설 전부에 같은 방향으로만 걸리면 False.
+    """
+
+    key: str
+    value: float
+    direction: Literal["consistent", "inconsistent"]
+    weight: float
+    diagnostic: bool = True
+
+
+class HypothesisAssessment(BaseModel):
+    """경쟁가설 하나의 ACH 평가 결과(비권위 참고정보).
+
+    ACH: 반증(inconsistency) 최소가 승자. rank 는 1부터, 매칭 증거가 전무하면
+    None(근거 없는 순위 금지 — 정직성 불변식).
+
+    Attributes:
+        hypothesis_id: 카탈로그 가설 id.
+        name: 가설 표시명.
+        consistency: 지지 가중합(0.0~, 소수 4자리 반올림).
+        inconsistency: 반증 가중합(0.0~, 소수 4자리 반올림).
+        rank: 1부터 시작하는 순위. 매칭 증거 전무 시 None.
+        ledger: 매칭된 증거 원장.
+    """
+
+    hypothesis_id: str
+    name: str
+    consistency: float = 0.0
+    inconsistency: float = 0.0
+    rank: int | None = None
+    ledger: list[EvidenceEntry] = Field(default_factory=list)
+
+
 class InvestigationResult(BaseModel):
     """Investigation 산출물(유사사례 + 신호 상관).
 
@@ -321,6 +362,10 @@ class InvestigationResult(BaseModel):
     predictions: list[AttackPrediction] = Field(
         default_factory=list,
         description="spec C1: actor.kill_chain n-gram 기반 다음 기법 예측 후보.",
+    )
+    hypothesis_assessments: list[HypothesisAssessment] = Field(
+        default_factory=list,
+        description="ACH 경쟁가설 평가(비권위 참고정보 — confidence/라우팅 불변).",
     )
 
 
@@ -1073,6 +1118,36 @@ class MissionContinuity(BaseModel):
     sustains: bool = False
 
 
+class ResponseMissionContext(BaseModel):
+    """Response 단계의 임무 맥락 카드.
+
+    Attributes:
+        asset_id: 대응 판단 대상 자산.
+        mission_phase: 현재 임무 단계.
+        risk_score: METT-TC 임무위험 점수.
+        risk_factors: METT-TC 요소별 기여값.
+        is_key_terrain: 현 임무단계 핵심지형 여부.
+        dependents: 해당 자산 손상 시 영향받는 의존 자산.
+        rationale: 임무위험 산정 근거.
+        continuity_level: 임무 지속성 등급(SUSTAINED/MINIMAL/ABORT 등).
+        fallback: 대체 경로 또는 안전 절차.
+        operator_posture: 운용자에게 제시할 대응 태세.
+        summary: 보고서/데모용 한 줄 요약.
+    """
+
+    asset_id: str = ""
+    mission_phase: str = ""
+    risk_score: int | None = None
+    risk_factors: dict[str, int] = Field(default_factory=dict)
+    is_key_terrain: bool = False
+    dependents: list[str] = Field(default_factory=list)
+    rationale: list[str] = Field(default_factory=list)
+    continuity_level: str = ""
+    fallback: str = ""
+    operator_posture: str = "MONITOR_CONTINUE"
+    summary: str = ""
+
+
 class RecoveryStep(BaseModel):
     """축출/복구 절차 한 단계(D3FEND Evict/Restore).
 
@@ -1140,6 +1215,10 @@ class ResponseResult(BaseModel):
     # METT-TC 임무위험 맥락(triage 산출 mission_risk 반영 — 표시/감사용).
     mission_risk_score: int | None = None
     mission_risk_note: str | None = None
+    # Response resilience overlay: 손상 자산의 임무 지속성/대체경로를 즉시 표면.
+    mission_continuity: MissionContinuity | None = None
+    resilience_note: str | None = None
+    mission_context: ResponseMissionContext | None = None
     # CACAO 플레이북 배선(카탈로그 선택 + mission-gate 분기 — 권고전용 표면).
     cacao_playbook_id: str | None = None
     cacao_steps: list[dict[str, object]] | None = None
