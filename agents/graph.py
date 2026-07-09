@@ -389,8 +389,9 @@ def build_soc_graph(
     except SOCPlatformError as exc:
         get_logger("graph").warning("CACAO 카탈로그 로드 실패, 폴백: %s", exc)
         _playbooks = None
+    _scenario_tactic = scenario_tactic_map()  # 1회 계산 — response·approval 공유.
     response = ResponseAgent(
-        settings, engine, playbooks=_playbooks, scenario_tactic=scenario_tactic_map()
+        settings, engine, playbooks=_playbooks, scenario_tactic=_scenario_tactic
     )
     rule_update = RuleUpdateAgent(settings, rule_publisher)
     # spec D-1: lineage opt-in.
@@ -543,7 +544,10 @@ def build_soc_graph(
             _timed(  # type: ignore[call-overload]
                 "approval",
                 ApprovalAgent(
-                    settings, hitl_force_threshold=engine.mett_tc.hitl_force_threshold
+                    settings,
+                    hitl_force_threshold=engine.mett_tc.hitl_force_threshold,
+                    playbooks=_playbooks,
+                    scenario_tactic=_scenario_tactic,
                 ).run,
             ),
         )
