@@ -1,0 +1,73 @@
+# 지상 세그먼트 방어 커버리지 — UAV Sentinel 텔레메트리 평면(UAV*_CL) 밖 공격면.
+# 팀 「UAV ATT&CK 매핑표」§16(S86~S99). 전부 구조적 사각(blind) — 전용 로그 없음.
+# 항공 매트릭스(attack_coverage.yaml)와 물리 분리 — 항공 KPI 분모 오염 불가.
+# 최상위 키 'surfaces'(항공은 'tactics') — CoverageMatrix 로 오파싱 불가(로더가 tactics 거부).
+# tools/coverage.py GroundSegmentCoverage 가 blind KPI·계측 백로그·신규기법을 산출한다.
+
+segments:
+  gcs_app: "GCS 앱(QGC/Mission Planner)"
+  companion_ros: "컴패니언 컴퓨터/ROS·MAVROS"
+  datalink: "데이터링크(모뎀/SATCOM 터미널/GDT)"
+  fleet_cloud: "함대관리·클라우드 백엔드·C4I"
+
+# remediation = 사각 해소에 필요한 계측(로그원). implemented=true 여야 covered_by 근거 인정.
+remediations:
+  gcs_app_telemetry:
+    name: "GCS 앱 감사"
+    source: "파서 크래시·플러그인/QML 로드·config/로그 변조 이벤트"
+    implemented: false
+  gcs_update_integrity:
+    name: "GCS 자동업데이트 무결성"
+    source: "appcast 서명·바이너리 서명 검증 로그"
+    implemented: false
+  ros_audit:
+    name: "ROS/MAVROS 감사"
+    source: "ROS 마스터 접근·토픽 퍼블리시·setpoint 명령"
+    implemented: false
+  datalink_fw_attest:
+    name: "데이터링크 펌웨어 증명"
+    source: "모뎀/SATCOM OTA 서명·펌웨어 해시 증명"
+    implemented: false
+  link_frame_integrity:
+    name: "링크 프레임 무결성"
+    source: "MAVLink 릴레이 프레임 서명·시퀀스 무결성"
+    implemented: false
+  time_source_integrity:
+    name: "시각원 무결성"
+    source: "GDT NTP 오프셋·시각원 인증 감시"
+    implemented: false
+  fleet_api_audit:
+    name: "함대·C4I API 감사"
+    source: "인증·IDOR·주문 검증(POST /c4i/order) 감사"
+    implemented: false
+  pipeline_integrity:
+    name: "수집 파이프라인 무결성"
+    source: "텔레메트리 수집 출처·위조 주입 탐지"
+    implemented: false
+  stream_integrity:
+    name: "영상 스트림 무결성"
+    source: "RTSP/RTP 세션 무결성·프레임 주입 탐지"
+    implemented: false
+
+# surface: covered_by 비면 blind. 채우려면 {remediation, source_table, rule_id} +
+# 참조 remediation.implemented=true 필수(placeholder 로 covered 위장 차단).
+surfaces:
+  - { scenario: S86, segment: gcs_app, tactic: Execution, technique: T1203, name: "Exploitation for Client Execution", remediation: gcs_app_telemetry, covered_by: [] }
+  - { scenario: S87, segment: gcs_app, tactic: Execution, technique: T1059, name: "Command and Scripting Interpreter", remediation: gcs_app_telemetry, covered_by: [] }
+  - { scenario: S88, segment: gcs_app, tactic: InitialAccess, technique: T1195.002, name: "Supply Chain Compromise: Software", remediation: gcs_update_integrity, covered_by: [] }
+  - { scenario: S89, segment: gcs_app, tactic: Impact, technique: T1565, name: "Data Manipulation (GCS config/log)", remediation: gcs_app_telemetry, covered_by: [] }
+  - { scenario: S90, segment: companion_ros, tactic: InitialAccess, technique: T1190, name: "Exploit Public-Facing Application (ROS master)", remediation: ros_audit, covered_by: [] }
+  - { scenario: S91, segment: companion_ros, tactic: Execution, technique: T0855, name: "Unauthorized Command Message (ROS topic)", remediation: ros_audit, covered_by: [] }
+  - { scenario: S92, segment: companion_ros, tactic: Impact, technique: T0831, name: "Manipulation of Control (MAVROS)", remediation: ros_audit, covered_by: [] }
+  - { scenario: S93, segment: datalink, tactic: Persistence, technique: T0857, name: "Firmware (modem/SATCOM OTA)", remediation: datalink_fw_attest, covered_by: [] }
+  - { scenario: S94, segment: datalink, tactic: Collection, technique: T1557, name: "Adversary-in-the-Middle (telemetry relay)", remediation: link_frame_integrity, covered_by: [] }
+  - { scenario: S95, segment: datalink, tactic: InitialAccess, technique: T1195, name: "Supply Chain Compromise (NTP time spoof)", remediation: time_source_integrity, covered_by: [] }
+  - { scenario: S96, segment: fleet_cloud, tactic: InitialAccess, technique: T1190, name: "Exploit Public-Facing Application (fleet API IDOR)", remediation: fleet_api_audit, covered_by: [] }
+  - { scenario: S97, segment: fleet_cloud, tactic: Impact, technique: T1565.001, name: "Stored Data Manipulation (pipeline poison)", remediation: pipeline_integrity, covered_by: [] }
+  - { scenario: S98, segment: fleet_cloud, tactic: Collection, technique: T1557, name: "Adversary-in-the-Middle (RTSP/RTP hijack)", remediation: stream_integrity, covered_by: [] }
+  - { scenario: S99, segment: fleet_cloud, tactic: Impact, technique: T1565, name: "Data Manipulation (C4I order inject)", remediation: fleet_api_audit, covered_by: [] }
+
+# 예시 blind 킬체인 — 탐지 불가(campaign.py 미배선). 문서/백로그 전용, KPI·탐지 산입 금지.
+blind_kill_chains:
+  - { id: C19, name: "지상 관통(GCS→MAVROS→C4I)", sequence: [S86, S92, S99] }
+  - { id: C20, name: "클라우드 관통(함대API→오염→스트림)", sequence: [S96, S97, S98] }
