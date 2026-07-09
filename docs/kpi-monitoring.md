@@ -11,13 +11,24 @@
 | `soc_verdict_total` | counter | `verdict` | 판정별(정탐/오탐) 수 |
 | `soc_node_latency_avg_ms` | gauge | `node` | 파이프라인 노드 평균 지연(MTTT/MTTC 원천) |
 | `soc_attack_coverage_ratio` | gauge | — | ATT&CK 커버리지 비율 |
+| `soc_attack_quality_adjusted_ratio` | gauge | — | native 근거만 인정한 품질 보정 커버리지 |
 | `soc_attack_addressable_ratio` | gauge | — | 대응가능 커버리지(pre-compromise 제외) |
 | `soc_attack_technique_total` | gauge | `status` | covered/planned/uncovered 기법 수 |
+| `soc_attack_technique_quality_total` | gauge | `quality` | covered 기법의 native/proxy/unscored 품질 수 |
 | `soc_attack_gap_total` | gauge | `archetype` | archetype(A~E)별 갭 수 |
 | `soc_attack_tactic_uncovered` | gauge | `tactic` | 전술별 미탐지 기법 수 |
+| `soc_bas_detection_ratio` | gauge | — | BAS 룰 존재 탐지율 |
+| `soc_bas_readiness_ratio` | gauge | — | BAS native 계측 준비도 |
+| `soc_bas_quality_gap_total` | gauge | `status` | proxy/reconstructed/design-blind 등 비-native 시나리오 수 |
+| `soc_runbook_readiness_ratio` | gauge | — | curated runbook 비율 |
+| `soc_runbook_total` | gauge | `detail_level` | curated/generated runbook 수 |
 
 - 런타임 카운터는 핫패스가 경보 처리 시 갱신(`metrics().record_alert/observe_node`).
 - 커버리지 게이지는 스크레이프 시점에 `tools.coverage` 리포트로 계산.
+- `coverage_ratio`/`bas_detection_ratio` 는 존재성 지표이고,
+  `quality_adjusted_ratio`/`bas_readiness_ratio` 가 실측 준비도 지표다.
+- `runbook_readiness_ratio` 는 detection rule 별 runbook 존재성이 아니라 curated
+  절차 비율이다. generated 는 대응 가능성 proof 이지 운용 성숙도 proof 가 아니다.
 - `prometheus_client` 의존 없이 텍스트 exposition 직접 렌더(표준 라이브러리).
 
 ## 스크레이프 (`deploy/monitoring/servicemonitor.yaml`)
@@ -27,7 +38,8 @@
 
 ## 대시보드 (`deploy/monitoring/grafana-dashboard.yaml`)
 `grafana_dashboard: "1"` ConfigMap → Grafana 사이드카 자동 적재. 패널:
-커버리지 stat / archetype 갭 / 판정 비율 / 전술별 갭 / 경보 처리율 / 노드 지연.
+커버리지 stat / BAS readiness / Runbook readiness / archetype 갭 / 판정 비율 / 전술별 갭 /
+경보 처리율 / 노드 지연.
 
 ## 배포 (ArgoCD)
 ```bash
@@ -41,6 +53,9 @@ kubectl apply -n argocd -f deploy/argocd/apps/soc-monitoring.yaml
 
 ## SLO 후보 (알람 룰로 승격 가능)
 - `soc_attack_coverage_ratio` < 0.6 → 커버리지 회귀 경보.
+- `soc_attack_quality_adjusted_ratio` < 0.6 → native 근거 부족 경보.
+- `soc_bas_readiness_ratio` < 0.9 → proxy/reconstructed 시나리오 과다 경보.
+- `soc_runbook_readiness_ratio` < 0.8 → generated runbook 과다 경보.
 - `rate(soc_alerts_total[5m])` 급증 → 부하/공격 파동.
 - `soc_node_latency_avg_ms{node="investigation"}` 상승 → RAG/LLM 지연.
 

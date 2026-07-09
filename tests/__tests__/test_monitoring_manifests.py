@@ -52,7 +52,10 @@ class TestGrafanaDashboard:
         )
         for metric in (
             "soc_attack_coverage_ratio",
+            "soc_attack_quality_adjusted_ratio",
             "soc_attack_gap_total",
+            "soc_bas_readiness_ratio",
+            "soc_runbook_readiness_ratio",
             "soc_alerts_total",
             "soc_node_latency_avg_ms",
         ):

@@ -68,6 +68,21 @@ class TestCatoAssess:
         assert status.authorization == "at_risk"
         assert any(p.control_id == "CA-8" and p.severity == "high" for p in status.poam)
 
+    def test_bas_readiness_below_floor_at_risk(self) -> None:
+        """탐지율이 충분해도 native readiness 부족이면 CA-8 POA&M."""
+        bas = BASReport(
+            total=10,
+            detected=10,
+            native_detected=5,
+            proxy_detected=5,
+            quality_gaps={"proxy": ["s1", "s2", "s3", "s4", "s5"]},
+        )
+
+        status = _assessor().assess(bas=bas)
+
+        assert status.authorization == "at_risk"
+        assert any("준비도" in p.gap for p in status.poam)
+
     def test_slo_breach_conditional(self) -> None:
         """중간 SLO 위반만 → SI-4 medium POA&M → conditional."""
         breach = SloBreach(

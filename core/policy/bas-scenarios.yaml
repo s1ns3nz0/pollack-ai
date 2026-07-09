@@ -11,9 +11,9 @@
 #   주의: dah C-룰 설명서가 신/구 번호 혼재라 back-ref 일부 부정확 — dah 정리 후
 #   재생성 예정. 런타임 캠페인 매칭은 core/policy/campaign-chains.yaml 이 담당.
 # tactic 키는 data/attack_coverage.yaml tactic 이름과 일치(PascalCase).
-#   Enterprise 명명은 UAV ATT&CK 로 정규화(DefenseEvasion→StealthEvasion 등,
-#   원본 tactics 배열의 첫 UAV-15 전술 채택). 예외: CredentialAccess 4건
-#   (S29/S69/S70/S96) — UAV-15 밖, CACAO 미커버로 defense_playbook 폴백 경로.
+#   Enterprise 명명은 UAV ATT&CK 로 정규화(DefenseEvasion→StealthEvasion 등).
+#   CredentialAccess 4건(S29/S69/S70/S96)은 CACAO 자격접근 플레이북으로 정식
+#   커버한다.
 # =============================================================================
 
 version: 0.3
@@ -87,6 +87,7 @@ scenarios:
     status: deployed
     signals: ["제안 스키마 — 실제 텔레메트리 소스(DShot/ESC 직접 액추에이터 명령 로그) 미배포", "UAVTelemetry_CL의 진동(VibrationX/Y/Z)/클리핑(Clipping0/1/2) 필드로 간접 프록시하여 모터 이상거동 신호를 근사 탐지(비행제어기 믹서 우회 직접증거 아님, 진동/클리핑 급증만으로 판정하는 약한 대체 신호)"]
     detection_rule: S8_DShot_ESC_Manipulation.json
+    instrumentation_status: proposed_schema
     tactic: Impact
     stride: [T, E]
 
@@ -177,6 +178,7 @@ scenarios:
     status: deployed
     signals: ["메타 탐지 규칙: UAV 텔레메트리 테이블이 아닌 Sentinel 자체 SecurityAlert 처리량(5분 윈도우 알림 발생 건수)이 SOC 분석 처리 한계(capacityThreshold)를 초과하는지 모니터링", "UAV 도메인 전용 알림 볼륨 테이블이 실제 워크스페이스에 존재하지 않아, Sentinel 내장 SecurityAlert 테이블로 SOC 자체 알림 처리 용량 초과를 근사 탐지(제안 스키마 미배포 갭에 대한 대체 구현)."]
     detection_rule: S19_SOC_Capacity_Threshold.json
+    instrumentation_status: proposed_schema
     tactic: Impact
     stride: [T]
 
@@ -193,6 +195,7 @@ scenarios:
     status: deployed
     signals: ["근사 탐지(제안 스키마 미배포 — 실 워크스페이스에 전용 측면이동 텔레메트리 테이블 없음): 실제 UAVFileAudit_CL(ProcessName/Syscall/User/ContainerName)에서 impacket/crackmapexec류 알려진 측면이동 도구 프로세스명을 탐지하고, 동일 운영자(User)가 다수 컨테이너에 걸쳐 해당 프로세스를 실행한 패턴을 집계", "향후 전용 EDR/네트워크 인증 텔레메트리 소스 추가 시 정교화 필요."]
     detection_rule: S21_Lateral_Movement.json
+    instrumentation_status: proposed_schema
     tactic: LateralMovement
     stride: [T]
 
@@ -201,6 +204,7 @@ scenarios:
     status: deployed
     signals: ["UAVRouterStats_CL(mavlink-router 통계)에서 UnexpectedEndpoint=true로 표시된 비인가/미등록 엔드포인트를 직접 탐지", "CrcErrors 동반 시 신뢰도 High(회선 계층 이상 동시 시사)."]
     detection_rule: S22_Router_Endpoint_Rogue.json
+    instrumentation_status: proxy
     tactic: CommandAndControl
     stride: [E]
 
@@ -227,6 +231,7 @@ scenarios:
     status: deployed
     signals: ["UAVRcLink_CL(WiFi/RC COTS 링크 계층 감사 테이블) 기반", "전용 802.11 프레임 캡처 테이블은 없어 EventType(deauth/disconnect류) 또는 StatusCode 비정상(연결 실패) 반복 발생을 디어쓰 유사 링크 거부 신호로 근사 탐지."]
     detection_rule: S25_WiFi_Deauth.json
+    instrumentation_status: proxy
     tactic: Impact
     stride: [D]
     campaign: [C5]
@@ -236,6 +241,7 @@ scenarios:
     status: deployed
     signals: ["UAVRcLink_CL의 BssidMismatch(bool) 플래그를 직접 사용하여 동일 SSID에 대해 기대 BSSID와 불일치하는 접속(로그 AP/이블 트윈 의심)을 탐지."]
     detection_rule: S26_WiFi_Evil_Twin.json
+    instrumentation_status: proxy
     tactic: Collection
     stride: [T]
 
@@ -244,6 +250,7 @@ scenarios:
     status: deployed
     signals: ["UAVWifi_CL은 실 워크스페이스에 존재하지 않음", "WiFi 대역 RF 재밍은 UAVCounterUas_CL(Band='wifi', JsRatio_dB/JamEirp_dBm)이 더 정확한 실제 컬럼을 제공하므로 이를 사용해 근사 탐지."]
     detection_rule: S27_WiFi_Jamming.json
+    instrumentation_status: proxy
     tactic: Impact
     stride: [T]
 
@@ -310,6 +317,7 @@ scenarios:
     status: deployed
     signals: ["국가배후 APT(APT28류) 자격증명 탈취 특징 탐지 — 브루트포스 볼륨이 아닌 '정상적으로 성공한' 로그인 중, 해당 Operator가 과거 24시간 베이스라인 기간에 한 번도 사용한 적 없는 ClientIp/UserAgent 조합으로 접속한 경우를 탐지(탈취된 자격증명의 원격 재사용 패턴)", "실제 컬럼은 UAVOpAudit_CL의 Operator/ClientIp/UserAgent/SessionId/FailReason/StatusCode/TargetOperator/Detail이며, 'OperatorId'/'DeviceFingerprint'/'GeoCountry' 컬럼은 존재하지 않아 제거함", "Approved_Device_Fingerprint_List 워치리스트는 아직 배포되지 않았으므로(미배포 시 빈 결과만 반환) 베이스라인 기반 이상탐지를 주 탐지 로직으로 사용"]
     detection_rule: S35_Credential_Theft_Anomaly.json
+    instrumentation_status: proposed_schema
     tactic: InitialAccess
     stride: [T]
 
@@ -369,6 +377,7 @@ scenarios:
     status: deployed
     signals: ["GCS(QGroundControl류) 앱의 QML 컴포넌트/플러그인 인젝션 탐지", "UAVCompanion_CL(ROS/컴패니언컴퓨터/설정/MQTT/NTP 등 EventType으로 구분되는 공용 테이블)에서 InjectionSignatureDetected=true인 이벤트를 탐지", "이 테이블은 여러 시나리오가 공유하므로 EventType 값 컨벤션으로 시나리오를 구분: 본 룰은 `EventType == \"qml_inject\"` 를 사용(다른 룰과 충돌 없음: ros_master_access=S45, ros_topic_inject=S46, mavros_cmd_inject=S47, gcs_update_mitm=S43, gcs_config_tamper=S44, ntp_spoof=S50, geofence_tamper=S77[타 담당])"]
     detection_rule: S42_GCS_QML_Plugin_Injection.json
+    instrumentation_status: proxy
     tactic: Execution
     stride: [S, T]
 
@@ -377,6 +386,7 @@ scenarios:
     status: deployed
     signals: ["GCS 앱 자동업데이트 MITM(불법 appcast 응답) 탐지", "UAVCompanion_CL(ROS/컴패니언컴퓨터/설정/MQTT/NTP 등 EventType으로 구분되는 공용 테이블)에서 MitmSuspected=true인 이벤트를 탐지", "이 테이블은 여러 시나리오가 공유하므로 EventType 값 컨벤션으로 시나리오를 구분: 본 룰은 `EventType == \"gcs_update_mitm\"` 를 사용(다른 룰과 충돌 없음: qml_inject=S42, ros_master_access=S45, ros_topic_inject=S46, mavros_cmd_inject=S47, gcs_config_tamper=S44, ntp_spoof=S50, geofence_tamper=S77[타 담당])"]
     detection_rule: S43_GCS_AutoUpdate_MITM.json
+    instrumentation_status: proxy
     tactic: InitialAccess
     stride: [S, T]
 
@@ -385,6 +395,7 @@ scenarios:
     status: deployed
     signals: ["GCS 설정/로그 변조 탐지 — UAVCompanion_CL(ROS/컴패니언컴퓨터/설정/MQTT/NTP 등 EventType으로 구분되는 공용 테이블)에서 Authorized=false인 설정 변경(ConfigField/ValueBefore/ValueAfter/ChangedBy)을 탐지", "이 테이블은 여러 시나리오가 공유하므로 EventType 값 컨벤션으로 시나리오를 구분: 본 룰은 `EventType == \"gcs_config_tamper\"` 를 사용(다른 룰과 충돌 없음: qml_inject=S42, gcs_update_mitm=S43, ros_master_access=S45, ros_topic_inject=S46, mavros_cmd_inject=S47, ntp_spoof=S50, geofence_tamper=S77[타 담당])"]
     detection_rule: S44_GCS_Config_Log_Tamper.json
+    instrumentation_status: proxy
     tactic: Impact
     stride: [S, T]
 
@@ -393,6 +404,7 @@ scenarios:
     status: deployed
     signals: ["무인증 ROS 마스터 접근 탐지 — UAVCompanion_CL(ROS/컴패니언컴퓨터/설정/MQTT/NTP 등 EventType으로 구분되는 공용 테이블)에서 Authorized=false인 ROS 마스터 접근 이벤트를 탐지", "이 테이블은 여러 시나리오가 공유하므로 EventType 값 컨벤션으로 시나리오를 구분: 본 룰은 `EventType == \"ros_master_access\"` 를 사용(다른 룰과 충돌 없음: qml_inject=S42, gcs_update_mitm=S43, gcs_config_tamper=S44, ros_topic_inject=S46, mavros_cmd_inject=S47, ntp_spoof=S50, geofence_tamper=S77[타 담당])"]
     detection_rule: S45_ROS_Master_Unauthenticated.json
+    instrumentation_status: proxy
     tactic: InitialAccess
     stride: [S, T]
 
@@ -401,6 +413,7 @@ scenarios:
     status: deployed
     signals: ["ROS 토픽/서비스 인젝션 탐지 — UAVCompanion_CL(ROS/컴패니언컴퓨터/설정/MQTT/NTP 등 EventType으로 구분되는 공용 테이블)에서 InjectionSignatureDetected=true인 토픽 인젝션 이벤트를 탐지(Topic/Command 컬럼으로 세부 내용 확인)", "이 테이블은 여러 시나리오가 공유하므로 EventType 값 컨벤션으로 시나리오를 구분: 본 룰은 `EventType == \"ros_topic_inject\"` 를 사용(다른 룰과 충돌 없음: qml_inject=S42, gcs_update_mitm=S43, gcs_config_tamper=S44, ros_master_access=S45, mavros_cmd_inject=S47, ntp_spoof=S50, geofence_tamper=S77[타 담당])"]
     detection_rule: S46_ROS_Topic_Injection.json
+    instrumentation_status: proxy
     tactic: Impact
     stride: [S, T, E]
 
@@ -409,6 +422,7 @@ scenarios:
     status: deployed
     signals: ["MAVROS 명령 주입 탐지 — UAVCompanion_CL(ROS/컴패니언컴퓨터/설정/MQTT/NTP 등 EventType으로 구분되는 공용 테이블)에서 Authorized=false인 MAVROS 명령 주입 이벤트를 탐지(Command 컬럼으로 세부 명령 확인)", "이 테이블은 여러 시나리오가 공유하므로 EventType 값 컨벤션으로 시나리오를 구분: 본 룰은 `EventType == \"mavros_cmd_inject\"` 를 사용(다른 룰과 충돌 없음: qml_inject=S42, gcs_update_mitm=S43, gcs_config_tamper=S44, ros_master_access=S45, ros_topic_inject=S46, ntp_spoof=S50, geofence_tamper=S77[타 담당])"]
     detection_rule: S47_MAVROS_Command_Injection.json
+    instrumentation_status: proxy
     tactic: Impact
     stride: [S, T]
     campaign: [C19]
@@ -434,6 +448,7 @@ scenarios:
     status: deployed
     signals: ["GDT(지상 데이터터미널) NTP 타임서버 스푸핑 탐지 — UAVCompanion_CL(ROS/컴패니언컴퓨터/설정/MQTT/NTP 등 EventType으로 구분되는 공용 테이블)에서 시간 오프셋(OffsetReportedSec)이 임계치(5초)를 초과한 경우를 탐지 — 정상 NTP 소스가 아닌 곳으로부터의 시간 조작은 로그 타임스탬프 위조/재전송(replay) 공격의 발판이 됨", "Trusted_NTP_Source_List 워치리스트는 컬럼 스키마 불일치(NtpHost 미존재)로 사용하지 않고 OffsetReportedSec 임계값 기반 탐지를 단독 로직으로 사용", "이 테이블은 여러 시나리오가 공유하므로 EventType 값 컨벤션으로 시나리오를 구분: 본 룰은 `EventType == \"ntp_spoof\"` 를 사용(다른 룰과 충돌 없음: qml_inject=S42, gcs_update_mitm=S43, gcs_config_tamper=S44, ros_master_access=S45, ros_topic_inject=S46, mavros_cmd_inject=S47, geofence_tamper=S77[타 담당])"]
     detection_rule: S50_GDT_NTP_Spoofing.json
+    instrumentation_status: proxy
     tactic: InitialAccess
     stride: [S, T]
 
@@ -458,6 +473,7 @@ scenarios:
     status: deployed
     signals: ["UAVWebAudit_CL에서 무기(weapon/arm/fire) 엔드포인트 요청자(RequesterId)가 자신의 소유가 아닌 타 UAV/자원(TargetId)에 접근하는 IDOR(직접객체참조) 의심 이벤트를 IdorSuspected 플래그로 탐지", "인증우회형 취약점 악용 의심"]
     detection_rule: S53_Weapon_Endpoint_IDOR.json
+    instrumentation_status: proxy
     tactic: InitialAccess
     stride: [T]
     campaign: [C18]
@@ -693,6 +709,7 @@ scenarios:
     status: deployed
     signals: ["함대관리 API 호출 시 호출자 소속 함대(CallerFleetId)와 요청 대상 함대(RequestedFleetId)가 불일치하는 IDOR(비인가 객체 직접 참조) 시도를 탐지"]
     detection_rule: S81_Fleet_API_IDOR.json
+    instrumentation_status: proxy
     tactic: InitialAccess
     stride: [T, E]
     campaign: [C20]
@@ -729,6 +746,7 @@ scenarios:
     status: deployed
     signals: ["[계측 공백/최선근사] SOC 사건보고서 위조(거짓 사건보고) 탐지", "실배포 워크스페이스에는 SOC 보고서 무결성을 직접 기록하는 전용 테이블이 존재하지 않음(genuine instrumentation gap)", "본 룰은 UAVServiceAudit_CL을 범용 감사 테이블로 활용해 EventType='soc_report_forge'(본 룰이 정의한 관례값)로 태깅된 레코드 중 IsDestructiveAction 또는 LogBearingTargetSuspected가 true인 경우를 위조/은폐 의심 근사 신호로 탐지한다"]
     detection_rule: S85_SocReport_Forgery.json
+    instrumentation_status: proxy
     tactic: StealthEvasion
     stride: [S, T, R]
 
@@ -737,6 +755,7 @@ scenarios:
     status: deployed
     signals: ["[계측 공백/최선근사] OSCAL 컴플라이언스 증거 변조 탐지", "실배포 워크스페이스에는 OSCAL 컨트롤 평가결과·증거 서명을 직접 기록하는 전용 테이블이 존재하지 않음(genuine instrumentation gap)", "본 룰은 UAVServiceAudit_CL을 범용 감사 테이블로 활용해 EventType='oscal_evidence_tamper'(본 룰이 정의한 관례값)로 태깅된 레코드 중 IsDestructiveAction 또는 LogBearingTargetSuspected가 true인 경우를 증거 조작 의심 근사 신호로 탐지한다"]
     detection_rule: S86_OSCAL_Evidence_Tamper.json
+    instrumentation_status: proxy
     tactic: StealthEvasion
     stride: [T]
 
@@ -745,6 +764,7 @@ scenarios:
     status: deployed
     signals: ["[계측 공백/최선근사] RuleUpdate PR을 통한 백도어 완화조건 주입 탐지", "실배포 워크스페이스에는 탐지 룰 변경(리뷰/승인/임계값 diff)을 직접 기록하는 전용 테이블이 존재하지 않음(genuine instrumentation gap)", "본 룰은 UAVServiceAudit_CL을 범용 감사 테이블로 활용해 EventType='rule_update_backdoor'(본 룰이 정의한 관례값)로 태깅된 레코드 중 IsDestructiveAction 또는 LogBearingTargetSuspected가 true인 경우를 룰 완화/백도어 삽입 의심 근사 신호로 탐지한다"]
     detection_rule: S87_RuleUpdate_PR_Backdoor.json
+    instrumentation_status: proxy
     tactic: StealthEvasion
     stride: [T]
 
@@ -753,6 +773,7 @@ scenarios:
     status: deployed
     signals: ["[계측 공백/최선근사] 적대적 패치 공격(Adversarial Patch) 탐지", "실배포 워크스페이스에는 AI/ML 추론 계층(비전 분류 결과, 오분류 여부, 패치 지표 등)을 기록하는 전용 텔레메트리가 존재하지 않음(genuine instrumentation gap — AI 추론 로깅 미도입)", "본 룰은 UAVOpAudit_CL을 범용 운영감사 테이블로 활용해 EventType='adversarial_patch'(본 룰이 정의한 관례값)로 태깅된 레코드 중 Detail 필드에 이상 콘텐츠 패턴이 기록된 경우를 근사 신호로 탐지한다"]
     detection_rule: S88_Adversarial_Patch_Attack.json
+    instrumentation_status: proxy
     tactic: StealthEvasion
     stride: [T]
 
@@ -761,6 +782,7 @@ scenarios:
     status: deployed
     signals: ["[계측 공백/최선근사] OODA Orient 단계 기만/RAG 포이즈닝 재프레임 탐지", "실배포 워크스페이스에는 AI/ML 추론 계층(RAG 질의, 근거 모순 건수, 불확실성 지표 등)을 기록하는 전용 텔레메트리가 존재하지 않음(genuine instrumentation gap — AI 추론 로깅 미도입)", "본 룰은 UAVOpAudit_CL을 범용 운영감사 테이블로 활용해 EventType='rag_poison'(본 룰이 정의한 관례값)로 태깅된 레코드 중 Detail 필드에 이상 콘텐츠 패턴이 기록된 경우를 근사 신호로 탐지한다"]
     detection_rule: S89_RAG_Poisoning_Orient_Deception.json
+    instrumentation_status: proxy
     tactic: StealthEvasion
     stride: [T]
 
@@ -769,6 +791,7 @@ scenarios:
     status: deployed
     signals: ["[계측 공백/최선근사] SOC LLM(코파일럿/분석보조 에이전트) 프롬프트 인젝션 탐지", "실배포 워크스페이스에는 AI/ML 추론 계층(LLM 프롬프트, 인젝션 마커 등)을 기록하는 전용 텔레메트리가 존재하지 않음(genuine instrumentation gap — AI 추론 로깅 미도입)", "본 룰은 UAVOpAudit_CL을 범용 운영감사 테이블로 활용해 EventType='llm_prompt_inject'(본 룰이 정의한 관례값)로 태깅된 레코드 중 Detail 필드에 이상 콘텐츠 패턴이 기록된 경우를 근사 신호로 탐지한다"]
     detection_rule: S90_SOC_LLM_Prompt_Injection.json
+    instrumentation_status: proxy
     tactic: StealthEvasion
     stride: [T]
     campaign: [C9]
@@ -778,6 +801,7 @@ scenarios:
     status: deployed
     signals: ["[계측 공백/최선근사] 모델 추출(비밀 질의 사다리) 탐지", "실배포 워크스페이스에는 AI/ML 추론 계층(모델 질의 시퀀스, 반복탐침 점수 등)을 기록하는 전용 텔레메트리가 존재하지 않음(genuine instrumentation gap — AI 추론 로깅 미도입)", "본 룰은 UAVOpAudit_CL을 범용 운영감사 테이블로 활용해 EventType='model_extraction'(본 룰이 정의한 관례값)로 태깅된 레코드를 ClientIp/SessionId 단위로 집계, 짧은 시간창 내 질의 건수가 비정상적으로 많은 경우(체계적 점증 질의의 근사 신호)를 탐지한다"]
     detection_rule: S91_Model_Extraction_Probing_Ladder.json
+    instrumentation_status: proxy
     tactic: Exfiltration
     stride: [I]
 
@@ -786,6 +810,7 @@ scenarios:
     status: deployed
     signals: ["UAVExfilFlow_CL 유출 흐름 로그에서 SAR/영상 표적좌표(TargetLat/TargetLon)가 AOI_Boundary_List에 등록된 모든 허가구역(AOI) 밖으로 전송되는 것을 탐지", "기존 UAVSarPayload_CL+UAVC4I_CL 개별 조인 방식(S17)을 통합 유출 흐름 테이블 단일 소스로 재구성 — 등록된 AOI 다건(mpd_recon/mpd_attack/mpd_escort)을 전수 대조해 하나도 매칭되지 않을 때만 트리거"]
     detection_rule: S92_SAR_Coord_Exfil.json
+    instrumentation_status: reconstructed
     tactic: Exfiltration
     stride: [I]
     campaign: [C10, C11, C17, C30]
@@ -821,6 +846,7 @@ scenarios:
     status: deployed
     signals: ["UAVExfilFlow_CL에서 KeyType(signing/session/tls)이 지정된 암호키 접근/유출 이벤트 중 AccessorIdentity가 Approved_Operators_List에 비등록이거나, UAV_Threshold_List의 OffHoursStart/OffHoursEnd 기준 야간 시간대에 발생한 것을 탐지", "서명키·세션토큰·TLS키 유출은 UAV 도메인 특성상 표준 자격증명 저장소 개념과 완전히 일치하지 않아 근사매핑으로 분류(techniques 필드 미기재)"]
     detection_rule: S96_Key_Material_Exfil.json
+    instrumentation_status: proxy
     tactic: CredentialAccess
     stride: [I]
     campaign: [C11]
@@ -830,6 +856,7 @@ scenarios:
     status: deployed
     signals: ["능동 정찰(포트/엔드포인트 스캔) 탐지", "UAVOpAudit_CL에는 포트 스캔을 직접 기록하는 PortsScanned 컬럼이 존재하지 않으므로("]
     detection_rule: S97_Active_Recon_PortScan.json
+    instrumentation_status: proxy
     tactic: Reconnaissance
     stride: [I]
 
@@ -838,6 +865,7 @@ scenarios:
     status: deployed
     signals: ["[설계상 사각지대 — 능동 신호 없음] 수동 텔레메트리·화면·입력·파일 감청(평문) 탐지", "평문/수동 감청은 정의상 방어자 시야에 로그를 남기지 않는 공격이므로(RF 도청, 케이블 탭, 화면/입력장치 후킹 등) 실배포 워크스페이스에 이를 직접 관측하는 텔레메트리가 존재하지 않는다", "이는 계측 누락이 아니라 의도된(intentional) 탐지 불가 영역일 가능성이 높다"]
     detection_rule: S98_Passive_Plaintext_Interception.json
+    instrumentation_status: design_blind
     tactic: Collection
     stride: [I]
 
@@ -846,6 +874,7 @@ scenarios:
     status: deployed
     signals: ["[설계상 사각지대 — 능동 신호 없음] 수동 자산·네트워크 구조 열거 탐지", "수동 정찰(공개정보·구성정보만으로 공격표면 매핑, CVE DB 조회 등)은 정의상 대상 시스템에 요청을 보내지 않으므로 방어자 시야에 로그를 남기지 않는다", "실배포 워크스페이스에 이를 직접 관측하는 텔레메트리가 존재하지 않으며, 이는 계측 누락이 아니라 의도된(intentional) 탐지 불가 영역일 가능성이 높다"]
     detection_rule: S99_Passive_Asset_Network_Enumeration.json
+    instrumentation_status: design_blind
     tactic: Reconnaissance
     stride: [I]
     campaign: [C22, C24, C30]
@@ -855,6 +884,7 @@ scenarios:
     status: deployed
     signals: ["군집포화(SOC 대응 무력화) 탐지", "실배포 스키마에는 SOC 처리용량/대응지연을 직접 기록하는 전용 테이블이 없으므로, 본 룰은 UAVFleetState_CL의 ActiveUAVCount 급증(군집 동시 이상행동 신호)과 Sentinel 내장 SecurityAlert 테이블의 경보량 급증(SOC 부하 신호)을 각각 정규화한 뒤 UNION으로 결합해, 동일 5분 시간대역에 두 신호가 함께 관측되는 구간을 '군집 유발 경보 포화' 시그니처로 탐지한다", "다수 UAV 군집을 동시에 이상행동시켜 SOC 경보 처리 용량을 포화시키고 실제 공격을 은폐/무력화하려는 시도"]
     detection_rule: S100_Swarm_Saturation_SOC_Overload.json
+    instrumentation_status: proxy
     tactic: Impact
     stride: [R, D]
     campaign: [C9]
@@ -945,6 +975,7 @@ scenarios:
     status: deployed
     signals: ["제안 스키마 — 짐벌/페이로드 지향 제어 전용 텔레메트리 소스(UAVPayloadCtrl_CL 등) 미배포(문서화된 계측 공백)", "최근접 대체 신호로 UAVOpAudit_CL(운용자 행위 감사 로그,"]
     detection_rule: S110_Gimbal_Payload_Ctrl_Hijack.json
+    instrumentation_status: proposed_schema
     tactic: Impact
     stride: [T, E]
 
@@ -953,6 +984,7 @@ scenarios:
     status: deployed
     signals: ["UAVTelemetry_CL(MsgType=GLOBAL_POSITION_INT)에서 CustomMode=LOITER(12)인 구간의 5분 단위 평균 선회중심(Lat/Lon)을 연속 구간 간 비교하여 점진적 위치 이탈(drift)을 탐지", "UAVOpmode_CL은 존재하지 않아 실제 텔레메트리 좌표 기반으로 재구성"]
     detection_rule: S111_Loiter_Center_Spoofing.json
+    instrumentation_status: reconstructed
     tactic: StealthEvasion
     stride: [S, T, E]
 
@@ -961,6 +993,7 @@ scenarios:
     status: deployed
     signals: ["UAVMissionEvent_CL에서 CustomModeAfter=RTL(11)로의 전환이 5분 내 2회 이상 발생하는 비인가 RTB 강제 트리거 버스트 탐지", "UAVOpmode_CL은 존재하지 않아 실제 미션 이벤트 테이블(CustomModeBefore/CustomModeAfter) 기반으로 재구성"]
     detection_rule: S112_RTB_Forced_Trigger.json
+    instrumentation_status: reconstructed
     tactic: Collection
     stride: [T, E]
     campaign: [C32]
@@ -970,6 +1003,7 @@ scenarios:
     status: deployed
     signals: ["UAVC4I_CL에서 동일 UnitCallsign에 대해 5분 내 서로 다른 TargetId가 2개 이상 할당되는 추적 표적 전환(락 탈취) 버스트를 탐지", "UAVOpmode_CL은 존재하지 않으며 UAVTelemetry_CL에는 표적추적 필드가 없어, C4I 표적 핸드오프 로그(TargetId/UnitCallsign/IssuedBy)를 사용해 재구성"]
     detection_rule: S113_Track_Lock_Hijack.json
+    instrumentation_status: reconstructed
     tactic: Impact
     stride: [T, E]
     campaign: [C30]
@@ -979,6 +1013,7 @@ scenarios:
     status: deployed
     signals: ["UAVMissionPlan_CL에서 동일 PlanId의 연속 레코드 간 WaypointCount(측량 격자 경유점 수)가 변경되었고, 동시에 Approver가 비어있거나 Planner==Approver(자가승인)인 비인가 격자 변조를 탐지", "UAVOpmode_CL은 존재하지 않아 실제 미션계획 감사 테이블 기반으로 재구성"]
     detection_rule: S114_Survey_Grid_Tamper.json
+    instrumentation_status: reconstructed
     tactic: StealthEvasion
     stride: [T, I, E]
 
@@ -987,6 +1022,7 @@ scenarios:
     status: deployed
     signals: ["UAVMissionEvent_CL에서 CustomModeBefore/CustomModeAfter가 Manual(0)↔Auto(10) 사이를 5분 내 2회 이상 오가는 비인가 제어권 전환 버스트를 탐지", "UAVOpmode_CL은 존재하지 않아 실제 미션 이벤트 테이블 기반으로 재구성"]
     detection_rule: S115_Control_Mode_Transition_Attack.json
+    instrumentation_status: reconstructed
     tactic: Impact
     stride: [E]
     campaign: [C31]
@@ -996,6 +1032,7 @@ scenarios:
     status: deployed
     signals: ["UAVTelemetry_CL(MsgType=ATTITUDE)에서 5분 구간별 RollSpeed_rads/PitchSpeed_rads/YawSpeed_rads의 표준편차가 임계값을 초과하는 자세제어 루프 발산(오염) 징후를 탐지", "UAVOpmode_CL은 존재하지 않아 실제 자세 각속도 텔레메트리 기반으로 재구성"]
     detection_rule: S116_Stabilization_Loop_Poisoning.json
+    instrumentation_status: reconstructed
     tactic: Collection
     stride: [T]
     campaign: [C31]
@@ -1005,6 +1042,7 @@ scenarios:
     status: deployed
     signals: ["UAVSatcomLink_CL에서 IntegrityStatus 비정상 또는 BeaconJitterSec 과다인 위성링크 무결성 위반 구간과, UAVTelemetry_CL의 Command 발생 시각을 UAVId 기준 ±30초로 상관분석하여 BLOS 구간 자율명령 위조/지연 의심을 탐지", "UAVOpmode_CL은 존재하지 않아 실제 SATCOM 링크 무결성 테이블과 텔레메트리 명령 테이블의 조인으로 재구성"]
     detection_rule: S117_BLOS_Autonomy_Command_Forge.json
+    instrumentation_status: reconstructed
     tactic: Collection
     stride: [S, T]
     campaign: [C33]
@@ -1014,6 +1052,7 @@ scenarios:
     status: deployed
     signals: ["UAVTelemetry_CL에서 CustomMode=GUIDED(15) 구간 중 5분 내 서로 다른 Command 값이 3종 이상 발생하는 명령 버스트(온보드 자율 판단 결과에 대한 외부 강제 개입 의심)를 탐지", "UAVOpmode_CL은 존재하지 않아 실제 텔레메트리 Command/CustomMode 기반으로 재구성"]
     detection_rule: S118_Autonomy_Decision_Hijack.json
+    instrumentation_status: reconstructed
     tactic: Impact
     stride: [T]
     campaign: [C33]
@@ -1023,6 +1062,7 @@ scenarios:
     status: deployed
     signals: ["UAVMissionEvent_CL에서 CustomModeAfter=GUIDED(15)로 전환된 5분 구간에 UAVOperator_CL(운용자 발신 MAVLink 명령 감사로그)에 동일 UAVId의 대응 레코드가 전혀 없는 경우(운용자 명령 없이 GUIDED 진입)를 leftanti 조인으로 탐지", "UAVOpmode_CL은 존재하지 않아 실제 미션 이벤트/운용자 명령 테이블 조인으로 재구성"]
     detection_rule: S119_Flight_Mode_GUIDED_Injection.json
+    instrumentation_status: reconstructed
     tactic: Collection
     stride: [T, E]
     campaign: [C30]
@@ -1032,6 +1072,7 @@ scenarios:
     status: deployed
     signals: ["UAVTelemetry_CL에서 저배터리(BatteryRemaining_pct < 임계값) 조건이 발생한 5분 구간에 UAVFailsafe_CL에서 해당 UAVId의 ModeAfter=RTL(11) 전환 레코드가 없는 경우(예상되는 페일세이프 응답 부재)를 leftanti 조인으로 탐지", "UAVOpmode_CL은 존재하지 않아 실제 텔레메트리 배터리 상태와 페일세이프 테이블 조인으로 재구성"]
     detection_rule: S120_Failsafe_Recovery_Block.json
+    instrumentation_status: reconstructed
     tactic: StealthEvasion
     stride: [D, E]
     campaign: [C32]
@@ -1049,6 +1090,7 @@ scenarios:
     status: deployed
     signals: ["UAVTelemetry_CL에서 CustomMode=ACRO(1) 구간 중 RollSpeed_rads/PitchSpeed_rads/YawSpeed_rads 중 하나라도 임계값을 초과하는 불안정화 징후를 탐지", "UAVOpmode_CL은 존재하지 않아 실제 텔레메트리 모드/각속도 컬럼 기반으로 재구성"]
     detection_rule: S122_Acro_Mode_Forced.json
+    instrumentation_status: reconstructed
     tactic: StealthEvasion
     stride: [T, E]
 
@@ -1057,6 +1099,7 @@ scenarios:
     status: deployed
     signals: ["UAVTelemetry_CL의 Airspeed_ms가 UAV_Threshold_List 워치리스트의 MinAirspeed_ms(실속 최소속도) 미만인 저속 구간을 탐지", "UAVOpmode_CL은 존재하지 않아 실제 텔레메트리 Airspeed_ms 기반으로 재구성"]
     detection_rule: S123_Fixedwing_Stall_Induction.json
+    instrumentation_status: reconstructed
     tactic: Collection
     stride: [T, E]
     campaign: [C31]
@@ -1066,6 +1109,7 @@ scenarios:
     status: deployed
     signals: ["UAVTelemetry_CL에서 YawSpeed_rads(요축 각속도)가 임계값을 초과하면서 동시에 기수방향(Heading_deg)과 실제 이동방향(CourseOverGround_cdeg)의 편차가 큰 구간(요축 통제 상실로 기수와 진행방향이 어긋나는 상태)을 탐지", "UAVOpmode_CL은 존재하지 않아 실제 텔레메트리 각속도/방위각 컬럼 기반으로 재구성"]
     detection_rule: S124_Rotary_Yaw_Authority_Loss.json
+    instrumentation_status: reconstructed
     tactic: Collection
     stride: [T, E]
 
@@ -1074,6 +1118,7 @@ scenarios:
     status: deployed
     signals: ["UAVTelemetry_CL에서 CustomMode가 호버(HoverMode)/전진비행(ForwardMode) 값 사이를 전환하는 시점(직전 레코드 대비 CustomMode 변경) 중 ClimbRate_ms가 임계값을 초과하는 이상 거동을 탐지", "VTOL 천이 관련 정확한 custom_mode 수치는 미확정 — let 변수로 명시하여 추후 보정 필요", "UAVOpmode_CL은 존재하지 않아 실제 텔레메트리 모드/승강률 컬럼 기반으로 재구성"]
     detection_rule: S125_VTOL_Transition_Attack.json
+    instrumentation_status: reconstructed
     tactic: Impact
     stride: [T]
     campaign: [C33]
@@ -1083,6 +1128,7 @@ scenarios:
     status: deployed
     signals: ["UAVTelemetry_CL에서 저고도(AltRel_m < 임계값) 구간 중 ClimbRate_ms 이상 거동 또는 ARM/DISARM(Command=400) 명령이 함께 관측되는 이착륙 위상 이상 징후를 탐지", "UAVOpmode_CL은 존재하지 않아 실제 텔레메트리 상대고도/승강률/명령 컬럼 기반으로 재구성"]
     detection_rule: S126_Takeoff_Landing_Phase_Attack.json
+    instrumentation_status: reconstructed
     tactic: StealthEvasion
     stride: [T]
     campaign: [C32]
@@ -1092,6 +1138,7 @@ scenarios:
     status: deployed
     signals: ["[Goal] 사람이 아니라 스크립트/자동화 프로세스가 짧은 시간 안에 같은 파일을 반복 읽어가는 패턴(자동수집)을 탐지한다", "[Categorization] Collection / T1119(Automated Collection)", "ATT&CK Enterprise 매핑(ICS 전용 근접기법 없음)"]
     detection_rule: S127_Automated_Collection.json
+    instrumentation_status: proxy
     tactic: Collection
     stride: [T, I]
     campaign: [C34]
@@ -1118,6 +1165,7 @@ scenarios:
     status: deployed
     signals: ["[계측 공백/최선근사] 컴패니언 컴퓨터 대상 비인가 프로그램/펌웨어 업로드(MITRE ICS T0845) 탐지", "실배포 워크스페이스에는 프로그램 업로드 전용 텔레메트리가 존재하지 않음(genuine instrumentation gap)", "본 룰은 UAVCompanion_CL을 범용 컴패니언 감사 테이블로 활용해 EventType='program_upload'(본 룰이 정의한 관례값, 기존 qml_inject=S42/ros_master_access=S45/ros_topic_inject=S46/mavros_cmd_inject=S47/gcs_update_mitm=S43/gcs_config_tamper=S44/ntp_spoof=S50/geofence_tamper=S77와 충돌 없음)로 태깅된 레코드 중 Authorized=false 또는 InjectionSignatureDetected=true인 경우를 근사 신호로 탐지한다"]
     detection_rule: S130_Program_Upload.json
+    instrumentation_status: proxy
     tactic: CommandAndControl
     stride: [S, T, E]
 
@@ -1128,4 +1176,3 @@ scenarios:
     detection_rule: S131_Input_Capture_VNC_Session.json
     tactic: Collection
     stride: [I]
-

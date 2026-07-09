@@ -36,6 +36,14 @@ matrix:
       - { action: "정상 인증 경로 복구 + MFA 재적용", d3fend: "D3-RA" }
     verify: "동일 계정 재접속(reoccurred) 관측 시 축출 실패 — 자격증명 전면 폐기 + 격리 확대"
 
+  CredentialAccess:
+    evict:
+      - { action: "탈취 의심 세션·토큰 폐기 + 키·인증서 즉시 회수", d3fend: "D3-CR" }
+      - { action: "비인가 RC 송신기 바인딩 해제 + 승인 송신기 목록 재적용", d3fend: "D3-ANCI" }
+    restore:
+      - { action: "정상 키·인증서·운용자 권한 재발급 + MFA 재검증", d3fend: "D3-RA" }
+    verify: "동일 키·계정·송신기 재사용(reoccurred) 관측 시 축출 실패 — 전면 폐기 + 재발급 보류"
+
   Persistence:
     evict:
       - { action: "변조 펌웨어 축출 — 검증 이미지로 재이미징", d3fend: "D3-FEV" }

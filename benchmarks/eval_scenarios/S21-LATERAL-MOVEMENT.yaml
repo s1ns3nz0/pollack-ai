@@ -1,7 +1,9 @@
 # 골든 픽스처 — 구 S6-GCS-COMPROMISE(옛 번호, 대응하는 실제 룰 없었음)를 대체.
 # 출처: dah-sentinel-content AnalyticsRules/S21_Lateral_Movement.json.
+fixture_id: FX-S21-LATERAL-MOVEMENT
 scenario_id: S21-LATERAL-MOVEMENT
 title: 지상세그먼트 횡적확산 (impacket/crackmapexec 시그니처)
+asset_id: GCS
 target_asset:
   id: GCS
   tier: T1-Critical
@@ -16,6 +18,13 @@ expected_detection:
   sentinel_rule: S21_Lateral_Movement.json
 mitre:
   attack_ics: ["T1570", "T1021"]
+expected_tactic: LateralMovement
+expected_techniques: ["T1570", "T1021"]
+expected_cacao_playbook_id: playbook--uav-lm-0001
+expected_runbook_id: RB-S21-LATERAL-MOVEMENT
+expected_resilience_level: SUSTAINED
+expected_fallback_contains: "백업 GCS"
+expected_report_evidence: "1차 지상통제소 지휘"
 defense_playbook:
   id: PB-GCS-CONTAIN-06
   actions:

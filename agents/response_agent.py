@@ -24,6 +24,7 @@ from core.models import (
     ResponseResult,
     SOCState,
 )
+from core.runbook import Runbook, RunbookCatalog
 from core.settings import Settings
 from core.severity import SeverityEngine
 
@@ -39,6 +40,7 @@ class ResponseAgent(BaseSOCAgent):
         scenario_tactic: dict[str, str] | None = None,
         actor_read: ActorReadGate | None = None,
         degradation: DegradationAssessor | None = None,
+        runbooks: RunbookCatalog | None = None,
     ) -> None:
         super().__init__(settings)
         self._engine = engine
@@ -46,6 +48,7 @@ class ResponseAgent(BaseSOCAgent):
         self._scenario_tactic = scenario_tactic or {}
         self._actor_read = actor_read
         self._degradation = degradation
+        self._runbooks = runbooks
 
     async def run(self, state: SOCState) -> SOCState:
         """플레이북 + 등급별 자동대응/HITL 구성.
@@ -99,6 +102,7 @@ class ResponseAgent(BaseSOCAgent):
                     # approval 강제는 후속(그래프 라우팅). 여기선 인간검토 권고 표기.
                     if plan.hitl_required and mr_note is None:
                         mr_note = "CACAO 보수분기(임무게이트 高) — 인간검토 권고"
+        runbook, runbook_status = self._resolve_runbook(alert, cacao_id)
         mission_continuity = self._assess_mission_continuity(state)
         resilience_note = self._resilience_note(mission_continuity)
         if resilience_note is not None:
@@ -133,9 +137,32 @@ class ResponseAgent(BaseSOCAgent):
                 cacao_playbook_id=cacao_id,
                 cacao_steps=cacao_steps,
                 mission_branch=mission_branch,
+                runbook_id=runbook.id if runbook is not None else None,
+                runbook_steps=(
+                    [step.model_dump() for step in runbook.operator_steps]
+                    if runbook is not None and runbook_status == "resolved"
+                    else []
+                ),
+                runbook_status=runbook_status,
+                runbook_detail_level=(
+                    runbook.detail_level if runbook is not None else None
+                ),
             ),
             "trace": ["response"],
         }
+
+    def _resolve_runbook(
+        self, alert: Alert, cacao_playbook_id: str | None
+    ) -> tuple[Runbook | None, str]:
+        """Alert scenario_id 로 runbook 을 조회하고 런타임 상태를 반환한다."""
+        if self._runbooks is None:
+            return None, "fallback"
+        runbook = self._runbooks.by_scenario(alert.scenario_id)
+        if runbook is None:
+            return None, "missing"
+        if cacao_playbook_id is not None and runbook.playbook_id != cacao_playbook_id:
+            return runbook, "invalid"
+        return runbook, "resolved"
 
     def _build_mission_context(
         self,

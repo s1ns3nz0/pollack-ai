@@ -144,7 +144,11 @@ class CatoAssessor:
         if bas is None:
             return []
         ctrl = self._controls.by_source("bas")
-        if ctrl is None or bas.detection_ratio >= self._controls.bas_detection_floor:
+        measured_ratio = (
+            bas.readiness_ratio if bas.quality_gaps else bas.detection_ratio
+        )
+        metric_name = "준비도" if bas.quality_gaps else "탐지 커버리지"
+        if ctrl is None or measured_ratio >= self._controls.bas_detection_floor:
             return []
         return [
             PoamItem(
@@ -153,9 +157,10 @@ class CatoAssessor:
                 severity=ctrl.severity,
                 source="bas",
                 gap=(
-                    f"BAS 탐지 커버리지 {bas.detection_ratio:.0%} < "
+                    f"BAS {metric_name} {measured_ratio:.0%} < "
                     f"하한 {self._controls.bas_detection_floor:.0%} "
-                    f"(미탐 {len(bas.gaps)}건)"
+                    f"(미탐 {len(bas.gaps)}건, 비-native "
+                    f"{sum(len(v) for v in bas.quality_gaps.values())}건)"
                 ),
             )
         ]

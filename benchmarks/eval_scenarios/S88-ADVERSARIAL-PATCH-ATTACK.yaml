@@ -2,8 +2,10 @@
 # 출처: dah-sentinel-content AnalyticsRules/S88_Adversarial_Patch_Attack.json.
 # 주의: 이 룰 자체가 "계측 공백/최선근사" proxy 룰(원문 description 참고) — 온보드 AI
 # 추론 전용 텔레메트리 부재로 UAVOpAudit_CL 관례값(EventType='adversarial_patch')으로 근사.
+fixture_id: FX-S88-ADVERSARIAL-PATCH
 scenario_id: S88-ADVERSARIAL-PATCH-ATTACK
 title: 온보드 비전모델 대상 적대적 패치 공격
+asset_id: PAYLOAD_EOIR
 target_asset:
   id: PAYLOAD_EOIR
   tier: T2-Important
@@ -19,6 +21,13 @@ expected_detection:
 mitre:
   attack_ics: ["T1565"]
   atlas: ["AML.T0043"]
+expected_tactic: StealthEvasion
+expected_techniques: ["T1565"]
+expected_cacao_playbook_id: playbook--uav-stealth-0001
+expected_runbook_id: RB-S88-ADVERSARIAL-PATCH-ATTACK
+expected_resilience_level: SUSTAINED
+expected_fallback_contains: "다중센서 융합"
+expected_report_evidence: "EO/IR 표적인식 신뢰도"
 defense_playbook:
   id: PB-ONBOARDAI-08
   actions:

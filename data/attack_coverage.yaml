@@ -159,15 +159,54 @@ data_quality:
   T0835:  # GNSS spoofing (S1) — dynamicPosGate P99 x1.5, zScore=3.0
     visibility: 3
     detection_maturity: 3
+    quality_status: native
     log_source: UAVTelemetry_CL
     notes: "연속값 룰 — red 가 강도 낮추면 임계 이분탐색으로 회피 가능(구조적 한계)."
   T1692.001:  # 비인가 명령 주입 (weapon cmd 등) — 논리 확정형
     visibility: 2
     detection_maturity: 2
+    quality_status: native
     log_source: UAVOperator_CL / UAVWeapon_CL
     notes: "categorical 룰 — 강도 조절로 회피 불가, TTP 전환만 우회 경로."
   T1195:  # 공급망(펌웨어/SBOM) 변조
     visibility: 1
     detection_maturity: 1
+    quality_status: native
     log_source: "SBOM 컴포넌트 관측(수동 비교) — 실시간 스트림 아님"
     notes: "가시성 낮음 — 배포 시점 스냅샷 비교라 드웰타임 내 변조는 놓칠 수 있음."
+  T1590:  # S99 passive asset/network enumeration
+    visibility: 0
+    detection_maturity: 1
+    quality_status: design_blind
+    log_source: "UAVOpAudit_CL proxy"
+    notes: "설계상 사각지대 — passive enumeration 자체가 아니라 내부 근사 신호."
+  T1596:  # S99 passive asset/network enumeration
+    visibility: 0
+    detection_maturity: 1
+    quality_status: design_blind
+    log_source: "UAVOpAudit_CL proxy"
+    notes: "설계상 사각지대 — passive enumeration 자체가 아니라 내부 근사 신호."
+  T1125:  # S98 passive plaintext interception
+    visibility: 0
+    detection_maturity: 1
+    quality_status: design_blind
+    log_source: "UAVOpAudit_CL proxy"
+    notes: "passive interception 직접 관측 없음 — 정책 위반·평문 전송 정황만 근사."
+  T1113:  # S98 passive plaintext interception
+    visibility: 0
+    detection_maturity: 1
+    quality_status: design_blind
+    log_source: "UAVOpAudit_CL proxy"
+    notes: "화면 캡처 직접 관측 없음 — 평문 노출 정황 기반 근사."
+  T1005:  # S98 passive plaintext interception
+    visibility: 0
+    detection_maturity: 1
+    quality_status: design_blind
+    log_source: "UAVOpAudit_CL proxy"
+    notes: "로컬 데이터 직접 수집 관측 없음 — 평문 노출 정황 기반 근사."
+  T0845:  # S130 program upload, Enterprise T1105 proxy implementation
+    visibility: 1
+    detection_maturity: 1
+    quality_status: proxy
+    log_source: UAVCompanion_CL
+    notes: "ICS T0845 직접 매핑 대신 EventType='program_upload' 관례값으로 근사."

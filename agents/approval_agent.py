@@ -24,6 +24,7 @@ from langgraph.types import interrupt
 from agents.base import BaseSOCAgent
 from core.cacao import CacaoPlaybook, playbook_requires_hitl, select_playbook
 from core.models import ApprovalResult, Severity, SOCState
+from core.runbook import RunbookCatalog
 from core.settings import Settings
 
 
@@ -45,11 +46,13 @@ class ApprovalAgent(BaseSOCAgent):
         hitl_force_threshold: int = 6,
         playbooks: list[CacaoPlaybook] | None = None,
         scenario_tactic: dict[str, str] | None = None,
+        runbooks: RunbookCatalog | None = None,
     ) -> None:
         super().__init__(settings)
         self._hitl_force_threshold = hitl_force_threshold
         self._playbooks = playbooks
         self._scenario_tactic = scenario_tactic or {}
+        self._runbooks = runbooks
 
     def _cacao_forces_hitl(self, state: SOCState) -> bool:
         """alert 전술의 CACAO 플레이북이 보수(HITL) 분기를 요구하는지."""
@@ -60,6 +63,13 @@ class ApprovalAgent(BaseSOCAgent):
         if pb is None:
             return False
         return playbook_requires_hitl(pb, state.get("mission_risk"))
+
+    def _runbook_forces_hitl(self, state: SOCState) -> bool:
+        """Runbook approval.required 가 HITL 을 요구하는지."""
+        if self._runbooks is None:
+            return False
+        runbook = self._runbooks.by_scenario(state["alert"].scenario_id)
+        return bool(runbook is not None and runbook.approval.required)
 
     async def run(self, state: SOCState) -> SOCState:
         """severity h 또는 임무위험 高면 운용자 승인 대기(interrupt), 그 외 자동 승인.
@@ -79,7 +89,8 @@ class ApprovalAgent(BaseSOCAgent):
             and mission_risk.score >= self._hitl_force_threshold
         )
         force_cacao = self._cacao_forces_hitl(state)
-        if not (force_high or force_mission or force_cacao):
+        force_runbook = self._runbook_forces_hitl(state)
+        if not (force_high or force_mission or force_cacao or force_runbook):
             return {
                 "approval": ApprovalResult(
                     required=False,
@@ -93,6 +104,8 @@ class ApprovalAgent(BaseSOCAgent):
             reason = "고위험(h) 자동대응"
         elif force_mission:
             reason = "임무위험 高"
+        elif force_runbook:
+            reason = "Runbook 승인필수"
         else:
             reason = "CACAO 보수분기(임무게이트)"
         mr_score = mission_risk.score if mission_risk is not None else None

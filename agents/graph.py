@@ -68,6 +68,7 @@ from core.models import SOCState
 from core.posture import PostureLadder, PostureProvider
 from core.predictor import PredictionMatcher, SequencePredictor
 from core.recovery import RecoveryMatrix, RecoveryPlanner
+from core.runbook import RunbookCatalog, load_runbooks
 from core.sbom import ApprovedSbom, SBOMVerifier
 from core.settings import Settings, get_settings
 from core.severity import SeverityEngine
@@ -409,6 +410,11 @@ def build_soc_graph(
     except SOCPlatformError as exc:
         get_logger("graph").warning("CACAO 카탈로그 로드 실패, 폴백: %s", exc)
         _playbooks = None
+    try:
+        _runbooks: RunbookCatalog | None = load_runbooks()
+    except SOCPlatformError as exc:
+        get_logger("graph").warning("Runbook 카탈로그 로드 실패, 폴백: %s", exc)
+        _runbooks = None
     _scenario_tactic = scenario_tactic_map()  # 1회 계산 — response·approval 공유.
     # graceful degradation: degradation-matrix.yaml 있으면 임무지속성 평가기 배선.
     try:
@@ -424,6 +430,7 @@ def build_soc_graph(
         scenario_tactic=_scenario_tactic,
         actor_read=actor_read,
         degradation=degradation,
+        runbooks=_runbooks,
     )
     rule_update = RuleUpdateAgent(settings, rule_publisher)
     # spec D-1: lineage opt-in.
@@ -600,6 +607,7 @@ def build_soc_graph(
                     hitl_force_threshold=engine.mett_tc.hitl_force_threshold,
                     playbooks=_playbooks,
                     scenario_tactic=_scenario_tactic,
+                    runbooks=_runbooks,
                 ).run,
             ),
         )

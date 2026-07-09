@@ -28,7 +28,13 @@ class TestRenderText:
         assert "soc_alerts_total " in body
         # 커버리지 KPI 게이지(실 데이터 존재)
         assert "soc_attack_coverage_ratio" in body
+        assert "soc_attack_quality_adjusted_ratio" in body
         assert "soc_attack_addressable_ratio" in body
+        assert "soc_bas_readiness_ratio" in body
+        assert "soc_runbook_readiness_ratio" in body
+        assert 'soc_runbook_total{detail_level="generated"}' in body
+        assert "soc_bas_quality_gap_total" in body
+        assert 'soc_attack_technique_quality_total{quality="proxy"}' in body
         assert 'soc_attack_technique_total{status="covered"}' in body
 
     def test_archetype_and_tactic_labels(self) -> None:

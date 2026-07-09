@@ -1,0 +1,3957 @@
+version: 0.1
+owner: 황준식
+runbooks:
+- id: RB-S1-GNSS-SPOOFING
+  scenario_id: S1-GNSS-SPOOFING
+  detection_rule: S1_GNSS_Spoofing.json
+  playbook_id: playbook--uav-coll-0001
+  tactic: Collection
+  detail_level: curated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S1_GNSS_Spoofing.json 알림의 signal·asset·time window가 S1-GNSS-SPOOFING 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-coll-0001의 contain 단계에 따라 Collection 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S2-PARAMETER-TAMPERING
+  scenario_id: S2-PARAMETER-TAMPERING
+  detection_rule: S2_Parameter_Tampering.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S2_Parameter_Tampering.json 알림의 signal·asset·time window가 S2-PARAMETER-TAMPERING 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S3-UNAUTHORIZED-WEAPON-CMD
+  scenario_id: S3-UNAUTHORIZED-WEAPON-CMD
+  detection_rule: S3_Unauthorized_Weapon_Cmd.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S3_Unauthorized_Weapon_Cmd.json 알림의 signal·asset·time window가 S3-UNAUTHORIZED-WEAPON-CMD 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S4-FAILSAFE-PARAM-TAMPER
+  scenario_id: S4-FAILSAFE-PARAM-TAMPER
+  detection_rule: S4_Failsafe_Param_Tamper.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S4_Failsafe_Param_Tamper.json 알림의 signal·asset·time window가 S4-FAILSAFE-PARAM-TAMPER 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S5-FAILSAFE-SUPPRESSED
+  scenario_id: S5-FAILSAFE-SUPPRESSED
+  detection_rule: S5_Failsafe_Suppressed.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S5_Failsafe_Suppressed.json 알림의 signal·asset·time window가 S5-FAILSAFE-SUPPRESSED 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S6-PARAM-MASS-RESET
+  scenario_id: S6-PARAM-MASS-RESET
+  detection_rule: S6_Param_Mass_Reset.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S6_Param_Mass_Reset.json 알림의 signal·asset·time window가 S6-PARAM-MASS-RESET 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S7-EOIR-DOWNLINK-INTERCEPT-INJECT
+  scenario_id: S7-EOIR-DOWNLINK-INTERCEPT-INJECT
+  detection_rule: S7_EOIR_Downlink_Intercept_Inject.json
+  playbook_id: playbook--uav-coll-0001
+  tactic: Collection
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S7_EOIR_Downlink_Intercept_Inject.json 알림의 signal·asset·time window가 S7-EOIR-DOWNLINK-INTERCEPT-INJECT 시나리오와 일치하는지
+      확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-coll-0001의 contain 단계에 따라 Collection 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S8-DSHOT-ESC-MANIPULATION
+  scenario_id: S8-DSHOT-ESC-MANIPULATION
+  detection_rule: S8_DShot_ESC_Manipulation.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S8_DShot_ESC_Manipulation.json 알림의 signal·asset·time window가 S8-DSHOT-ESC-MANIPULATION 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S9-IMU-SPOOFING
+  scenario_id: S9-IMU-SPOOFING
+  detection_rule: S9_IMU_Spoofing.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S9_IMU_Spoofing.json 알림의 signal·asset·time window가 S9-IMU-SPOOFING 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S10-BARO-SPOOFING
+  scenario_id: S10-BARO-SPOOFING
+  detection_rule: S10_Baro_Spoofing.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S10_Baro_Spoofing.json 알림의 signal·asset·time window가 S10-BARO-SPOOFING 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S11-MAG-SPOOFING
+  scenario_id: S11-MAG-SPOOFING
+  detection_rule: S11_Mag_Spoofing.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S11_Mag_Spoofing.json 알림의 signal·asset·time window가 S11-MAG-SPOOFING 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S12-AIRSPEED-SPOOFING
+  scenario_id: S12-AIRSPEED-SPOOFING
+  detection_rule: S12_Airspeed_Spoofing.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S12_Airspeed_Spoofing.json 알림의 signal·asset·time window가 S12-AIRSPEED-SPOOFING 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S13-SATCOM-C2-HIJACK-BEACON
+  scenario_id: S13-SATCOM-C2-HIJACK-BEACON
+  detection_rule: S13_SATCOM_C2_Hijack_Beacon.json
+  playbook_id: playbook--uav-c2-0001
+  tactic: CommandAndControl
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S13_SATCOM_C2_Hijack_Beacon.json 알림의 signal·asset·time window가 S13-SATCOM-C2-HIJACK-BEACON 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-c2-0001의 contain 단계에 따라 CommandAndControl 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S14-COORDINATED-MULTISENSOR-EKF-DEFEAT
+  scenario_id: S14-COORDINATED-MULTISENSOR-EKF-DEFEAT
+  detection_rule: S14_Coordinated_MultiSensor_EKF_Defeat.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S14_Coordinated_MultiSensor_EKF_Defeat.json 알림의 signal·asset·time window가 S14-COORDINATED-MULTISENSOR-EKF-DEFEAT
+      시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S15-BMS-SPOOFING-PREMATURE-RTL
+  scenario_id: S15-BMS-SPOOFING-PREMATURE-RTL
+  detection_rule: S15_BMS_Spoofing_Premature_RTL.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S15_BMS_Spoofing_Premature_RTL.json 알림의 signal·asset·time window가 S15-BMS-SPOOFING-PREMATURE-RTL 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S16-ESC-FIRMWARE-TAMPER
+  scenario_id: S16-ESC-FIRMWARE-TAMPER
+  detection_rule: S16_ESC_Firmware_Tamper.json
+  playbook_id: playbook--uav-persist-0001
+  tactic: Persistence
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S16_ESC_Firmware_Tamper.json 알림의 signal·asset·time window가 S16-ESC-FIRMWARE-TAMPER 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-persist-0001의 contain 단계에 따라 Persistence 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S17-C2-HIJACKING
+  scenario_id: S17-C2-HIJACKING
+  detection_rule: S17_C2_Hijacking.json
+  playbook_id: playbook--uav-c2-0001
+  tactic: CommandAndControl
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S17_C2_Hijacking.json 알림의 signal·asset·time window가 S17-C2-HIJACKING 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-c2-0001의 contain 단계에 따라 CommandAndControl 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S18-MAVLINK-UNSIGNED-BURST
+  scenario_id: S18-MAVLINK-UNSIGNED-BURST
+  detection_rule: S18_MAVLink_Unsigned_Burst.json
+  playbook_id: playbook--uav-disc-0001
+  tactic: Discovery
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S18_MAVLink_Unsigned_Burst.json 알림의 signal·asset·time window가 S18-MAVLINK-UNSIGNED-BURST 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-disc-0001의 contain 단계에 따라 Discovery 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S19-SOC-CAPACITY-THRESHOLD
+  scenario_id: S19-SOC-CAPACITY-THRESHOLD
+  detection_rule: S19_SOC_Capacity_Threshold.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S19_SOC_Capacity_Threshold.json 알림의 signal·asset·time window가 S19-SOC-CAPACITY-THRESHOLD 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S20-MAVLINK-INJECTION-FAILSAFE-SUPPRESS
+  scenario_id: S20-MAVLINK-INJECTION-FAILSAFE-SUPPRESS
+  detection_rule: S20_MAVLink_Injection_Failsafe_Suppress.json
+  playbook_id: playbook--uav-c2-0001
+  tactic: CommandAndControl
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S20_MAVLink_Injection_Failsafe_Suppress.json 알림의 signal·asset·time window가 S20-MAVLINK-INJECTION-FAILSAFE-SUPPRESS
+      시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-c2-0001의 contain 단계에 따라 CommandAndControl 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S21-LATERAL-MOVEMENT
+  scenario_id: S21-LATERAL-MOVEMENT
+  detection_rule: S21_Lateral_Movement.json
+  playbook_id: playbook--uav-lm-0001
+  tactic: LateralMovement
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S21_Lateral_Movement.json 알림의 signal·asset·time window가 S21-LATERAL-MOVEMENT 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-lm-0001의 contain 단계에 따라 LateralMovement 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S22-ROUTER-ENDPOINT-ROGUE
+  scenario_id: S22-ROUTER-ENDPOINT-ROGUE
+  detection_rule: S22_Router_Endpoint_Rogue.json
+  playbook_id: playbook--uav-c2-0001
+  tactic: CommandAndControl
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S22_Router_Endpoint_Rogue.json 알림의 signal·asset·time window가 S22-ROUTER-ENDPOINT-ROGUE 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-c2-0001의 contain 단계에 따라 CommandAndControl 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S23-GNSS-JAMMING-LOSS-OF-CONTROL
+  scenario_id: S23-GNSS-JAMMING-LOSS-OF-CONTROL
+  detection_rule: S23_GNSS_Jamming_Loss_Of_Control.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S23_GNSS_Jamming_Loss_Of_Control.json 알림의 signal·asset·time window가 S23-GNSS-JAMMING-LOSS-OF-CONTROL 시나리오와 일치하는지
+      확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S24-DATALINK-C2-TAKEOVER
+  scenario_id: S24-DATALINK-C2-TAKEOVER
+  detection_rule: S24_Datalink_C2_Takeover.json
+  playbook_id: playbook--uav-c2-0001
+  tactic: CommandAndControl
+  detail_level: curated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S24_Datalink_C2_Takeover.json 알림의 signal·asset·time window가 S24-DATALINK-C2-TAKEOVER 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-c2-0001의 contain 단계에 따라 CommandAndControl 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S25-WIFI-DEAUTH
+  scenario_id: S25-WIFI-DEAUTH
+  detection_rule: S25_WiFi_Deauth.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S25_WiFi_Deauth.json 알림의 signal·asset·time window가 S25-WIFI-DEAUTH 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S26-WIFI-EVIL-TWIN
+  scenario_id: S26-WIFI-EVIL-TWIN
+  detection_rule: S26_WiFi_Evil_Twin.json
+  playbook_id: playbook--uav-coll-0001
+  tactic: Collection
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S26_WiFi_Evil_Twin.json 알림의 signal·asset·time window가 S26-WIFI-EVIL-TWIN 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-coll-0001의 contain 단계에 따라 Collection 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S27-WIFI-JAMMING
+  scenario_id: S27-WIFI-JAMMING
+  detection_rule: S27_WiFi_Jamming.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S27_WiFi_Jamming.json 알림의 signal·asset·time window가 S27-WIFI-JAMMING 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S28-WIFI-DEFAULT-CREDENTIALS
+  scenario_id: S28-WIFI-DEFAULT-CREDENTIALS
+  detection_rule: S28_WiFi_Default_Credentials.json
+  playbook_id: playbook--uav-ia-0001
+  tactic: InitialAccess
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S28_WiFi_Default_Credentials.json 알림의 signal·asset·time window가 S28-WIFI-DEFAULT-CREDENTIALS 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-ia-0001의 contain 단계에 따라 InitialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S29-RC-LINK-BINDING-HIJACK
+  scenario_id: S29-RC-LINK-BINDING-HIJACK
+  detection_rule: S29_RC_Link_Binding_Hijack.json
+  playbook_id: playbook--uav-cred-0001
+  tactic: CredentialAccess
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S29_RC_Link_Binding_Hijack.json 알림의 signal·asset·time window가 S29-RC-LINK-BINDING-HIJACK 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-cred-0001의 contain 단계에 따라 CredentialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S30-RC-OVERRIDE-INJECTION
+  scenario_id: S30-RC-OVERRIDE-INJECTION
+  detection_rule: S30_RC_Override_Injection.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S30_RC_Override_Injection.json 알림의 signal·asset·time window가 S30-RC-OVERRIDE-INJECTION 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S31-RC-PROTOCOL-DOWNGRADE
+  scenario_id: S31-RC-PROTOCOL-DOWNGRADE
+  detection_rule: S31_RC_Protocol_Downgrade.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S31_RC_Protocol_Downgrade.json 알림의 signal·asset·time window가 S31-RC-PROTOCOL-DOWNGRADE 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S32-GNSS-SPOOFING-WALKOFF
+  scenario_id: S32-GNSS-SPOOFING-WALKOFF
+  detection_rule: S32_GNSS_Spoofing_Walkoff.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S32_GNSS_Spoofing_Walkoff.json 알림의 signal·asset·time window가 S32-GNSS-SPOOFING-WALKOFF 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S33-FIRMWARE-SUPPLY-CHAIN-TAMPER
+  scenario_id: S33-FIRMWARE-SUPPLY-CHAIN-TAMPER
+  detection_rule: S33_Firmware_Supply_Chain_Tamper.json
+  playbook_id: playbook--uav-ia-0001
+  tactic: InitialAccess
+  detail_level: curated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S33_Firmware_Supply_Chain_Tamper.json 알림의 signal·asset·time window가 S33-FIRMWARE-SUPPLY-CHAIN-TAMPER 시나리오와 일치하는지
+      확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-ia-0001의 contain 단계에 따라 InitialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S34-OPERATOR-BRUTEFORCE
+  scenario_id: S34-OPERATOR-BRUTEFORCE
+  detection_rule: S34_Operator_BruteForce.json
+  playbook_id: playbook--uav-ia-0001
+  tactic: InitialAccess
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S34_Operator_BruteForce.json 알림의 signal·asset·time window가 S34-OPERATOR-BRUTEFORCE 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-ia-0001의 contain 단계에 따라 InitialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S35-CREDENTIAL-THEFT-ANOMALY
+  scenario_id: S35-CREDENTIAL-THEFT-ANOMALY
+  detection_rule: S35_Credential_Theft_Anomaly.json
+  playbook_id: playbook--uav-ia-0001
+  tactic: InitialAccess
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S35_Credential_Theft_Anomaly.json 알림의 signal·asset·time window가 S35-CREDENTIAL-THEFT-ANOMALY 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-ia-0001의 contain 단계에 따라 InitialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S36-MISSION-SELFAPPROVAL
+  scenario_id: S36-MISSION-SELFAPPROVAL
+  detection_rule: S36_Mission_SelfApproval.json
+  playbook_id: playbook--uav-exec-0001
+  tactic: Execution
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S36_Mission_SelfApproval.json 알림의 signal·asset·time window가 S36-MISSION-SELFAPPROVAL 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-exec-0001의 contain 단계에 따라 Execution 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S37-CT-LEVEL-TAMPER
+  scenario_id: S37-CT-LEVEL-TAMPER
+  detection_rule: S37_CT_Level_Tamper.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S37_CT_Level_Tamper.json 알림의 signal·asset·time window가 S37-CT-LEVEL-TAMPER 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S38-MAINTENANCE-IMPLANT
+  scenario_id: S38-MAINTENANCE-IMPLANT
+  detection_rule: S38_Maintenance_Implant.json
+  playbook_id: playbook--uav-ia-0001
+  tactic: InitialAccess
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S38_Maintenance_Implant.json 알림의 signal·asset·time window가 S38-MAINTENANCE-IMPLANT 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-ia-0001의 contain 단계에 따라 InitialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S39-LOTL-INFRA-BREACH
+  scenario_id: S39-LOTL-INFRA-BREACH
+  detection_rule: S39_LOTL_Infra_Breach.json
+  playbook_id: playbook--uav-exec-0001
+  tactic: Execution
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S39_LOTL_Infra_Breach.json 알림의 signal·asset·time window가 S39-LOTL-INFRA-BREACH 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-exec-0001의 contain 단계에 따라 Execution 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S40-ANTI-FORENSICS-LOG-TAMPER
+  scenario_id: S40-ANTI-FORENSICS-LOG-TAMPER
+  detection_rule: S40_Anti_Forensics_Log_Tamper.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S40_Anti_Forensics_Log_Tamper.json 알림의 signal·asset·time window가 S40-ANTI-FORENSICS-LOG-TAMPER 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S41-GCS-MISSION-FILE-PARSE-EXPLOIT
+  scenario_id: S41-GCS-MISSION-FILE-PARSE-EXPLOIT
+  detection_rule: S41_GCS_Mission_File_Parse_Exploit.json
+  playbook_id: playbook--uav-exec-0001
+  tactic: Execution
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S41_GCS_Mission_File_Parse_Exploit.json 알림의 signal·asset·time window가 S41-GCS-MISSION-FILE-PARSE-EXPLOIT 시나리오와
+      일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-exec-0001의 contain 단계에 따라 Execution 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S42-GCS-QML-PLUGIN-INJECTION
+  scenario_id: S42-GCS-QML-PLUGIN-INJECTION
+  detection_rule: S42_GCS_QML_Plugin_Injection.json
+  playbook_id: playbook--uav-exec-0001
+  tactic: Execution
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S42_GCS_QML_Plugin_Injection.json 알림의 signal·asset·time window가 S42-GCS-QML-PLUGIN-INJECTION 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-exec-0001의 contain 단계에 따라 Execution 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S43-GCS-AUTOUPDATE-MITM
+  scenario_id: S43-GCS-AUTOUPDATE-MITM
+  detection_rule: S43_GCS_AutoUpdate_MITM.json
+  playbook_id: playbook--uav-ia-0001
+  tactic: InitialAccess
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S43_GCS_AutoUpdate_MITM.json 알림의 signal·asset·time window가 S43-GCS-AUTOUPDATE-MITM 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-ia-0001의 contain 단계에 따라 InitialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S44-GCS-CONFIG-LOG-TAMPER
+  scenario_id: S44-GCS-CONFIG-LOG-TAMPER
+  detection_rule: S44_GCS_Config_Log_Tamper.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S44_GCS_Config_Log_Tamper.json 알림의 signal·asset·time window가 S44-GCS-CONFIG-LOG-TAMPER 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S45-ROS-MASTER-UNAUTHENTICATED
+  scenario_id: S45-ROS-MASTER-UNAUTHENTICATED
+  detection_rule: S45_ROS_Master_Unauthenticated.json
+  playbook_id: playbook--uav-ia-0001
+  tactic: InitialAccess
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S45_ROS_Master_Unauthenticated.json 알림의 signal·asset·time window가 S45-ROS-MASTER-UNAUTHENTICATED 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-ia-0001의 contain 단계에 따라 InitialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S46-ROS-TOPIC-INJECTION
+  scenario_id: S46-ROS-TOPIC-INJECTION
+  detection_rule: S46_ROS_Topic_Injection.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S46_ROS_Topic_Injection.json 알림의 signal·asset·time window가 S46-ROS-TOPIC-INJECTION 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S47-MAVROS-COMMAND-INJECTION
+  scenario_id: S47-MAVROS-COMMAND-INJECTION
+  detection_rule: S47_MAVROS_Command_Injection.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S47_MAVROS_Command_Injection.json 알림의 signal·asset·time window가 S47-MAVROS-COMMAND-INJECTION 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S48-MODEM-SATCOM-FIRMWARE-TAMPER
+  scenario_id: S48-MODEM-SATCOM-FIRMWARE-TAMPER
+  detection_rule: S48_Modem_SATCOM_Firmware_Tamper.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S48_Modem_SATCOM_Firmware_Tamper.json 알림의 signal·asset·time window가 S48-MODEM-SATCOM-FIRMWARE-TAMPER 시나리오와 일치하는지
+      확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S49-TELEMETRY-RELAY-MITM
+  scenario_id: S49-TELEMETRY-RELAY-MITM
+  detection_rule: S49_Telemetry_Relay_MITM.json
+  playbook_id: playbook--uav-coll-0001
+  tactic: Collection
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S49_Telemetry_Relay_MITM.json 알림의 signal·asset·time window가 S49-TELEMETRY-RELAY-MITM 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-coll-0001의 contain 단계에 따라 Collection 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S50-GDT-NTP-SPOOFING
+  scenario_id: S50-GDT-NTP-SPOOFING
+  detection_rule: S50_GDT_NTP_Spoofing.json
+  playbook_id: playbook--uav-ia-0001
+  tactic: InitialAccess
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S50_GDT_NTP_Spoofing.json 알림의 signal·asset·time window가 S50-GDT-NTP-SPOOFING 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-ia-0001의 contain 단계에 따라 InitialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S51-CONTAINER-SERVICE-KILL
+  scenario_id: S51-CONTAINER-SERVICE-KILL
+  detection_rule: S51_Container_Service_Kill.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S51_Container_Service_Kill.json 알림의 signal·asset·time window가 S51-CONTAINER-SERVICE-KILL 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S52-CONTAINER-RESOURCE-DOS
+  scenario_id: S52-CONTAINER-RESOURCE-DOS
+  detection_rule: S52_Container_Resource_DoS.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S52_Container_Resource_DoS.json 알림의 signal·asset·time window가 S52-CONTAINER-RESOURCE-DOS 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S53-WEAPON-ENDPOINT-IDOR
+  scenario_id: S53-WEAPON-ENDPOINT-IDOR
+  detection_rule: S53_Weapon_Endpoint_IDOR.json
+  playbook_id: playbook--uav-ia-0001
+  tactic: InitialAccess
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S53_Weapon_Endpoint_IDOR.json 알림의 signal·asset·time window가 S53-WEAPON-ENDPOINT-IDOR 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-ia-0001의 contain 단계에 따라 InitialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S54-UPLOAD-WEBSHELL-RCE
+  scenario_id: S54-UPLOAD-WEBSHELL-RCE
+  detection_rule: S54_Upload_WebShell_RCE.json
+  playbook_id: playbook--uav-persist-0001
+  tactic: Persistence
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S54_Upload_WebShell_RCE.json 알림의 signal·asset·time window가 S54-UPLOAD-WEBSHELL-RCE 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-persist-0001의 contain 단계에 따라 Persistence 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S55-SUID-GTFOBINS-PRIVESC
+  scenario_id: S55-SUID-GTFOBINS-PRIVESC
+  detection_rule: S55_SUID_GTFOBins_PrivEsc.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S55_SUID_GTFOBins_PrivEsc.json 알림의 signal·asset·time window가 S55-SUID-GTFOBINS-PRIVESC 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S56-CONTAINER-ESCAPE
+  scenario_id: S56-CONTAINER-ESCAPE
+  detection_rule: S56_Container_Escape.json
+  playbook_id: playbook--uav-privesc-0001
+  tactic: PrivilegeEscalation
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S56_Container_Escape.json 알림의 signal·asset·time window가 S56-CONTAINER-ESCAPE 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-privesc-0001의 contain 단계에 따라 PrivilegeEscalation 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S57-CRON-PATH-HIJACK
+  scenario_id: S57-CRON-PATH-HIJACK
+  detection_rule: S57_Cron_PATH_Hijack.json
+  playbook_id: playbook--uav-persist-0001
+  tactic: Persistence
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S57_Cron_PATH_Hijack.json 알림의 signal·asset·time window가 S57-CRON-PATH-HIJACK 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-persist-0001의 contain 단계에 따라 Persistence 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S58-ARCHIVE-ZIPSLIP
+  scenario_id: S58-ARCHIVE-ZIPSLIP
+  detection_rule: S58_Archive_ZipSlip.json
+  playbook_id: playbook--uav-ia-0001
+  tactic: InitialAccess
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S58_Archive_ZipSlip.json 알림의 signal·asset·time window가 S58-ARCHIVE-ZIPSLIP 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-ia-0001의 contain 단계에 따라 InitialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S59-ARCHIVE-SYMLINK-TRAVERSAL
+  scenario_id: S59-ARCHIVE-SYMLINK-TRAVERSAL
+  detection_rule: S59_Archive_Symlink_Traversal.json
+  playbook_id: playbook--uav-ia-0001
+  tactic: InitialAccess
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S59_Archive_Symlink_Traversal.json 알림의 signal·asset·time window가 S59-ARCHIVE-SYMLINK-TRAVERSAL 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-ia-0001의 contain 단계에 따라 InitialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S60-ARCHIVE-ABSOLUTE-PATH-TRAVERSAL
+  scenario_id: S60-ARCHIVE-ABSOLUTE-PATH-TRAVERSAL
+  detection_rule: S60_Archive_Absolute_Path_Traversal.json
+  playbook_id: playbook--uav-ia-0001
+  tactic: InitialAccess
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S60_Archive_Absolute_Path_Traversal.json 알림의 signal·asset·time window가 S60-ARCHIVE-ABSOLUTE-PATH-TRAVERSAL 시나리오와
+      일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-ia-0001의 contain 단계에 따라 InitialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S61-DATA-DESTRUCTION
+  scenario_id: S61-DATA-DESTRUCTION
+  detection_rule: S61_Data_Destruction.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S61_Data_Destruction.json 알림의 signal·asset·time window가 S61-DATA-DESTRUCTION 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S62-ROOTKIT-LD-PRELOAD
+  scenario_id: S62-ROOTKIT-LD-PRELOAD
+  detection_rule: S62_Rootkit_LD_Preload.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S62_Rootkit_LD_Preload.json 알림의 signal·asset·time window가 S62-ROOTKIT-LD-PRELOAD 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S63-FW-UPDATE-MODE-FORCED
+  scenario_id: S63-FW-UPDATE-MODE-FORCED
+  detection_rule: S63_FW_Update_Mode_Forced.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S63_FW_Update_Mode_Forced.json 알림의 signal·asset·time window가 S63-FW-UPDATE-MODE-FORCED 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S64-AUTH-PROCESS-TAMPER
+  scenario_id: S64-AUTH-PROCESS-TAMPER
+  detection_rule: S64_Auth_Process_Tamper.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S64_Auth_Process_Tamper.json 알림의 signal·asset·time window가 S64-AUTH-PROCESS-TAMPER 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S65-EXFIL-SATCOM-WEB
+  scenario_id: S65-EXFIL-SATCOM-WEB
+  detection_rule: S65_Exfil_SATCOM_Web.json
+  playbook_id: playbook--uav-exfil-0001
+  tactic: Exfiltration
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S65_Exfil_SATCOM_Web.json 알림의 signal·asset·time window가 S65-EXFIL-SATCOM-WEB 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-exfil-0001의 contain 단계에 따라 Exfiltration 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S66-OPINFO-EXFIL
+  scenario_id: S66-OPINFO-EXFIL
+  detection_rule: S66_OpInfo_Exfil.json
+  playbook_id: playbook--uav-coll-0001
+  tactic: Collection
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S66_OpInfo_Exfil.json 알림의 signal·asset·time window가 S66-OPINFO-EXFIL 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-coll-0001의 contain 단계에 따라 Collection 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S67-CONTAINER-REGISTRY-TAMPER
+  scenario_id: S67-CONTAINER-REGISTRY-TAMPER
+  detection_rule: S67_Container_Registry_Tamper.json
+  playbook_id: playbook--uav-ia-0001
+  tactic: InitialAccess
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S67_Container_Registry_Tamper.json 알림의 signal·asset·time window가 S67-CONTAINER-REGISTRY-TAMPER 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-ia-0001의 contain 단계에 따라 InitialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S68-CICD-PIPELINE-COMPROMISE
+  scenario_id: S68-CICD-PIPELINE-COMPROMISE
+  detection_rule: S68_CICD_Pipeline_Compromise.json
+  playbook_id: playbook--uav-ia-0001
+  tactic: InitialAccess
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S68_CICD_Pipeline_Compromise.json 알림의 signal·asset·time window가 S68-CICD-PIPELINE-COMPROMISE 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-ia-0001의 contain 단계에 따라 InitialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S69-VAULT-SECRET-THEFT
+  scenario_id: S69-VAULT-SECRET-THEFT
+  detection_rule: S69_Vault_Secret_Theft.json
+  playbook_id: playbook--uav-cred-0001
+  tactic: CredentialAccess
+  detail_level: curated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S69_Vault_Secret_Theft.json 알림의 signal·asset·time window가 S69-VAULT-SECRET-THEFT 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-cred-0001의 contain 단계에 따라 CredentialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S70-MTLS-CERT-FORGERY
+  scenario_id: S70-MTLS-CERT-FORGERY
+  detection_rule: S70_mTLS_Cert_Forgery.json
+  playbook_id: playbook--uav-cred-0001
+  tactic: CredentialAccess
+  detail_level: curated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S70_mTLS_Cert_Forgery.json 알림의 signal·asset·time window가 S70-MTLS-CERT-FORGERY 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-cred-0001의 contain 단계에 따라 CredentialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S71-DEPENDENCY-CONFUSION
+  scenario_id: S71-DEPENDENCY-CONFUSION
+  detection_rule: S71_Dependency_Confusion.json
+  playbook_id: playbook--uav-ia-0001
+  tactic: InitialAccess
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S71_Dependency_Confusion.json 알림의 signal·asset·time window가 S71-DEPENDENCY-CONFUSION 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-ia-0001의 contain 단계에 따라 InitialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S72-IAC-TAMPER
+  scenario_id: S72-IAC-TAMPER
+  detection_rule: S72_IaC_Tamper.json
+  playbook_id: playbook--uav-ia-0001
+  tactic: InitialAccess
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S72_IaC_Tamper.json 알림의 signal·asset·time window가 S72-IAC-TAMPER 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-ia-0001의 contain 단계에 따라 InitialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S73-ARTIFACT-SIGNATURE-BYPASS
+  scenario_id: S73-ARTIFACT-SIGNATURE-BYPASS
+  detection_rule: S73_Artifact_Signature_Bypass.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S73_Artifact_Signature_Bypass.json 알림의 signal·asset·time window가 S73-ARTIFACT-SIGNATURE-BYPASS 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S74-BUILD-PROVENANCE-ATTACK
+  scenario_id: S74-BUILD-PROVENANCE-ATTACK
+  detection_rule: S74_Build_Provenance_Attack.json
+  playbook_id: playbook--uav-ia-0001
+  tactic: InitialAccess
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S74_Build_Provenance_Attack.json 알림의 signal·asset·time window가 S74-BUILD-PROVENANCE-ATTACK 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-ia-0001의 contain 단계에 따라 InitialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S75-DDS-ROS2-DISCOVERY-FLOOD
+  scenario_id: S75-DDS-ROS2-DISCOVERY-FLOOD
+  detection_rule: S75_DDS_ROS2_Discovery_Flood.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S75_DDS_ROS2_Discovery_Flood.json 알림의 signal·asset·time window가 S75-DDS-ROS2-DISCOVERY-FLOOD 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S76-MQTT-TELEMETRY-POISON
+  scenario_id: S76-MQTT-TELEMETRY-POISON
+  detection_rule: S76_MQTT_Telemetry_Poison.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S76_MQTT_Telemetry_Poison.json 알림의 signal·asset·time window가 S76-MQTT-TELEMETRY-POISON 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S77-GEOFENCE-TAMPER
+  scenario_id: S77-GEOFENCE-TAMPER
+  detection_rule: S77_Geofence_Tamper.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S77_Geofence_Tamper.json 알림의 signal·asset·time window가 S77-GEOFENCE-TAMPER 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S78-TI-SOURCE-POISON
+  scenario_id: S78-TI-SOURCE-POISON
+  detection_rule: S78_TI_Source_Poison.json
+  playbook_id: playbook--uav-lm-0001
+  tactic: LateralMovement
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S78_TI_Source_Poison.json 알림의 signal·asset·time window가 S78-TI-SOURCE-POISON 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-lm-0001의 contain 단계에 따라 LateralMovement 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S79-OFFHOURS-C4I-CMD
+  scenario_id: S79-OFFHOURS-C4I-CMD
+  detection_rule: S79_OffHours_C4I_Cmd.json
+  playbook_id: playbook--uav-exec-0001
+  tactic: Execution
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S79_OffHours_C4I_Cmd.json 알림의 signal·asset·time window가 S79-OFFHOURS-C4I-CMD 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-exec-0001의 contain 단계에 따라 Execution 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S80-ISR-HANDOFF-TARGET-TAMPER
+  scenario_id: S80-ISR-HANDOFF-TARGET-TAMPER
+  detection_rule: S80_ISR_Handoff_Target_Tamper.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S80_ISR_Handoff_Target_Tamper.json 알림의 signal·asset·time window가 S80-ISR-HANDOFF-TARGET-TAMPER 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S81-FLEET-API-IDOR
+  scenario_id: S81-FLEET-API-IDOR
+  detection_rule: S81_Fleet_API_IDOR.json
+  playbook_id: playbook--uav-ia-0001
+  tactic: InitialAccess
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S81_Fleet_API_IDOR.json 알림의 signal·asset·time window가 S81-FLEET-API-IDOR 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-ia-0001의 contain 단계에 따라 InitialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S82-TELEMETRY-INGEST-POISON
+  scenario_id: S82-TELEMETRY-INGEST-POISON
+  detection_rule: S82_Telemetry_Ingest_Poison.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S82_Telemetry_Ingest_Poison.json 알림의 signal·asset·time window가 S82-TELEMETRY-INGEST-POISON 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S83-RTSP-STREAM-HIJACK
+  scenario_id: S83-RTSP-STREAM-HIJACK
+  detection_rule: S83_RTSP_Stream_Hijack.json
+  playbook_id: playbook--uav-coll-0001
+  tactic: Collection
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S83_RTSP_Stream_Hijack.json 알림의 signal·asset·time window가 S83-RTSP-STREAM-HIJACK 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-coll-0001의 contain 단계에 따라 Collection 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S84-C4I-MESSAGE-INJECTION
+  scenario_id: S84-C4I-MESSAGE-INJECTION
+  detection_rule: S84_C4I_Message_Injection.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S84_C4I_Message_Injection.json 알림의 signal·asset·time window가 S84-C4I-MESSAGE-INJECTION 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S85-SOCREPORT-FORGERY
+  scenario_id: S85-SOCREPORT-FORGERY
+  detection_rule: S85_SocReport_Forgery.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S85_SocReport_Forgery.json 알림의 signal·asset·time window가 S85-SOCREPORT-FORGERY 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S86-OSCAL-EVIDENCE-TAMPER
+  scenario_id: S86-OSCAL-EVIDENCE-TAMPER
+  detection_rule: S86_OSCAL_Evidence_Tamper.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S86_OSCAL_Evidence_Tamper.json 알림의 signal·asset·time window가 S86-OSCAL-EVIDENCE-TAMPER 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S87-RULEUPDATE-PR-BACKDOOR
+  scenario_id: S87-RULEUPDATE-PR-BACKDOOR
+  detection_rule: S87_RuleUpdate_PR_Backdoor.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S87_RuleUpdate_PR_Backdoor.json 알림의 signal·asset·time window가 S87-RULEUPDATE-PR-BACKDOOR 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S88-ADVERSARIAL-PATCH-ATTACK
+  scenario_id: S88-ADVERSARIAL-PATCH-ATTACK
+  detection_rule: S88_Adversarial_Patch_Attack.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: curated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S88_Adversarial_Patch_Attack.json 알림의 signal·asset·time window가 S88-ADVERSARIAL-PATCH-ATTACK 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S89-RAG-POISONING-ORIENT-DECEPTION
+  scenario_id: S89-RAG-POISONING-ORIENT-DECEPTION
+  detection_rule: S89_RAG_Poisoning_Orient_Deception.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: curated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S89_RAG_Poisoning_Orient_Deception.json 알림의 signal·asset·time window가 S89-RAG-POISONING-ORIENT-DECEPTION 시나리오와
+      일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S90-SOC-LLM-PROMPT-INJECTION
+  scenario_id: S90-SOC-LLM-PROMPT-INJECTION
+  detection_rule: S90_SOC_LLM_Prompt_Injection.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S90_SOC_LLM_Prompt_Injection.json 알림의 signal·asset·time window가 S90-SOC-LLM-PROMPT-INJECTION 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S91-MODEL-EXTRACTION-PROBING-LADDER
+  scenario_id: S91-MODEL-EXTRACTION-PROBING-LADDER
+  detection_rule: S91_Model_Extraction_Probing_Ladder.json
+  playbook_id: playbook--uav-exfil-0001
+  tactic: Exfiltration
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S91_Model_Extraction_Probing_Ladder.json 알림의 signal·asset·time window가 S91-MODEL-EXTRACTION-PROBING-LADDER 시나리오와
+      일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-exfil-0001의 contain 단계에 따라 Exfiltration 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S92-SAR-COORD-EXFIL
+  scenario_id: S92-SAR-COORD-EXFIL
+  detection_rule: S92_SAR_Coord_Exfil.json
+  playbook_id: playbook--uav-exfil-0001
+  tactic: Exfiltration
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S92_SAR_Coord_Exfil.json 알림의 signal·asset·time window가 S92-SAR-COORD-EXFIL 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-exfil-0001의 contain 단계에 따라 Exfiltration 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S93-MASS-IMAGERY-SAR-EXFIL
+  scenario_id: S93-MASS-IMAGERY-SAR-EXFIL
+  detection_rule: S93_Mass_Imagery_SAR_Exfil.json
+  playbook_id: playbook--uav-exfil-0001
+  tactic: Exfiltration
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S93_Mass_Imagery_SAR_Exfil.json 알림의 signal·asset·time window가 S93-MASS-IMAGERY-SAR-EXFIL 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-exfil-0001의 contain 단계에 따라 Exfiltration 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S94-C2-HIDDEN-PORT-EXFIL
+  scenario_id: S94-C2-HIDDEN-PORT-EXFIL
+  detection_rule: S94_C2_Hidden_Port_Exfil.json
+  playbook_id: playbook--uav-c2-0001
+  tactic: CommandAndControl
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S94_C2_Hidden_Port_Exfil.json 알림의 signal·asset·time window가 S94-C2-HIDDEN-PORT-EXFIL 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-c2-0001의 contain 단계에 따라 CommandAndControl 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S95-STAGED-SPLIT-EXFIL
+  scenario_id: S95-STAGED-SPLIT-EXFIL
+  detection_rule: S95_Staged_Split_Exfil.json
+  playbook_id: playbook--uav-coll-0001
+  tactic: Collection
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S95_Staged_Split_Exfil.json 알림의 signal·asset·time window가 S95-STAGED-SPLIT-EXFIL 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-coll-0001의 contain 단계에 따라 Collection 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S96-KEY-MATERIAL-EXFIL
+  scenario_id: S96-KEY-MATERIAL-EXFIL
+  detection_rule: S96_Key_Material_Exfil.json
+  playbook_id: playbook--uav-cred-0001
+  tactic: CredentialAccess
+  detail_level: curated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S96_Key_Material_Exfil.json 알림의 signal·asset·time window가 S96-KEY-MATERIAL-EXFIL 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-cred-0001의 contain 단계에 따라 CredentialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S97-ACTIVE-RECON-PORTSCAN
+  scenario_id: S97-ACTIVE-RECON-PORTSCAN
+  detection_rule: S97_Active_Recon_PortScan.json
+  playbook_id: playbook--uav-recon-0001
+  tactic: Reconnaissance
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S97_Active_Recon_PortScan.json 알림의 signal·asset·time window가 S97-ACTIVE-RECON-PORTSCAN 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-recon-0001의 contain 단계에 따라 Reconnaissance 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S98-PASSIVE-PLAINTEXT-INTERCEPTION
+  scenario_id: S98-PASSIVE-PLAINTEXT-INTERCEPTION
+  detection_rule: S98_Passive_Plaintext_Interception.json
+  playbook_id: playbook--uav-coll-0001
+  tactic: Collection
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S98_Passive_Plaintext_Interception.json 알림의 signal·asset·time window가 S98-PASSIVE-PLAINTEXT-INTERCEPTION 시나리오와
+      일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-coll-0001의 contain 단계에 따라 Collection 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S99-PASSIVE-ASSET-NETWORK-ENUMERATION
+  scenario_id: S99-PASSIVE-ASSET-NETWORK-ENUMERATION
+  detection_rule: S99_Passive_Asset_Network_Enumeration.json
+  playbook_id: playbook--uav-recon-0001
+  tactic: Reconnaissance
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S99_Passive_Asset_Network_Enumeration.json 알림의 signal·asset·time window가 S99-PASSIVE-ASSET-NETWORK-ENUMERATION
+      시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-recon-0001의 contain 단계에 따라 Reconnaissance 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S100-SWARM-SATURATION-SOC-OVERLOAD
+  scenario_id: S100-SWARM-SATURATION-SOC-OVERLOAD
+  detection_rule: S100_Swarm_Saturation_SOC_Overload.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: curated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S100_Swarm_Saturation_SOC_Overload.json 알림의 signal·asset·time window가 S100-SWARM-SATURATION-SOC-OVERLOAD 시나리오와
+      일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S101-SWARM-LEADER-SPOOF
+  scenario_id: S101-SWARM-LEADER-SPOOF
+  detection_rule: S101_Swarm_Leader_Spoof.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S101_Swarm_Leader_Spoof.json 알림의 signal·asset·time window가 S101-SWARM-LEADER-SPOOF 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S102-SWARM-CONSENSUS-POISON
+  scenario_id: S102-SWARM-CONSENSUS-POISON
+  detection_rule: S102_Swarm_Consensus_Poison.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S102_Swarm_Consensus_Poison.json 알림의 signal·asset·time window가 S102-SWARM-CONSENSUS-POISON 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S103-SWARM-RELPOS-SPOOF-COLLISION
+  scenario_id: S103-SWARM-RELPOS-SPOOF-COLLISION
+  detection_rule: S103_Swarm_RelPos_Spoof_Collision.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S103_Swarm_RelPos_Spoof_Collision.json 알림의 signal·asset·time window가 S103-SWARM-RELPOS-SPOOF-COLLISION 시나리오와 일치하는지
+      확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S104-SWARM-SCATTER-CMD-INJECTION
+  scenario_id: S104-SWARM-SCATTER-CMD-INJECTION
+  detection_rule: S104_Swarm_Scatter_Cmd_Injection.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S104_Swarm_Scatter_Cmd_Injection.json 알림의 signal·asset·time window가 S104-SWARM-SCATTER-CMD-INJECTION 시나리오와 일치하는지
+      확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S105-SWARM-SYBIL-INJECTION
+  scenario_id: S105-SWARM-SYBIL-INJECTION
+  detection_rule: S105_Swarm_Sybil_Injection.json
+  playbook_id: playbook--uav-ia-0001
+  tactic: InitialAccess
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S105_Swarm_Sybil_Injection.json 알림의 signal·asset·time window가 S105-SWARM-SYBIL-INJECTION 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-ia-0001의 contain 단계에 따라 InitialAccess 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S106-SWARM-FLOCKING-RULE-TAMPER
+  scenario_id: S106-SWARM-FLOCKING-RULE-TAMPER
+  detection_rule: S106_Swarm_Flocking_Rule_Tamper.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S106_Swarm_Flocking_Rule_Tamper.json 알림의 signal·asset·time window가 S106-SWARM-FLOCKING-RULE-TAMPER 시나리오와 일치하는지
+      확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S107-SWARM-CMD-REPLAY-AMPLIFY
+  scenario_id: S107-SWARM-CMD-REPLAY-AMPLIFY
+  detection_rule: S107_Swarm_Cmd_Replay_Amplify.json
+  playbook_id: playbook--uav-c2-0001
+  tactic: CommandAndControl
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S107_Swarm_Cmd_Replay_Amplify.json 알림의 signal·asset·time window가 S107-SWARM-CMD-REPLAY-AMPLIFY 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-c2-0001의 contain 단계에 따라 CommandAndControl 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S108-SWARM-MESH-PARTITION
+  scenario_id: S108-SWARM-MESH-PARTITION
+  detection_rule: S108_Swarm_Mesh_Partition.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S108_Swarm_Mesh_Partition.json 알림의 signal·asset·time window가 S108-SWARM-MESH-PARTITION 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S109-AOI-EXCURSION
+  scenario_id: S109-AOI-EXCURSION
+  detection_rule: S109_AOI_Excursion.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S109_AOI_Excursion.json 알림의 signal·asset·time window가 S109-AOI-EXCURSION 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S110-GIMBAL-PAYLOAD-CTRL-HIJACK
+  scenario_id: S110-GIMBAL-PAYLOAD-CTRL-HIJACK
+  detection_rule: S110_Gimbal_Payload_Ctrl_Hijack.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S110_Gimbal_Payload_Ctrl_Hijack.json 알림의 signal·asset·time window가 S110-GIMBAL-PAYLOAD-CTRL-HIJACK 시나리오와 일치하는지
+      확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S111-LOITER-CENTER-SPOOFING
+  scenario_id: S111-LOITER-CENTER-SPOOFING
+  detection_rule: S111_Loiter_Center_Spoofing.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S111_Loiter_Center_Spoofing.json 알림의 signal·asset·time window가 S111-LOITER-CENTER-SPOOFING 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S112-RTB-FORCED-TRIGGER
+  scenario_id: S112-RTB-FORCED-TRIGGER
+  detection_rule: S112_RTB_Forced_Trigger.json
+  playbook_id: playbook--uav-coll-0001
+  tactic: Collection
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S112_RTB_Forced_Trigger.json 알림의 signal·asset·time window가 S112-RTB-FORCED-TRIGGER 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-coll-0001의 contain 단계에 따라 Collection 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S113-TRACK-LOCK-HIJACK
+  scenario_id: S113-TRACK-LOCK-HIJACK
+  detection_rule: S113_Track_Lock_Hijack.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S113_Track_Lock_Hijack.json 알림의 signal·asset·time window가 S113-TRACK-LOCK-HIJACK 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S114-SURVEY-GRID-TAMPER
+  scenario_id: S114-SURVEY-GRID-TAMPER
+  detection_rule: S114_Survey_Grid_Tamper.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S114_Survey_Grid_Tamper.json 알림의 signal·asset·time window가 S114-SURVEY-GRID-TAMPER 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S115-CONTROL-MODE-TRANSITION-ATTACK
+  scenario_id: S115-CONTROL-MODE-TRANSITION-ATTACK
+  detection_rule: S115_Control_Mode_Transition_Attack.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S115_Control_Mode_Transition_Attack.json 알림의 signal·asset·time window가 S115-CONTROL-MODE-TRANSITION-ATTACK 시나리오와
+      일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S116-STABILIZATION-LOOP-POISONING
+  scenario_id: S116-STABILIZATION-LOOP-POISONING
+  detection_rule: S116_Stabilization_Loop_Poisoning.json
+  playbook_id: playbook--uav-coll-0001
+  tactic: Collection
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S116_Stabilization_Loop_Poisoning.json 알림의 signal·asset·time window가 S116-STABILIZATION-LOOP-POISONING 시나리오와 일치하는지
+      확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-coll-0001의 contain 단계에 따라 Collection 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S117-BLOS-AUTONOMY-COMMAND-FORGE
+  scenario_id: S117-BLOS-AUTONOMY-COMMAND-FORGE
+  detection_rule: S117_BLOS_Autonomy_Command_Forge.json
+  playbook_id: playbook--uav-coll-0001
+  tactic: Collection
+  detail_level: curated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S117_BLOS_Autonomy_Command_Forge.json 알림의 signal·asset·time window가 S117-BLOS-AUTONOMY-COMMAND-FORGE 시나리오와 일치하는지
+      확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-coll-0001의 contain 단계에 따라 Collection 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S118-AUTONOMY-DECISION-HIJACK
+  scenario_id: S118-AUTONOMY-DECISION-HIJACK
+  detection_rule: S118_Autonomy_Decision_Hijack.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S118_Autonomy_Decision_Hijack.json 알림의 signal·asset·time window가 S118-AUTONOMY-DECISION-HIJACK 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S119-FLIGHT-MODE-GUIDED-INJECTION
+  scenario_id: S119-FLIGHT-MODE-GUIDED-INJECTION
+  detection_rule: S119_Flight_Mode_GUIDED_Injection.json
+  playbook_id: playbook--uav-coll-0001
+  tactic: Collection
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S119_Flight_Mode_GUIDED_Injection.json 알림의 signal·asset·time window가 S119-FLIGHT-MODE-GUIDED-INJECTION 시나리오와 일치하는지
+      확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-coll-0001의 contain 단계에 따라 Collection 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S120-FAILSAFE-RECOVERY-BLOCK
+  scenario_id: S120-FAILSAFE-RECOVERY-BLOCK
+  detection_rule: S120_Failsafe_Recovery_Block.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S120_Failsafe_Recovery_Block.json 알림의 signal·asset·time window가 S120-FAILSAFE-RECOVERY-BLOCK 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S121-FLIGHT-MODE-FALSIFIED-REPORT
+  scenario_id: S121-FLIGHT-MODE-FALSIFIED-REPORT
+  detection_rule: S121_Flight_Mode_Falsified_Report.json
+  playbook_id: playbook--uav-coll-0001
+  tactic: Collection
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S121_Flight_Mode_Falsified_Report.json 알림의 signal·asset·time window가 S121-FLIGHT-MODE-FALSIFIED-REPORT 시나리오와 일치하는지
+      확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-coll-0001의 contain 단계에 따라 Collection 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S122-ACRO-MODE-FORCED
+  scenario_id: S122-ACRO-MODE-FORCED
+  detection_rule: S122_Acro_Mode_Forced.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S122_Acro_Mode_Forced.json 알림의 signal·asset·time window가 S122-ACRO-MODE-FORCED 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S123-FIXEDWING-STALL-INDUCTION
+  scenario_id: S123-FIXEDWING-STALL-INDUCTION
+  detection_rule: S123_Fixedwing_Stall_Induction.json
+  playbook_id: playbook--uav-coll-0001
+  tactic: Collection
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S123_Fixedwing_Stall_Induction.json 알림의 signal·asset·time window가 S123-FIXEDWING-STALL-INDUCTION 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-coll-0001의 contain 단계에 따라 Collection 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S124-ROTARY-YAW-AUTHORITY-LOSS
+  scenario_id: S124-ROTARY-YAW-AUTHORITY-LOSS
+  detection_rule: S124_Rotary_Yaw_Authority_Loss.json
+  playbook_id: playbook--uav-coll-0001
+  tactic: Collection
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S124_Rotary_Yaw_Authority_Loss.json 알림의 signal·asset·time window가 S124-ROTARY-YAW-AUTHORITY-LOSS 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-coll-0001의 contain 단계에 따라 Collection 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S125-VTOL-TRANSITION-ATTACK
+  scenario_id: S125-VTOL-TRANSITION-ATTACK
+  detection_rule: S125_VTOL_Transition_Attack.json
+  playbook_id: playbook--uav-impact-0001
+  tactic: Impact
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S125_VTOL_Transition_Attack.json 알림의 signal·asset·time window가 S125-VTOL-TRANSITION-ATTACK 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-impact-0001의 contain 단계에 따라 Impact 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S126-TAKEOFF-LANDING-PHASE-ATTACK
+  scenario_id: S126-TAKEOFF-LANDING-PHASE-ATTACK
+  detection_rule: S126_Takeoff_Landing_Phase_Attack.json
+  playbook_id: playbook--uav-stealth-0001
+  tactic: StealthEvasion
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S126_Takeoff_Landing_Phase_Attack.json 알림의 signal·asset·time window가 S126-TAKEOFF-LANDING-PHASE-ATTACK 시나리오와 일치하는지
+      확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-stealth-0001의 contain 단계에 따라 StealthEvasion 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S127-AUTOMATED-COLLECTION
+  scenario_id: S127-AUTOMATED-COLLECTION
+  detection_rule: S127_Automated_Collection.json
+  playbook_id: playbook--uav-coll-0001
+  tactic: Collection
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S127_Automated_Collection.json 알림의 signal·asset·time window가 S127-AUTOMATED-COLLECTION 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-coll-0001의 contain 단계에 따라 Collection 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S128-ARCHIVE-COLLECTED-DATA
+  scenario_id: S128-ARCHIVE-COLLECTED-DATA
+  detection_rule: S128_Archive_Collected_Data.json
+  playbook_id: playbook--uav-coll-0001
+  tactic: Collection
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S128_Archive_Collected_Data.json 알림의 signal·asset·time window가 S128-ARCHIVE-COLLECTED-DATA 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-coll-0001의 contain 단계에 따라 Collection 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S129-THEFT-OF-OPERATIONAL-INFORMATION
+  scenario_id: S129-THEFT-OF-OPERATIONAL-INFORMATION
+  detection_rule: S129_Theft_Of_Operational_Information.json
+  playbook_id: playbook--uav-coll-0001
+  tactic: Collection
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S129_Theft_Of_Operational_Information.json 알림의 signal·asset·time window가 S129-THEFT-OF-OPERATIONAL-INFORMATION
+      시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-coll-0001의 contain 단계에 따라 Collection 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S130-PROGRAM-UPLOAD
+  scenario_id: S130-PROGRAM-UPLOAD
+  detection_rule: S130_Program_Upload.json
+  playbook_id: playbook--uav-c2-0001
+  tactic: CommandAndControl
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S130_Program_Upload.json 알림의 signal·asset·time window가 S130-PROGRAM-UPLOAD 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-c2-0001의 contain 단계에 따라 CommandAndControl 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: true
+    reason: 임무·자격·링크 영향 가능 조치
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred
+- id: RB-S131-INPUT-CAPTURE-VNC-SESSION
+  scenario_id: S131-INPUT-CAPTURE-VNC-SESSION
+  detection_rule: S131_Input_Capture_VNC_Session.json
+  playbook_id: playbook--uav-coll-0001
+  tactic: Collection
+  detail_level: generated
+  evidence:
+    required:
+    - alert.signals
+    - scenario.detection_rule
+    optional:
+    - alert.iocs
+    - alert.mitre
+    - alert.asset_id
+  operator_steps:
+  - id: validate_detection
+    kind: manual
+    action: S131_Input_Capture_VNC_Session.json 알림의 signal·asset·time window가 S131-INPUT-CAPTURE-VNC-SESSION 시나리오와 일치하는지 확인
+  - id: execute_playbook_containment
+    kind: manual
+    action: playbook--uav-coll-0001의 contain 단계에 따라 Collection 대응 조치를 수행
+  - id: verify_no_reoccurred
+    kind: manual
+    action: outcome_probe로 동일 지표 재발 여부를 관측하고 재발 시 축출/복구 단계를 반복
+  approval:
+    required: false
+    reason: ''
+  verification:
+    method: outcome_probe
+    expected: no_reoccurred

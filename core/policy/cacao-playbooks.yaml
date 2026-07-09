@@ -316,6 +316,89 @@ playbooks:
       end--0:
         type: end
 
+  # ── CredentialAccess — T1552 Credentials · T1550 Alternate Auth Material ──
+  - type: playbook
+    spec_version: cacao-2.0
+    id: "playbook--uav-cred-0001"
+    name: "UAV 자격접근 대응 — 키/인증서/RC 바인딩"
+    description: "자격접근(시크릿·키·인증서·RC 바인딩 탈취) 탐지 시 봉쇄→축출→복구→적응."
+    created: "2026-07-10T00:00:00Z"
+    modified: "2026-07-10T00:00:00Z"
+    created_by: "황준식"
+    playbook_types: ["mitigation", "remediation"]
+    playbook_activities: ["step-sequence"]
+    tactic: "CredentialAccess"
+    workflow_start: "start--0"
+    agent_definitions:
+      agent--analyst:
+        type: individual
+        name: "uav-soc-analyst"
+    external_references:
+      - { source_name: "mitre-attack", external_id: "T1552", url: "https://attack.mitre.org/techniques/T1552", description: "Unsecured Credentials" }
+      - { source_name: "mitre-attack", external_id: "T1550", url: "https://attack.mitre.org/techniques/T1550", description: "Use Alternate Authentication Material" }
+      - { source_name: "nist-800-53", external_id: "IR-8", description: "Incident Response Plan" }
+    labels: { framework: "cacao-2.0" }
+    workflow:
+      start--0:
+        type: start
+        on_completion: "action--contain"
+      action--contain:
+        type: action
+        name: "봉쇄 — 자격·키 사용 거부"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "탈취 의심 세션 무효화, 키·인증서·송신기 바인딩 사용 차단, 고위험 명령 2차 승인 강제" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:CredentialAccess:Deny" }
+        external_references:
+          - { source_name: "nist-800-61", external_id: "Containment", description: "800-61 lifecycle" }
+        on_completion: "action--contain-disrupt"
+      action--contain-disrupt:
+        type: action
+        name: "봉쇄 — 제한 운용"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "키·인증서 재발급 전 제한 운용으로 전환하고 자격 기반 자동 명령을 보류" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:CredentialAccess:Disrupt" }
+        on_completion: "action--eradicate"
+      action--eradicate:
+        type: action
+        name: "축출 — 키·인증서 회수"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "탈취 의심 세션·토큰 폐기, 키·인증서 즉시 회수, 비인가 RC 송신기 바인딩 해제" }
+        labels: { phase: eradicate, nist_ir: "IR-4", source_ref: "recovery:CredentialAccess:evict:0" }
+        on_completion: "action--recover"
+      action--recover:
+        type: action
+        name: "복구 — 인증 재발급"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "정상 키·인증서·운용자 권한 재발급, MFA 재검증, 승인 송신기 목록 재적용" }
+        labels: { phase: recover, nist_ir: "IR-4", source_ref: "recovery:CredentialAccess:restore:0" }
+        external_references:
+          - { source_name: "nist-800-184", external_id: "Tactical-Recovery", url: "https://csrc.nist.gov/pubs/sp/800/184/final", description: "Event Recovery" }
+        on_completion: "action--recover-verify"
+      action--recover-verify:
+        type: action
+        name: "복구 검증 — 자격 재사용 관측"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "outcome_probe 로 동일 키·계정·송신기 재사용(reoccurred) 관측 — 재발 시 전면 폐기 + 재발급 보류" }
+        labels: { phase: recover, verify: true, nist_ir: "IR-6", source_ref: "recovery:CredentialAccess:verify" }
+        on_completion: "action--adapt"
+      action--adapt:
+        type: action
+        name: "적응 — 허니토큰·키 회전"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "허니토큰·미끼 키 배치, 단기 인증서 수명 적용, 임무 단계별 키 회전 주기 단축(Deception)" }
+        labels: { phase: adapt, nist_ir: "IR-8", resiliency_technique: "Deception" }
+        external_references:
+          - { source_name: "nist-800-160v2", external_id: "Deception", url: "https://csrc.nist.gov/pubs/sp/800/160/v2/r1/final", description: "Cyber Resiliency" }
+        on_completion: "end--0"
+      end--0:
+        type: end
+
   # ── StealthEvasion — T1070 Indicator Removal · T1036 Masquerading ──
   - type: playbook
     spec_version: cacao-2.0

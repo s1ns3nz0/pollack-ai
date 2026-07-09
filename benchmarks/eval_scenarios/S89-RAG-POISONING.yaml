@@ -24,6 +24,7 @@ mitre:
 expected_tactic: StealthEvasion
 expected_techniques: ["T1565"]
 expected_cacao_playbook_id: playbook--uav-stealth-0001
+expected_runbook_id: RB-S89-RAG-POISONING-ORIENT-DECEPTION
 expected_resilience_level: SUSTAINED
 expected_fallback_contains: "정책 엔진 단독"
 expected_report_evidence: "AI SOC 자동 판정"

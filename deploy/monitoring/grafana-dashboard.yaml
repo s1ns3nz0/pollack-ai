@@ -35,7 +35,8 @@ data:
           "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
           "targets": [
             {"expr": "soc_attack_coverage_ratio", "legendFormat": "coverage"},
-            {"expr": "soc_attack_addressable_ratio", "legendFormat": "addressable"}
+            {"expr": "soc_attack_addressable_ratio", "legendFormat": "addressable"},
+            {"expr": "soc_attack_quality_adjusted_ratio", "legendFormat": "quality-adjusted"}
           ]
         },
         {
@@ -87,6 +88,29 @@ data:
           "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
           "targets": [
             {"expr": "soc_node_latency_avg_ms", "legendFormat": "{{node}}"}
+          ]
+        },
+        {
+          "id": 7,
+          "title": "BAS native readiness",
+          "type": "stat",
+          "gridPos": {"h": 7, "w": 12, "x": 0, "y": 13},
+          "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "soc_bas_detection_ratio", "legendFormat": "rule coverage"},
+            {"expr": "soc_bas_readiness_ratio", "legendFormat": "native readiness"}
+          ]
+        },
+        {
+          "id": 8,
+          "title": "Runbook readiness",
+          "type": "stat",
+          "gridPos": {"h": 7, "w": 12, "x": 12, "y": 13},
+          "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}},
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "targets": [
+            {"expr": "soc_runbook_readiness_ratio", "legendFormat": "curated readiness"}
           ]
         }
       ]

@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, Field, ValidationError
 
@@ -48,6 +49,9 @@ class TechniqueDataQuality(BaseModel):
     technique: str
     visibility: int = Field(default=0, ge=0, le=3)  # 로그원 정보가치(0=없음~3=탁월)
     detection_maturity: int = Field(default=0, ge=0, le=4)  # 탐지 로직 성숙도
+    quality_status: Literal[
+        "native", "proxy", "reconstructed", "design_blind", "proposed_schema"
+    ] = "native"
     log_source: str = ""
     notes: str = ""
 
@@ -95,6 +99,10 @@ class CoverageReport(BaseModel):
     uncovered: int
     coverage_pct: float
     addressable_pct: float  # pre-compromise(A) 갭 제외 시 커버리지
+    native_covered: int = 0
+    proxy_covered: int = 0
+    unscored_covered: int = 0
+    quality_adjusted_pct: float = 0.0
     by_archetype: dict[str, int] = Field(default_factory=dict)
     tactics: list[TacticStat] = Field(default_factory=list)
 
@@ -272,6 +280,17 @@ class CoverageMatrix:
         planned = sum(len(t.planned) for t in self.tactics)
         uncovered = sum(len(t.uncovered) for t in self.tactics)
         total = covered + planned + uncovered
+        native_covered = 0
+        proxy_covered = 0
+        unscored_covered = 0
+        for technique in [tech for tactic in self.tactics for tech in tactic.covered]:
+            quality = self.data_quality_for(technique)
+            if quality is None:
+                unscored_covered += 1
+            elif quality.quality_status == "native":
+                native_covered += 1
+            else:
+                proxy_covered += 1
         out_of_scope = len(self.gaps_by_archetype().get(_OUT_OF_SCOPE_ARCHETYPE, []))
         # addressable: scope 밖(pre-compromise) 갭을 분모에서 제외.
         addr_total = max(total - out_of_scope, 1)
@@ -285,6 +304,10 @@ class CoverageMatrix:
             uncovered=uncovered,
             coverage_pct=round(covered / max(total, 1), 3),
             addressable_pct=round(covered / addr_total, 3),
+            native_covered=native_covered,
+            proxy_covered=proxy_covered,
+            unscored_covered=unscored_covered,
+            quality_adjusted_pct=round(native_covered / max(total, 1), 3),
             by_archetype=by_arch,
             tactics=[
                 TacticStat(

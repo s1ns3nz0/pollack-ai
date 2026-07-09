@@ -22,6 +22,7 @@ from core.models import (
     Verdict,
 )
 from core.playbook_outcome import ActorPlaybookOutcomeGate, PlaybookOutcome
+from core.runbook import RunbookCatalog
 from core.settings import Settings
 from core.severity import SeverityEngine
 
@@ -39,6 +40,7 @@ def _agent(*, wired: bool = True, resilience: bool = False) -> ResponseAgent:
         SeverityEngine(),
         playbooks=_CATALOG if wired else None,
         scenario_tactic=_MAP if wired else None,
+        runbooks=RunbookCatalog.from_runbooks([]),
         degradation=_degradation() if resilience else None,
     )
 
@@ -108,6 +110,110 @@ class TestCatalogSelection:
         r = out["response"]
         assert r.cacao_playbook_id is None
         assert r.playbook_id == "PB-FALLBACK"
+
+    @pytest.mark.asyncio
+    async def test_runbook_resolved_for_scenario(self) -> None:
+        """scenario_id exact-match runbook 을 response 에 표면한다."""
+        from core.runbook import Runbook, RunbookApproval, RunbookStep, VerificationStep
+
+        runbooks = RunbookCatalog.from_runbooks(
+            [
+                Runbook(
+                    id="RB-S-DISC",
+                    scenario_id="S-DISC",
+                    detection_rule="S_Disc.json",
+                    playbook_id="playbook--uav-disc-0001",
+                    tactic="Discovery",
+                    operator_steps=[
+                        RunbookStep(
+                            id="validate_detection",
+                            kind="manual",
+                            action="탐지 근거를 확인한다",
+                        )
+                    ],
+                    approval=RunbookApproval(required=False),
+                    verification=VerificationStep(
+                        method="outcome_probe",
+                        expected="no_reoccurred",
+                    ),
+                )
+            ]
+        )
+        agent = ResponseAgent(
+            Settings(),
+            SeverityEngine(),
+            playbooks=_CATALOG,
+            scenario_tactic=_MAP,
+            runbooks=runbooks,
+        )
+
+        out = await agent.run(_state("S-DISC", MissionRisk(score=2)))
+        r = out["response"]
+
+        assert r.runbook_id == "RB-S-DISC"
+        assert r.runbook_status == "resolved"
+        assert r.runbook_detail_level == "generated"
+        assert r.runbook_steps == [
+            {
+                "id": "validate_detection",
+                "kind": "manual",
+                "action": "탐지 근거를 확인한다",
+            }
+        ]
+
+    @pytest.mark.asyncio
+    async def test_missing_runbook_is_runtime_fallback_status(self) -> None:
+        """런타임 runbook 누락은 응답을 끊지 않고 fallback 상태로 노출한다."""
+        out = await _agent().run(_state("S-DISC", MissionRisk(score=2)))
+        r = out["response"]
+
+        assert r.cacao_playbook_id == "playbook--uav-disc-0001"
+        assert r.runbook_id is None
+        assert r.runbook_status == "missing"
+
+    @pytest.mark.asyncio
+    async def test_invalid_runbook_playbook_mismatch_suppresses_steps(self) -> None:
+        """Runbook/CACAO 불일치는 invalid 로 표면하고 steps 는 숨긴다."""
+        from core.runbook import Runbook, RunbookApproval, RunbookStep, VerificationStep
+
+        runbooks = RunbookCatalog.from_runbooks(
+            [
+                Runbook(
+                    id="RB-S-DISC-BAD",
+                    scenario_id="S-DISC",
+                    detection_rule="S_Disc.json",
+                    playbook_id="playbook--uav-impact-0001",
+                    tactic="Discovery",
+                    operator_steps=[
+                        RunbookStep(
+                            id="bad_step",
+                            kind="manual",
+                            action="잘못된 절차",
+                        )
+                    ],
+                    approval=RunbookApproval(required=False),
+                    verification=VerificationStep(
+                        method="outcome_probe",
+                        expected="no_reoccurred",
+                    ),
+                )
+            ]
+        )
+        agent = ResponseAgent(
+            Settings(),
+            SeverityEngine(),
+            playbooks=_CATALOG,
+            scenario_tactic=_MAP,
+            runbooks=runbooks,
+        )
+
+        out = await agent.run(_state("S-DISC", MissionRisk(score=2)))
+        r = out["response"]
+
+        assert r.cacao_playbook_id == "playbook--uav-disc-0001"
+        assert r.runbook_id == "RB-S-DISC-BAD"
+        assert r.runbook_status == "invalid"
+        assert r.runbook_steps == []
 
     @pytest.mark.asyncio
     async def test_steps_walk_phases(self) -> None:

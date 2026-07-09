@@ -9,6 +9,13 @@ import pytest
 from agents.approval_agent import ApprovalAgent
 from core.cacao import CacaoPlaybook, CacaoStep, load_playbooks, playbook_requires_hitl
 from core.models import Alert, MissionRisk, Severity, SOCState, Verdict
+from core.runbook import (
+    Runbook,
+    RunbookApproval,
+    RunbookCatalog,
+    RunbookStep,
+    VerificationStep,
+)
 from core.settings import Settings
 
 _CATALOG = load_playbooks()
@@ -21,6 +28,32 @@ def _agent(*, wired: bool = True) -> ApprovalAgent:
         hitl_force_threshold=6,
         playbooks=_CATALOG if wired else None,
         scenario_tactic=_MAP if wired else None,
+    )
+
+
+def _manual_runbook(*, approval_required: bool) -> RunbookCatalog:
+    return RunbookCatalog.from_runbooks(
+        [
+            Runbook(
+                id="RB-S-DISC",
+                scenario_id="S-DISC",
+                detection_rule="S_Disc.json",
+                playbook_id="playbook--uav-disc-0001",
+                tactic="Discovery",
+                operator_steps=[
+                    RunbookStep(
+                        id="validate_detection",
+                        kind="manual",
+                        action="탐지 근거 확인",
+                    )
+                ],
+                approval=RunbookApproval(required=approval_required),
+                verification=VerificationStep(
+                    method="outcome_probe",
+                    expected="no_reoccurred",
+                ),
+            )
+        ]
     )
 
 
@@ -53,6 +86,18 @@ class TestCacaoApprovalGate:
     def test_uncovered_tactic_no_force(self) -> None:
         """Discovery 는 mission-gate 없는 CACAO 경로라 HITL 강제 없음."""
         assert _agent()._cacao_forces_hitl(_state("S-DISC", None)) is False
+
+    def test_runbook_approval_required_forces_hitl(self) -> None:
+        """Runbook approval.required=true 이면 저위험 Discovery 도 HITL 강제."""
+        agent = ApprovalAgent(
+            Settings(),
+            hitl_force_threshold=6,
+            playbooks=_CATALOG,
+            scenario_tactic=_MAP,
+            runbooks=_manual_runbook(approval_required=True),
+        )
+
+        assert agent._runbook_forces_hitl(_state("S-DISC", MissionRisk(score=1)))
 
     def test_no_catalog_no_force(self) -> None:
         """카탈로그 미주입 → CACAO 게이트 없음(회귀 안전)."""

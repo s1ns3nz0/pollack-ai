@@ -409,6 +409,7 @@ def render_text() -> str:
     out.extend(_ground_metrics())
     out.extend(_killweb_metrics())
     out.extend(_bas_metrics())
+    out.extend(_runbook_metrics())
     out.extend(_cato_metrics())
     return "\n".join(out) + "\n"
 
@@ -452,17 +453,49 @@ def _bas_metrics() -> list[str]:
         "# HELP soc_bas_detection_ratio BAS 방어 검증 탐지 비율(detected/total)",
         "# TYPE soc_bas_detection_ratio gauge",
         _line("soc_bas_detection_ratio", report.detection_ratio),
+        "# HELP soc_bas_readiness_ratio BAS native 계측 준비도(native_detected/total)",
+        "# TYPE soc_bas_readiness_ratio gauge",
+        _line("soc_bas_readiness_ratio", report.readiness_ratio),
         "# HELP soc_bas_gap_total BAS 미탐(방어 공백) 시나리오 수",
         "# TYPE soc_bas_gap_total gauge",
         _line("soc_bas_gap_total", len(report.gaps)),
-        "# HELP soc_bas_stride_detection_ratio STRIDE 카테고리별 탐지 비율",
-        "# TYPE soc_bas_stride_detection_ratio gauge",
+        "# HELP soc_bas_quality_gap_total BAS 비-native 계측 시나리오 수",
+        "# TYPE soc_bas_quality_gap_total gauge",
     ]
+    for status, ids in sorted(report.quality_gaps.items()):
+        out.append(
+            _line("soc_bas_quality_gap_total", len(ids), f'{{status="{status}"}}')
+        )
+    out.extend(
+        [
+            "# HELP soc_bas_stride_detection_ratio STRIDE 카테고리별 탐지 비율",
+            "# TYPE soc_bas_stride_detection_ratio gauge",
+        ]
+    )
     for cat, stat in sorted(report.by_stride.items()):
         out.append(
             _line("soc_bas_stride_detection_ratio", stat.ratio, f'{{stride="{cat}"}}')
         )
     return out
+
+
+def _runbook_metrics() -> list[str]:
+    """Runbook 준비도 게이지(정책 없으면 빈 목록)."""
+    try:
+        from core.runbook import load_runbooks
+
+        summary = load_runbooks().readiness_summary()
+    except Exception:  # noqa: BLE001 - 메트릭 조회 실패가 스크레이프를 깨지 않게
+        return []
+    return [
+        "# HELP soc_runbook_readiness_ratio curated runbook 비율",
+        "# TYPE soc_runbook_readiness_ratio gauge",
+        _line("soc_runbook_readiness_ratio", summary.readiness_ratio),
+        "# HELP soc_runbook_total detail_level 별 runbook 수",
+        "# TYPE soc_runbook_total gauge",
+        _line("soc_runbook_total", summary.curated, '{detail_level="curated"}'),
+        _line("soc_runbook_total", summary.generated, '{detail_level="generated"}'),
+    ]
 
 
 def _ground_metrics() -> list[str]:
@@ -540,6 +573,9 @@ def _coverage_metrics() -> list[str]:
         "# HELP soc_attack_coverage_ratio ATT&CK 커버리지 비율(covered/total)",
         "# TYPE soc_attack_coverage_ratio gauge",
         _line("soc_attack_coverage_ratio", report.coverage_pct),
+        "# HELP soc_attack_quality_adjusted_ratio native 품질 보정 커버리지 비율",
+        "# TYPE soc_attack_quality_adjusted_ratio gauge",
+        _line("soc_attack_quality_adjusted_ratio", report.quality_adjusted_pct),
         "# HELP soc_attack_addressable_ratio 대응가능 커버리지(pre-compromise 제외)",
         "# TYPE soc_attack_addressable_ratio gauge",
         _line("soc_attack_addressable_ratio", report.addressable_pct),
@@ -548,6 +584,23 @@ def _coverage_metrics() -> list[str]:
         _line("soc_attack_technique_total", report.covered, '{status="covered"}'),
         _line("soc_attack_technique_total", report.planned, '{status="planned"}'),
         _line("soc_attack_technique_total", report.uncovered, '{status="uncovered"}'),
+        "# HELP soc_attack_technique_quality_total covered 기법 품질별 수",
+        "# TYPE soc_attack_technique_quality_total gauge",
+        _line(
+            "soc_attack_technique_quality_total",
+            report.native_covered,
+            '{quality="native"}',
+        ),
+        _line(
+            "soc_attack_technique_quality_total",
+            report.proxy_covered,
+            '{quality="proxy"}',
+        ),
+        _line(
+            "soc_attack_technique_quality_total",
+            report.unscored_covered,
+            '{quality="unscored"}',
+        ),
         "# HELP soc_attack_gap_total archetype 별 미탐지 기법 수",
         "# TYPE soc_attack_gap_total gauge",
     ]

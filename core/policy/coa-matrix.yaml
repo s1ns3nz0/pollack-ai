@@ -51,6 +51,20 @@ matrix:
       action: "미끼 자격증명(허니토큰) 배치 — 접촉 시 즉시 확정탐지"
       d3fend: "D3-DUC"        # Decoy User Credential
 
+  CredentialAccess:
+    Detect:
+      action: "비정상 자격증명·키·인증서 접근 및 RC 바인딩 변경 탐지"
+      d3fend: "D3-UBA"
+    Deny:
+      action: "탈취 의심 세션 무효화 + 키·인증서·송신기 바인딩 사용 차단"
+      d3fend: "D3-ANCI"
+    Disrupt:
+      action: "키·인증서 재발급 전 제한 운용 + 고위험 명령 2차 승인"
+      d3fend: "D3-RTSD"
+    Deceive:
+      action: "허니토큰·미끼 키·가짜 인증서 접촉 시 확정탐지"
+      d3fend: "D3-DUC"
+
   Execution:
     Detect:
       action: "미인가 명령 시퀀스·프로그램 다운로드 탐지"

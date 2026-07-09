@@ -133,18 +133,43 @@ class TestDataQuality:
         supply_chain = m.data_quality_for("T1195")
         assert supply_chain is not None and supply_chain.visibility == 1
         assert m.data_quality_for("T9999-not-scored") is None
+        assert CoverageMatrix.from_yaml(_DATA).report().proxy_covered > 0
 
     def test_report_unaffected_by_data_quality_presence(self, tmp_path: Path) -> None:
         # data_quality 유무가 covered/planned/uncovered 집계(KPI 분모/분자)를 안 바꾼다.
         without_dq = _matrix(tmp_path).report()
         p = tmp_path / "cov_with_dq.yaml"
         p.write_text(
-            _SAMPLE
-            + "data_quality:\n  T1595: {visibility: 2, detection_maturity: 1}\n",
+            _SAMPLE + "data_quality:\n"
+            "  T1595: {visibility: 2, detection_maturity: 1, quality_status: native}\n",
             encoding="utf-8",
         )
         with_dq = CoverageMatrix.from_yaml(p).report()
-        assert with_dq == without_dq
+        assert with_dq.total == without_dq.total
+        assert with_dq.covered == without_dq.covered
+        assert with_dq.planned == without_dq.planned
+        assert with_dq.uncovered == without_dq.uncovered
+        assert with_dq.coverage_pct == without_dq.coverage_pct
+
+    def test_report_exposes_proxy_covered_quality(self, tmp_path: Path) -> None:
+        """covered 기법 중 proxy/design-blind 는 별도 품질 지표로 노출한다."""
+        p = tmp_path / "cov_with_proxy.yaml"
+        p.write_text(
+            _SAMPLE + "data_quality:\n"
+            "  T1595: {visibility: 2, detection_maturity: 1, quality_status: native}\n"
+            "  T1592: {visibility: 1, detection_maturity: 1, quality_status: proxy}\n"
+            "  T1185: {visibility: 0, detection_maturity: 1, "
+            "quality_status: design_blind}\n",
+            encoding="utf-8",
+        )
+
+        rep = CoverageMatrix.from_yaml(p).report()
+
+        assert rep.covered == 3
+        assert rep.native_covered == 1
+        assert rep.proxy_covered == 2
+        assert rep.unscored_covered == 0
+        assert rep.quality_adjusted_pct == round(1 / 7, 3)
 
 
 class TestRealData:

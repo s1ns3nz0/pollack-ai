@@ -11,7 +11,14 @@ class TestCollectSnapshot:
         snap = collect_snapshot()
 
         assert "bas_detection_ratio" in snap
+        assert "bas_readiness_ratio" in snap
         assert "attack_coverage_ratio" in snap
+        assert "attack_quality_adjusted_ratio" in snap
+        assert "runbook_readiness_ratio" in snap
+        assert "runbook_generated_total" in snap
+        assert snap["bas_readiness_ratio"] < snap["bas_detection_ratio"]
+        assert snap["attack_quality_adjusted_ratio"] < snap["attack_coverage_ratio"]
+        assert snap["runbook_readiness_ratio"] < 1.0
 
     def test_includes_runtime_counters(self) -> None:
         """런타임 카운터(축출 실패·임무 중단·경보수)가 포함."""

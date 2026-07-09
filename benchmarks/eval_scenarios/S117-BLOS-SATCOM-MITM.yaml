@@ -25,6 +25,7 @@ mitre:
 expected_tactic: Collection
 expected_techniques: ["T1565"]
 expected_cacao_playbook_id: playbook--uav-coll-0001
+expected_runbook_id: RB-S117-BLOS-AUTONOMY-COMMAND-FORGE
 expected_resilience_level: SUSTAINED
 expected_fallback_contains: "LOS 직접링크"
 expected_report_evidence: "위성 데이터링크"

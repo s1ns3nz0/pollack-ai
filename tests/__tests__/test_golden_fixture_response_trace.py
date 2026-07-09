@@ -21,21 +21,15 @@ from agents.response_agent import ResponseAgent
 from core.cacao import CacaoPlaybook, load_playbooks, scenario_tactic_map
 from core.degradation import DegradationAssessor, DegradationMatrix
 from core.models import Alert, Severity, SOCState, Verdict
+from core.runbook import load_runbooks
 from core.settings import Settings
 from core.severity import SeverityEngine
 from tools.coverage import CoverageMatrix
 
 _FIXTURES_DIR = Path(__file__).resolve().parents[2] / "benchmarks" / "eval_scenarios"
 
-# issue #83 "Initial Golden Fixtures To Cover" 5건 — 전부 실제 dah-sentinel-content
-# 배포 룰(S1~S126 신번호)과 CACAO 카탈로그/degradation-matrix 실측으로 매핑됨.
-_GOLDEN_FIXTURES = [
-    "S1-GNSS-SPOOF.yaml",
-    "S24-DATALINK-C2-TAKEOVER.yaml",
-    "S33-FIRMWARE-SUPPLY-CHAIN-TAMPER.yaml",
-    "S117-BLOS-SATCOM-MITM.yaml",
-    "S89-RAG-POISONING.yaml",
-]
+# benchmarks/eval_scenarios 의 모든 golden fixture 를 response trace 로 검증한다.
+_GOLDEN_FIXTURES = sorted(p.name for p in _FIXTURES_DIR.glob("*.yaml"))
 
 _REQUIRED_FIELDS = (
     "fixture_id",
@@ -46,6 +40,7 @@ _REQUIRED_FIELDS = (
     "expected_techniques",
     "expected_detection",
     "expected_cacao_playbook_id",
+    "expected_runbook_id",
     "expected_resilience_level",
     "expected_fallback_contains",
     "expected_report_evidence",
@@ -140,6 +135,7 @@ class TestFixtureToCacaoPlaybookTrace:
             SeverityEngine(),
             playbooks=catalog,
             scenario_tactic=real_map,
+            runbooks=load_runbooks(),
         )
         state: SOCState = {
             "alert": alert,
@@ -148,6 +144,8 @@ class TestFixtureToCacaoPlaybookTrace:
         }
         out = await agent.run(state)
         assert out["response"].cacao_playbook_id == fx["expected_cacao_playbook_id"]
+        assert out["response"].runbook_id == fx["expected_runbook_id"]
+        assert out["response"].runbook_status == "resolved"
 
 
 class TestFixtureToResilienceTrace:

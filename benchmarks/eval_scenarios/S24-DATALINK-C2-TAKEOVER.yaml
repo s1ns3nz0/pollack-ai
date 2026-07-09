@@ -22,6 +22,7 @@ mitre:
 expected_tactic: CommandAndControl
 expected_techniques: ["T1499"]
 expected_cacao_playbook_id: playbook--uav-c2-0001
+expected_runbook_id: RB-S24-DATALINK-C2-TAKEOVER
 expected_resilience_level: MINIMAL
 expected_fallback_contains: "페일세이프"
 expected_report_evidence: "실시간 지상 지휘통제"

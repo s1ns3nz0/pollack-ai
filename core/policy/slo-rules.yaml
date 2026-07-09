@@ -19,11 +19,29 @@ rules:
     severity: critical
     message: "BAS 방어 탐지율 저하 — 룰이 공격을 놓치기 시작(회귀 의심)"
 
+  - metric: bas_readiness_ratio
+    operator: lt
+    threshold: 0.9
+    severity: warning
+    message: "BAS native 계측 준비도 저하 — proxy/reconstructed/design-blind 탐지가 과다"
+
   - metric: attack_coverage_ratio
     operator: lt
     threshold: 0.6
     severity: warning
     message: "ATT&CK 커버리지 회귀 — 미탐 기법 증가"
+
+  - metric: attack_quality_adjusted_ratio
+    operator: lt
+    threshold: 0.6
+    severity: warning
+    message: "ATT&CK 품질 보정 커버리지 저하 — covered 중 native 근거 부족"
+
+  - metric: runbook_readiness_ratio
+    operator: lt
+    threshold: 0.8
+    severity: warning
+    message: "Runbook readiness 저하 — generated scaffold 절차가 과다"
 
   - metric: prediction_hit_ratio
     operator: lt

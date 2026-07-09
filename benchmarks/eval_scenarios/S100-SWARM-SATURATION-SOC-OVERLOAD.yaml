@@ -1,7 +1,9 @@
 # 골든 픽스처 — 구 S9-SWARM-SATURATION(옛 번호, 대응하는 실제 룰 없었음)를 대체.
 # 출처: dah-sentinel-content AnalyticsRules/S100_Swarm_Saturation_SOC_Overload.json.
+fixture_id: FX-S100-SWARM-SATURATION
 scenario_id: S100-SWARM-SATURATION-SOC-OVERLOAD
 title: 군집 유발 경보 포화 (SOC 대응 무력화)
+asset_id: AI_SOC
 target_asset:
   id: AI_SOC
   tier: T0-AISOC
@@ -16,6 +18,13 @@ expected_detection:
   sentinel_rule: S100_Swarm_Saturation_SOC_Overload.json
 mitre:
   attack_ics: ["T1499"]
+expected_tactic: Impact
+expected_techniques: ["T1499"]
+expected_cacao_playbook_id: playbook--uav-impact-0001
+expected_runbook_id: RB-S100-SWARM-SATURATION-SOC-OVERLOAD
+expected_resilience_level: SUSTAINED
+expected_fallback_contains: "정책 엔진 단독"
+expected_report_evidence: "AI SOC 자동 판정"
 defense_playbook:
   id: PB-SWARM-AGGREGATE-09
   actions:

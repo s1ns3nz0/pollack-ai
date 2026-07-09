@@ -1251,6 +1251,11 @@ class ResponseResult(BaseModel):
     cacao_playbook_id: str | None = None
     cacao_steps: list[dict[str, object]] | None = None
     mission_branch: str | None = None
+    # Runbook 배선(detection rule 단위 수동 실행 절차 — 런타임은 폴백 상태 노출).
+    runbook_id: str | None = None
+    runbook_steps: list[dict[str, object]] = Field(default_factory=list)
+    runbook_status: str = "fallback"
+    runbook_detail_level: str | None = None
 
 
 class ApprovalResult(BaseModel):

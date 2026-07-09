@@ -23,6 +23,7 @@ mitre:
 expected_tactic: InitialAccess
 expected_techniques: ["T1195", "T1495"]
 expected_cacao_playbook_id: playbook--uav-ia-0001
+expected_runbook_id: RB-S33-FIRMWARE-SUPPLY-CHAIN-TAMPER
 expected_resilience_level: ABORT
 expected_fallback_contains: "안전착륙"
 expected_report_evidence: "비행제어"

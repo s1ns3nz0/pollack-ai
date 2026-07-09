@@ -48,15 +48,27 @@ def collect_snapshot() -> dict[str, float]:
     try:
         from core.bas import BASRunner
 
-        snap["bas_detection_ratio"] = BASRunner.from_yaml().run().detection_ratio
+        bas = BASRunner.from_yaml().run()
+        snap["bas_detection_ratio"] = bas.detection_ratio
+        snap["bas_readiness_ratio"] = bas.readiness_ratio
     except Exception as exc:  # noqa: BLE001 - 지표 수집 실패는 해당 지표만 생략
         _logger.debug("bas 지표 수집 생략: %s", exc)
     try:
         from tools.coverage import CoverageMatrix
 
-        snap["attack_coverage_ratio"] = CoverageMatrix.from_yaml().report().coverage_pct
+        coverage = CoverageMatrix.from_yaml().report()
+        snap["attack_coverage_ratio"] = coverage.coverage_pct
+        snap["attack_quality_adjusted_ratio"] = coverage.quality_adjusted_pct
     except Exception as exc:  # noqa: BLE001 - 지표 수집 실패는 해당 지표만 생략
         _logger.debug("coverage 지표 수집 생략: %s", exc)
+    try:
+        from core.runbook import load_runbooks
+
+        runbooks = load_runbooks().readiness_summary()
+        snap["runbook_readiness_ratio"] = runbooks.readiness_ratio
+        snap["runbook_generated_total"] = float(runbooks.generated)
+    except Exception as exc:  # noqa: BLE001 - 지표 수집 실패는 해당 지표만 생략
+        _logger.debug("runbook 지표 수집 생략: %s", exc)
     return snap
 
 

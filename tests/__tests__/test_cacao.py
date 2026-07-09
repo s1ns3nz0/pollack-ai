@@ -27,6 +27,7 @@ _TACTICS = {
     "Reconnaissance",
     "ResourceDevelopment",
     "InitialAccess",
+    "CredentialAccess",
     "Execution",
     "Persistence",
     "PrivilegeEscalation",
@@ -48,15 +49,15 @@ def _matrices() -> tuple[dict[str, Any], dict[str, Any]]:
 
 class TestCatalogLoad:
     def test_exemplars_load_and_validate(self) -> None:
-        """UAV ATT&CK 15 전술 카탈로그 로드, 전술 키 일치."""
+        """UAV ATT&CK 전술 카탈로그 로드, 전술 키 일치."""
         pbs = load_playbooks()
         assert {p.tactic for p in pbs} == _TACTICS
 
-    def test_fifteen_playbooks_all_validate(self) -> None:
-        """15 플레이북 전수 validate_playbook 통과(스키마·no-exec·게이트·source_ref)."""
+    def test_playbooks_all_validate(self) -> None:
+        """플레이북 전수 validate_playbook 통과(스키마·no-exec·게이트·source_ref)."""
         coa, rec = _matrices()
         pbs = load_playbooks()
-        assert len(pbs) == 15
+        assert len(pbs) == len(_TACTICS)
         for pb in pbs:
             validate_playbook(pb, coa, rec)
 
@@ -111,6 +112,22 @@ class TestCatalogLoad:
         coa, _ = _matrices()
         for pb in load_playbooks():
             assert pb.tactic in coa
+
+    def test_all_deployed_detection_scenarios_resolve_to_cacao_playbook(self) -> None:
+        """detection_rule 이 있는 BAS 시나리오는 모두 CACAO 플레이북으로 resolve."""
+        from core.bas import BASRunner
+
+        pbs = load_playbooks()
+        scenario_map = scenario_tactic_map()
+        missing: list[str] = []
+        for scenario in BASRunner.from_yaml()._scenarios:
+            if not scenario.detection_rule:
+                continue
+            tactic = scenario_map.get(scenario.id, "")
+            if select_playbook(tactic, pbs) is None:
+                missing.append(f"{scenario.id}:{tactic}")
+
+        assert not missing
 
 
 class TestMissionGateParser:
