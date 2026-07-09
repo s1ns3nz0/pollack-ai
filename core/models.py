@@ -779,6 +779,31 @@ class StagedDefense(BaseModel):
     note: str = ""
 
 
+class DecisionAdvantage(BaseModel):
+    """OODA 결심 여유 — SOC 브리핑 지연 vs 관측 적 진행 cadence(자문·정직 프록시).
+
+    전-OODA vs 적-OODA 비교가 아니다(적 결심주기 미측정). "적의 다음 확정 진행 전
+    지휘관 결심 브리핑을 낼 여유가 있는가"의 관측가능 근사. verdict/severity/CAT 불변.
+
+    Attributes:
+        soc_latency_ms: SOC 브리핑 생성 지연(detect→brief). report 노드 자체 제외 하한.
+        soc_latency_partial: 위 하한 여부(정직 표기 — 항상 True).
+        adversary_cadence_ms: 관측 적 진행 간격(kill_chain 양델타 중앙값). 없으면 None.
+        advance_count: 관측된 kill_chain 단계 수.
+        verdict: margin(결심 여유)/contested(cadence 못 따라감)/unknown(측정 불가).
+        ooda: O/O/D/A 단계별 기여 산출물 라벨(브리핑 구조).
+        basis: 비교 근거·정직성 주석(무엇 vs 무엇, unknown 사유).
+    """
+
+    soc_latency_ms: float = 0.0
+    soc_latency_partial: bool = True
+    adversary_cadence_ms: float | None = None
+    advance_count: int = 0
+    verdict: Literal["margin", "contested", "unknown"] = "unknown"
+    ooda: dict[str, list[str]] = Field(default_factory=dict)
+    basis: list[str] = Field(default_factory=list)
+
+
 class IntentAssessment(BaseModel):
     """임무형 지휘 — Commander's Intent 필터 판정(자문·표현 메타데이터).
 
@@ -1347,6 +1372,10 @@ class SOCReport(BaseModel):
     intent_assessment: IntentAssessment | None = Field(
         default=None,
         description="임무형 지휘: 지휘관 의도 기반 우선순위·결심필요 판정(자문·표현).",
+    )
+    decision_advantage: DecisionAdvantage | None = Field(
+        default=None,
+        description="OODA 결심 여유: 브리핑 지연 vs 적 진행 cadence(자문·정직 프록시).",
     )
 
 
