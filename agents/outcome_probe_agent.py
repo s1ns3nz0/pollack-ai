@@ -16,7 +16,7 @@ from core.actors import ActorWriteGate
 from core.bda import BdaAssessor
 from core.exceptions import SOCPlatformError
 from core.experience import MemoryWriteGate
-from core.incident import CaseManager, incident_store
+from core.incident import CaseManager, incident_store, is_cisa_reportable
 from core.models import (
     Alert,
     ExperienceRecord,
@@ -113,7 +113,7 @@ class OutcomeProbeAgent(BaseWorkerAgent):
         if self._case_mgr is None or not obs.actor_id:
             return
         try:
-            self._case_mgr.observe_outcome(
+            case = self._case_mgr.observe_outcome(
                 _reconstruct_alert(obs),
                 decision.env_verdict,  # type: ignore[attr-defined]
                 recovery_applied=obs.recovery_applied,
@@ -123,6 +123,11 @@ class OutcomeProbeAgent(BaseWorkerAgent):
             )
         except SOCPlatformError as exc:
             errors.append(f"case[{obs.alert_id}]: {exc}")
+            return
+        # CIRCIA — 권위 확증 후 중대 case 면 연방보고 posture 관측(report 는 provisional
+        # 이라 못 잡음, Codex M1). metric 으로 권위 posture 노출.
+        if case is not None and is_cisa_reportable(case):
+            metrics().record_cisa_reportable()
 
     def _assess_bda(self, obs: Observation, decision: object, errors: list[str]) -> int:
         """교전피해평가(BDA) 산정 — 유의미 피해/복구권고 시 로깅. 복구권고면 1 반환.

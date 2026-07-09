@@ -883,7 +883,9 @@ class IncidentDirective(BaseModel):
         hitl_required: 인적 개입 필수 여부(권위 신호에만 True — 포이즈닝 봉인).
         assigned_tier: 태스킹 대상 티어(tier2/tier3).
         recommended_action: 현재 state 기반 권고 조치.
-        report_overdue: 상급 보고 시한 초과 여부(now 미가용 시 False).
+        report_overdue: 상급 보고(CJCSM 6510 지휘체계) 시한 초과 여부(now 미가용 False).
+        cisa_reportable: CIRCIA 연방(CISA) 72h 보고 대상 여부(권위·중대 case 만).
+        cisa_report_overdue: CISA 연방 72h 시한 초과 여부(상급 보고와 별 경로).
         provisional: 원본 case 미확증 여부 — 지시 신뢰도 명시.
         rationale: 판단 근거 목록(감사·설명용).
     """
@@ -893,6 +895,8 @@ class IncidentDirective(BaseModel):
     assigned_tier: str = "tier2"
     recommended_action: str = ""
     report_overdue: bool = False
+    cisa_reportable: bool = False
+    cisa_report_overdue: bool = False
     provisional: bool = True
     rationale: list[str] = Field(default_factory=list)
 

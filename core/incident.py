@@ -127,6 +127,54 @@ def is_case_overdue(case: IncidentCase, now_iso: str) -> bool:
     return now > due
 
 
+# CIRCIA — covered cyber incident(중대 침해) 자동 연방보고 대상 CAT.
+_CISA_REPORTABLE_CATS = frozenset({"CAT1", "CAT4", "CAT7"})
+_CIRCIA_HOURS_MIN = 72 * 60  # 72시간(연방 CISA 보고 시한).
+
+
+def is_cisa_reportable(case: IncidentCase) -> bool:
+    """CIRCIA covered cyber incident(연방 CISA 72h 보고 대상) 여부(자문·읽기전용).
+
+    **권위 case 만**(provisional=False) — 미확증/report-time 잠정 case 는 연방 보고를
+    유발하지 못한다(오보 방지, CJCSM 권위 CAT 과 동일 트러스트 게이팅). 대상: root
+    침해(CAT1)/DoS(CAT4)/악성로직(CAT7) 자동 + user-level(CAT2) 이 재범(reopen>0 =
+    지속 침해, substantial impact)인 경우.
+
+    Args:
+        case: 대상 Incident Case.
+
+    Returns:
+        연방 보고 의무 대상이면 True(권위·중대만).
+    """
+    if case.provisional:
+        return False
+    if case.cat in _CISA_REPORTABLE_CATS:
+        return True
+    return case.cat == "CAT2" and case.reopen_count > 0
+
+
+def cisa_report_due(case: IncidentCase) -> str:
+    """CISA 연방 보고 데드라인(opened_at + 72h, ISO). 파싱실패 빈값(graceful).
+
+    앵커는 opened_at(보수적 플랫폼 clock) — CIRCIA 의 법적 trigger(reasonable belief
+    시점)와 다를 수 있어 **법적 판정 아님**. 운영자 참고용 보수적 시한.
+    """
+    return _report_due(case.opened_at, _CIRCIA_HOURS_MIN)
+
+
+def is_cisa_overdue(case: IncidentCase, now_iso: str) -> bool:
+    """CISA 72h 시한 초과 여부(결정론·읽기전용, now 주입). is_case_overdue 미러."""
+    due_at = cisa_report_due(case)
+    if not due_at or not now_iso or not is_cisa_reportable(case):
+        return False
+    try:
+        due = datetime.strptime(due_at, _TS_FMT)
+        now = datetime.strptime(now_iso, _TS_FMT)
+    except (ValueError, TypeError):
+        return False
+    return now > due
+
+
 @runtime_checkable
 class IncidentStore(Protocol):
     """Incident Case 저장소 계약."""
