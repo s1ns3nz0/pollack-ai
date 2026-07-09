@@ -779,6 +779,29 @@ class StagedDefense(BaseModel):
     note: str = ""
 
 
+class IntentAssessment(BaseModel):
+    """임무형 지휘 — Commander's Intent 필터 판정(자문·표현 메타데이터).
+
+    지휘관 사전 선언 의도로 산출물을 우선순위화하고 '지휘관 결심 필요'인지 판정한다.
+    **표현 메타데이터일 뿐** — 억제 권한이 아니다. 모든 항목은 리포트·감사에 항상
+    존재하며 decision_class 는 HITL·보고 의무·지휘관 full-view 를 override 하지 않는다.
+
+    Attributes:
+        priority: 주력(main_effort) 자산/보호 임무 매칭 여부.
+        decision_class: 지휘관 결심 필요(commander_decision) / 통상 SOC 가시성
+            (routine_soc) / 기본노출(surfaced). 셋 다 표현 라벨.
+        matched: 매칭 근거(자산/임무/CAT) — rationale·감사.
+        intent_available: 의도 정책 로드 여부(False=degraded, 전부 surfaced).
+    """
+
+    priority: Literal["main_effort", "routine"] = "routine"
+    decision_class: Literal["commander_decision", "routine_soc", "surfaced"] = (
+        "surfaced"
+    )
+    matched: list[str] = Field(default_factory=list)
+    intent_available: bool = False
+
+
 class DecoyPlacement(BaseModel):
     """예측 유도 디코이(허니팟) 배치 한 건(예측 폐루프).
 
@@ -1320,6 +1343,10 @@ class SOCReport(BaseModel):
     ground_segment: GroundSegmentReport | None = Field(
         default=None,
         description="지상 세그먼트 방어 사각(UAV*_CL 밖) + 계측 백로그 — 정적 posture.",
+    )
+    intent_assessment: IntentAssessment | None = Field(
+        default=None,
+        description="임무형 지휘: 지휘관 의도 기반 우선순위·결심필요 판정(자문·표현).",
     )
 
 

@@ -1,0 +1,23 @@
+# 임무형 지휘 — Commander's Intent(지휘관 사전 선언 의도, 정적 교리 입력).
+# core/intent.py IntentFilter 가 이 정책으로 산출물 우선순위·결심필요를 자문 판정.
+# CAT 은 서열 아님(CAT1 root/CAT4 DoS/CAT7 malware) → 임계 아닌 명시 집합.
+# surface_cats ∩ delegate_cats = ∅ 강제. 미지 CAT/risk 오류 시 degraded(전부 surfaced).
+
+# 주력(main-effort) 자산 — 항상 지휘관 상승(CAT 무관).
+main_effort_assets:
+  - MUAV-AKS-001        # SATCOM 링크 레거시 기체(A-4 미션)
+  - SYS001              # 주 정찰 페이로드 계열
+
+# 보호 시나리오/임무단계 — 매칭 시 지휘관 상승(가시성만 ↑).
+protected_scenarios:
+  - S9-SATCOM-DISABLE
+protected_mission_phases:
+  - strike
+  - isr
+
+risk_tolerance: low     # low|medium|high (참고·rationale)
+
+# 지휘관 결심 상승 CAT — provisional∪authoritative 둘 다 발동(fail-safe 가시성).
+surface_cats: [CAT1, CAT2, CAT4, CAT7]
+# authoritative 확정 시 통상 SOC 가시성(은폐 아님) — provisional 은 제외.
+delegate_cats: [CAT3, CAT6, CAT8]
