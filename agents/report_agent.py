@@ -32,6 +32,7 @@ from core.honeypot import HoneypotPlanner
 from core.hunt import HuntPlanner
 from core.incident import CaseManager
 from core.intent import IntentFilter
+from core.ioa_graph import IoAGraphBuilder
 from core.killweb import KillWebBuilder
 from core.lineage import LineageCollector
 from core.models import (
@@ -309,6 +310,16 @@ class ReportAgent(BaseSOCAgent):
             chain = await self._reasoner.build_chain(alert, inv)
             if chain.steps:
                 report.causal_summary = chain
+
+        # IoA 그래프: actor TTP·kill_chain·예측·인과를 Cytoscape 로 직렬화(시각화용,
+        # 읽기전용). 빌더는 상태보유라 report 마다 새 인스턴스. 데이터 없으면 None 유지.
+        # causal-only 리포트(profile·inv 없이 인과만)도 포함(Codex diff Medium).
+        if profile is not None or inv is not None or report.causal_summary is not None:
+            ioa = IoAGraphBuilder().build_from_state(
+                profile, inv, report.causal_summary
+            )
+            if ioa.nodes:
+                report.ioa_graph = ioa.to_cytoscape()
 
         # spec B-1: actor.pb_scores top-3 노출(위에서 회상한 profile 재사용)
         if profile is not None and profile.pb_scores:
