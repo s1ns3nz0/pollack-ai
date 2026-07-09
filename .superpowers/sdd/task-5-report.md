@@ -148,3 +148,41 @@ All checks passed!
 
 - Staged scope: `agents/graph.py`, `tests/__tests__/test_active_hunt_graph.py`,
   `.superpowers/sdd/task-5-report.md`
+
+## Review Fix Round 1
+
+Finding [Medium]: no automated test for the ENABLED graph shape (previously
+verified only by an uncommitted manual script).
+
+Fix: added
+`test_active_hunt_enabled_wires_node_between_investigation_and_validation` to
+`tests/__tests__/test_active_hunt_graph.py`. It builds
+`build_soc_graph(settings=Settings(active_hunt_enabled=True, sentinel_workspace_id="ws-test"))`
+(offline: no Azure network at construction; default policy YAML loads) and
+asserts:
+
+- `active_hunt` node present
+- edge `("investigation", "active_hunt")` present
+- edge `("active_hunt", "validation")` present
+- direct edge `("investigation", "validation")` ABSENT
+
+Style matches the file's existing two tests (no docstrings, same Settings
+construction and `graph.get_graph()` access pattern).
+
+Verification:
+
+```text
+pytest tests/__tests__/test_active_hunt_graph.py -v
+  test_active_hunt_disabled_by_default PASSED
+  test_active_hunt_enabled_without_workspace_degrades_to_disabled PASSED
+  test_active_hunt_enabled_wires_node_between_investigation_and_validation PASSED
+  3 passed in 0.81s
+
+black --check: 1 file would be left unchanged.
+ruff check: All checks passed!
+```
+
+Regression sanity (scratch script, not committed): running the same assertion
+logic against a disabled graph (`active_hunt_enabled=False`) FAILS as expected —
+`active_hunt` absent and the direct `investigation → validation` edge present —
+so the test would catch a wiring regression.
