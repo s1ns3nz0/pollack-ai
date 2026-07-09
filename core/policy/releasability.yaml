@@ -1,0 +1,20 @@
+# JADC2 연합상호운용성 — 파트너 릴리서빌리티(REL-TO/NOFORN, STIX statement 마킹).
+# core/releasability.py for_partner 가 내부 번들을 파트너 스코프 파생물로 변환.
+# default-deny: release_types 에 명시된 SDO type + _SAFE_FIELDS 필드만 파트너에 나감.
+# 외향 push 없음(직렬화만). 미지 티어 → None(정책 밖 파트너 유출 차단).
+# indicator(IOC pattern) 는 제외 — DiamondEvent.infrastructure 가 적 인프라임을 증명하는
+# 분류가 없어 방어/센서 IP 오유출 위험(Codex Critical). attack-pattern(공개 ATT&CK)만.
+# IOC 공유는 적대성 분류 도입 후 후속.
+partner_tiers:
+  FVEY:
+    rel_to: [USA, GBR, CAN, AUS, NZL]
+    caveat: "REL TO FVEY"
+    release_types: [attack-pattern]
+  NATO:
+    rel_to: [NATO]
+    caveat: "REL TO NATO"
+    release_types: [attack-pattern]
+  NOFORN:
+    rel_to: []
+    caveat: "NOFORN"
+    release_types: [attack-pattern]
