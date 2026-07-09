@@ -50,3 +50,39 @@ Results:
 ## Commit
 
 - Will be created after staging the Task 2 files and this report.
+
+## Review Fixes
+
+- Replaced navigator predicted-tactic inference with authoritative sources
+  only: `staged_defenses[].tactic` first, then
+  `scenario_tactic_map()[campaign_matches[].next_expected]`. Removed
+  `hunt_candidates` and substring heuristics from predicted tactic state.
+- Reworked dashboard HITL rendering to prefer authoritative requirement
+  signals from `approval`, `report.hitl`, and `response.hitl` in that order:
+  `PENDING` / `APPROVED` / `REQUIRED` / `NOT_REQUIRED`.
+- Added targeted regressions for:
+  - required HITL without approval staying `REQUIRED` with
+    `hitl_pending_count == 0`
+  - campaign `next_expected` resolving via `scenario_tactic_map`
+  - `hunt_candidates` technique IDs not setting navigator predicted state
+
+## Review Fix Verification
+
+Command:
+
+```bash
+pytest tests/__tests__/test_dashboard_snapshot.py -v
+black core/dashboard.py tests/__tests__/test_dashboard_snapshot.py
+ruff check core/dashboard.py tests/__tests__/test_dashboard_snapshot.py
+mypy core/dashboard.py tests/__tests__/test_dashboard_snapshot.py
+```
+
+Results:
+
+- `pytest tests/__tests__/test_dashboard_snapshot.py -v` -> 7 passed
+- `black core/dashboard.py tests/__tests__/test_dashboard_snapshot.py` ->
+  2 files left unchanged
+- `ruff check core/dashboard.py tests/__tests__/test_dashboard_snapshot.py` ->
+  passed
+- `mypy core/dashboard.py tests/__tests__/test_dashboard_snapshot.py` ->
+  passed

@@ -1,5 +1,7 @@
 """Dashboard snapshot builder tests."""
 
+from _pytest.monkeypatch import MonkeyPatch
+
 from core.dashboard import TopologyPolicy, build_dashboard_snapshot
 from core.models import (
     Alert,
@@ -11,11 +13,20 @@ from core.models import (
     Severity,
     SOCReport,
     SOCState,
+    StagedDefense,
     Verdict,
 )
 
 
-def _state() -> SOCState:
+def _state(
+    *,
+    approval: ApprovalResult | None = None,
+    response_hitl: str | None = "HITL_REQUIRED",
+    report_hitl: str | None = "HITL_REQUIRED",
+    campaign_next_expected: str = "S117-BLOS-SATCOM-MITM",
+    hunt_candidates: list[str] | None = None,
+    staged_defenses: list[StagedDefense] | None = None,
+) -> SOCState:
     alert = Alert(
         id="alert-001",
         scenario_id="S24-DATALINK-C2-TAKEOVER",
@@ -40,16 +51,18 @@ def _state() -> SOCState:
         severity=Severity.HIGH,
         verdict=Verdict.TRUE_POSITIVE,
         action_taken="HITL 승인 대기",
-        hitl="HITL_REQUIRED",
+        hitl=report_hitl,
         mitre={"tactic": "CommandAndControl", "technique": "T1071"},
         mission_continuity=continuity,
+        hunt_candidates=hunt_candidates or [],
+        staged_defenses=staged_defenses or [],
         campaign_matches=[
             CampaignMatch(
                 chain_id="C2",
                 name="C2 takeover",
                 matched=2,
                 total=4,
-                next_expected="S117-BLOS-SATCOM-MITM",
+                next_expected=campaign_next_expected,
                 severity="critical",
             )
         ],
@@ -61,24 +74,36 @@ def _state() -> SOCState:
             caveats=["결심 여유 lower-bound"],
         ),
     )
-    return {
+    state: SOCState = {
         "alert": alert,
         "severity": Severity.HIGH,
         "verdict": Verdict.TRUE_POSITIVE,
-        "approval": ApprovalResult(required=True, approved=False, note="승인 대기"),
         "response": ResponseResult(
-            hitl="HITL_REQUIRED",
+            hitl=response_hitl,
             mission_continuity=continuity,
             cacao_steps=[{"name": "대체 링크 전환"}, {"name": "RTB 준비"}],
         ),
         "report": report,
         "trace": ["triage", "investigation", "validation", "approval", "response"],
     }
+    if approval is not None:
+        state["approval"] = approval
+    return state
 
 
 def test_snapshot_summary_and_story_are_decision_first() -> None:
     """Snapshot exposes story summary before alert details."""
-    snap = build_dashboard_snapshot(_state(), step=3, mode="replay")
+    snap = build_dashboard_snapshot(
+        _state(
+            approval=ApprovalResult(
+                required=True,
+                approved=False,
+                note="승인 대기",
+            )
+        ),
+        step=3,
+        mode="replay",
+    )
 
     assert snap.schema_version == "dashboard.snapshot.v1"
     assert snap.summary.active_story_count == 1
@@ -99,13 +124,62 @@ def test_snapshot_uses_commander_brief_for_bluf() -> None:
 
 def test_navigator_marks_current_predicted_and_gap() -> None:
     """Navigator exposes tactic states for the selected story."""
-    snap = build_dashboard_snapshot(_state())
+    snap = build_dashboard_snapshot(
+        _state(
+            staged_defenses=[
+                StagedDefense(
+                    technique="T1071",
+                    status="gap",
+                    tactic="CommandAndControl",
+                    probability=0.8,
+                )
+            ]
+        )
+    )
     by_tactic = {cell.tactic: cell for cell in snap.navigator}
 
     assert by_tactic["CommandAndControl"].current is True
     assert by_tactic["CommandAndControl"].observed is True
     assert any(cell.predicted for cell in snap.navigator)
     assert by_tactic["CommandAndControl"].gap is True
+
+
+def test_hitl_required_without_approval_stays_required() -> None:
+    """Authoritative HITL signals stay required without creating pending state."""
+    snap = build_dashboard_snapshot(_state(approval=None))
+
+    assert snap.stories[0].hitl_status == "REQUIRED"
+    assert snap.bluf.hitl_badge == "REQUIRED"
+    assert snap.summary.hitl_pending_count == 0
+
+
+def test_navigator_uses_scenario_tactic_map_for_campaign_prediction(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Campaign next_expected resolves predicted tactic from authoritative map."""
+    monkeypatch.setattr(
+        "core.dashboard.scenario_tactic_map",
+        lambda path=None: {"S117-BLOS-SATCOM-MITM": "Collection"},
+    )
+
+    snap = build_dashboard_snapshot(_state())
+    by_tactic = {cell.tactic: cell for cell in snap.navigator}
+
+    assert by_tactic["Collection"].predicted is True
+    assert by_tactic["CommandAndControl"].predicted is False
+
+
+def test_hunt_candidates_do_not_mark_predicted_tactic(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Technique-only hunt candidates do not drive navigator predicted tactic."""
+    monkeypatch.setattr("core.dashboard.scenario_tactic_map", lambda path=None: {})
+
+    snap = build_dashboard_snapshot(
+        _state(campaign_next_expected="", hunt_candidates=["T1071"])
+    )
+
+    assert all(cell.predicted is False for cell in snap.navigator)
 
 
 def test_topology_highlights_degraded_asset_node() -> None:

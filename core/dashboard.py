@@ -15,8 +15,9 @@ from typing import Literal
 from pydantic import BaseModel, Field, ValidationError
 import yaml
 
+from core.cacao import scenario_tactic_map
 from core.exceptions import PolicyError
-from core.models import SOCReport, SOCState
+from core.models import ApprovalResult, ResponseResult, SOCReport, SOCState
 
 _POLICY_DIR = Path(__file__).resolve().parent / "policy"
 _TOPOLOGY_POLICY = _POLICY_DIR / "asset-topology.yaml"
@@ -340,17 +341,50 @@ def _next_expected_tactic(report: SOCReport | None) -> str:
         return ""
     if report.staged_defenses:
         return report.staged_defenses[0].tactic
-    if report.hunt_candidates:
-        return str(report.hunt_candidates[0])
     if report.campaign_matches and report.campaign_matches[0].next_expected:
-        scenario = report.campaign_matches[0].next_expected
-        if "SATCOM" in scenario or "C2" in scenario:
-            return "CommandAndControl"
-        if "GNSS" in scenario or "SPOOF" in scenario:
-            return "Collection"
-        if "WEAPON" in scenario or "IMPACT" in scenario:
-            return "Impact"
+        return scenario_tactic_map().get(report.campaign_matches[0].next_expected, "")
     return ""
+
+
+def _has_hitl_signal(value: str | None) -> bool:
+    """Return whether a HITL string authoritatively signals requirement.
+
+    Args:
+        value: HITL-like status string from report or response.
+
+    Returns:
+        True when the value indicates HITL is required.
+    """
+    if value is None:
+        return False
+    normalized = value.strip().upper()
+    if not normalized:
+        return False
+    return "HITL" in normalized or "REQUIRED" in normalized
+
+
+def _hitl_status(
+    approval: ApprovalResult | None,
+    report: SOCReport | None,
+    response: ResponseResult | None,
+) -> str:
+    """Build dashboard HITL status from authoritative requirement and approval.
+
+    Args:
+        approval: Approval state from the SOC pipeline when present.
+        report: Final SOC report when available.
+        response: Response output when available.
+
+    Returns:
+        HITL status for the story card and BLUF badge.
+    """
+    if approval is not None and approval.required:
+        return "APPROVED" if approval.approved else "PENDING"
+    if _has_hitl_signal(report.hitl if report is not None else None):
+        return "REQUIRED"
+    if _has_hitl_signal(response.hitl if response is not None else None):
+        return "REQUIRED"
+    return "NOT_REQUIRED"
 
 
 def _build_story(state: SOCState, report: SOCReport | None) -> DashboardStory:
@@ -369,11 +403,8 @@ def _build_story(state: SOCState, report: SOCReport | None) -> DashboardStory:
         campaign = report.campaign_matches[0]
     continuity = report.mission_continuity if report is not None else None
     approval = state["approval"] if "approval" in state else None
-    hitl_status = (
-        "PENDING"
-        if approval is not None and approval.required and not approval.approved
-        else "NOT_REQUIRED"
-    )
+    response = state["response"] if "response" in state else None
+    hitl_status = _hitl_status(approval, report, response)
     actor = alert.actor_id or "UNKNOWN-ACTOR"
     tactic = _tactic_from_report(report) or str(alert.mitre.get("tactic", ""))
     return DashboardStory(
