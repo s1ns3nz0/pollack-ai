@@ -26,6 +26,7 @@ class Alert(BaseModel):
     id: str
     scenario_id: str
     title: str
+    time_generated: str = ""
     asset_id: str = ""
     asset_tier: str = ""
     mission_phase: str = ""
@@ -110,6 +111,7 @@ class UntrustedAlertPayload(BaseModel):
     id: str
     scenario_id: str
     title: str
+    time_generated: str = ""
     asset_id: str = ""
     asset_tier: str = ""
     mission_phase: str = ""
@@ -124,7 +126,11 @@ class UntrustedAlertPayload(BaseModel):
     lon: float | None = None
 
     def to_alert(self) -> Alert:
-        """서술 필드만으로 내부 Alert 구성(내부전용 필드는 Alert 기본값 유지)."""
+        """서술 필드만으로 내부 Alert 구성(내부전용 필드는 Alert 기본값 유지).
+
+        Returns:
+            신뢰 경계를 통과한 내부 Alert 모델.
+        """
         return Alert(**self.model_dump())
 
 

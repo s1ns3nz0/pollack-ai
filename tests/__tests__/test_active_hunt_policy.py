@@ -32,6 +32,7 @@ def _alert(tactic: str = "CommandAndControl") -> Alert:
         id="a1",
         scenario_id="S2-C2-HIJACK",
         title="C2 hijack",
+        time_generated="2026-07-09T12:00:00Z",
         asset_id="UAV-1",
         asset_tier="T2-Important",
         mission_phase="ISR",
@@ -108,7 +109,7 @@ def test_forward_planner_uses_registered_template_only() -> None:
     assert "{end}" not in queries[0].kql
 
 
-def test_forward_planner_without_alert_time_avoids_epoch_window() -> None:
+def test_forward_planner_uses_time_generated_for_exact_window() -> None:
     policy = ActiveHuntPolicy.from_yaml()
     planner = ActiveHuntPlanner(policy, _coverage())
     plan = planner.plan(
@@ -125,11 +126,9 @@ def test_forward_planner_without_alert_time_avoids_epoch_window() -> None:
         cpcon_level=5,
     )
     query = plan.queries[0]
-    assert "1970-01-01" not in query.kql
-    assert "1970-01-01" not in query.time_window
-    assert "{start}" not in query.kql
-    assert "{end}" not in query.kql
-    assert "datetime(" in query.kql
+    assert "2026-07-09T12:00:00Z" in query.kql
+    assert "2026-07-09T12:30:00Z" in query.kql
+    assert query.time_window == "2026-07-09T12:00:00Z..2026-07-09T12:30:00Z"
 
 
 def test_missing_template_becomes_unavailable_finding() -> None:
@@ -176,6 +175,36 @@ def test_backward_planner_records_untemplated_previous_techniques() -> None:
     assert finding.tactic == "InitialAccess"
     assert finding.query_id == "query_unavailable"
     assert finding.error == "query template unavailable"
+
+
+def test_backward_planner_uses_default_lookback_window() -> None:
+    policy = ActiveHuntPolicy.from_yaml()
+    planner = ActiveHuntPlanner(policy, _coverage())
+    plan = planner.plan(
+        _alert("CommandAndControl"),
+        [],
+        None,
+        cpcon_level=5,
+    )
+    query = next(query for query in plan.queries if query.direction == "backward")
+    assert "2026-07-08T12:00:00Z" in query.kql
+    assert "2026-07-09T12:00:00Z" in query.kql
+    assert query.time_window == "2026-07-08T12:00:00Z..2026-07-09T12:00:00Z"
+
+
+def test_backward_planner_uses_forced_impact_lookback_window() -> None:
+    policy = ActiveHuntPolicy.from_yaml()
+    planner = ActiveHuntPlanner(policy, _coverage())
+    plan = planner.plan(
+        _alert("Impact"),
+        [],
+        None,
+        cpcon_level=5,
+    )
+    query = next(query for query in plan.queries if query.direction == "backward")
+    assert "2026-07-06T12:00:00Z" in query.kql
+    assert "2026-07-09T12:00:00Z" in query.kql
+    assert query.time_window == "2026-07-06T12:00:00Z..2026-07-09T12:00:00Z"
 
 
 def test_policy_loader_rejects_non_mapping_query_entries(tmp_path: Path) -> None:

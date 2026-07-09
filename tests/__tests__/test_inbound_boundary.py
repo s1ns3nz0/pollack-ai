@@ -21,6 +21,7 @@ def _wire_payload(**extra: object) -> dict[str, object]:
         "id": "a1",
         "scenario_id": "S1",
         "title": "t",
+        "time_generated": "2026-07-09T12:00:00Z",
         "asset_id": "GNSS",
         "mission_phase": "ingress",
         "severity_baseline": "m",
@@ -88,12 +89,16 @@ class TestForgeryBlocked:
     def test_descriptive_fields_preserved(self) -> None:
         """정상 위협 서술 필드는 그대로 전달."""
         payload = _wire_payload(
-            asset_id="C2_LINK", iocs=["1.2.3.4"], mitre={"techniques": ["T1071"]}
+            asset_id="C2_LINK",
+            iocs=["1.2.3.4"],
+            mitre={"techniques": ["T1071"]},
+            time_generated="2026-07-09T13:14:15Z",
         )
         alert = UntrustedAlertPayload.model_validate(payload).to_alert()
         assert alert.asset_id == "C2_LINK"
         assert alert.iocs == ["1.2.3.4"]
         assert alert.mitre == {"techniques": ["T1071"]}
+        assert alert.time_generated == "2026-07-09T13:14:15Z"
         assert alert.severity_baseline == Severity.MEDIUM
 
 

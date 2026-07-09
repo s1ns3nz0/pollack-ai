@@ -130,7 +130,21 @@ class ActiveHuntPolicy(BaseModel):
         cpcon_level: int,
         coverage: CoverageMatrix,
     ) -> bool:
-        """CPCON/임무위험/핵심지형 기반 backward hunt 여부를 결정한다."""
+        """CPCON/임무위험/핵심지형 기반 backward hunt 여부를 결정한다.
+
+        Args:
+            alert: 현재 분석 중인 경보.
+            mission_risk: 현재 자산/임무 단계의 위험도. 없으면 정책 기본값만 사용한다.
+            current_order: 현재 alert tactic 의 kill-chain 순서.
+            cpcon_level: 현재 CPCON 단계.
+            coverage: tactic 순서와 커버리지 판단에 쓰는 매트릭스.
+
+        Returns:
+            backward hunt 를 수행해야 하면 True.
+
+        Raises:
+            None.
+        """
         tactics = _alert_tactics(alert)
         if any(t in self.backward_policy.force_tactics for t in tactics):
             return True
@@ -162,7 +176,20 @@ class ActiveHuntPlanner:
         mission_risk: MissionRisk | None,
         cpcon_level: int,
     ) -> ActiveHuntPlan:
-        """forward/backward query 후보를 생성한다."""
+        """forward/backward query 후보를 생성한다.
+
+        Args:
+            alert: active hunt 기준이 되는 현재 경보.
+            predictions: 후속 technique 예측 목록.
+            mission_risk: 현재 자산/임무 단계 위험도.
+            cpcon_level: 현재 CPCON 단계.
+
+        Returns:
+            실행 가능한 query 후보와 template 부재 finding 을 담은 계획.
+
+        Raises:
+            None.
+        """
         queries: list[HuntQuery] = []
         unavailable: list[ActiveHuntFinding] = []
         alert_time = _alert_time(alert)
@@ -227,7 +254,20 @@ class ActiveHuntPlanner:
     def unavailable_finding(
         self, direction: str, technique: str, tactic: str, rationale: str
     ) -> ActiveHuntFinding:
-        """등록된 template 이 없을 때 report 에 남길 finding."""
+        """등록된 template 이 없을 때 report 에 남길 finding.
+
+        Args:
+            direction: 찾으려던 hunt 방향.
+            technique: template 이 없던 MITRE technique.
+            tactic: technique 이 속한 MITRE tactic.
+            rationale: report 에 남길 설명.
+
+        Returns:
+            template 부재를 표현하는 finding.
+
+        Raises:
+            None.
+        """
         return ActiveHuntFinding(
             direction=direction,
             technique=technique,
@@ -303,7 +343,7 @@ def _alert_tactics(alert: Alert) -> list[str]:
 
 
 def _alert_time(alert: Alert) -> datetime:
-    raw = getattr(alert, "timestamp", None) or getattr(alert, "time_generated", None)
+    raw = alert.time_generated or getattr(alert, "timestamp", None)
     if not isinstance(raw, str) or not raw:
         return datetime.now(UTC)
     try:
