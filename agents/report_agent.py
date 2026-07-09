@@ -56,6 +56,7 @@ from core.staging import DefenseStager
 from core.stride import StrideClassifier
 from core.terrain import MissionRiskAssessor
 from core.zero_trust import load_zt_mapping
+from tools.coverage import GroundSegmentCoverage, GroundSegmentReport
 from utils.logging import get_logger
 
 
@@ -95,6 +96,22 @@ def _load_aibom_findings(settings: Settings) -> list[AibomFinding]:
     if findings:
         metrics().record_aibom_violation(len(findings))
     return findings
+
+
+def _load_ground_segment() -> GroundSegmentReport | None:
+    """지상 세그먼트 방어 사각 1회 계량 → SOCReport posture. 정책 실패 시 None.
+
+    KPI 는 여기서 계상하지 않는다 — 정적 posture 라 스크레이프 시점 gauge 로 노출
+    (app.metrics._ground_metrics). per-alert 카운터 재계상 방지(Codex High).
+
+    Returns:
+        지상 blind KPI·계측 백로그. 정책 로드 실패 시 None(관측: gauge degraded).
+    """
+    try:
+        return GroundSegmentCoverage.from_yaml().ground_report()
+    except SOCPlatformError as exc:
+        get_logger("report").warning("지상 커버리지 로드 실패, 생략: %s", exc)
+        return None
 
 
 def _scenario_prefix(scenario_id: str) -> str:
@@ -149,6 +166,8 @@ class ReportAgent(BaseSOCAgent):
         _unverified = [f for f in self._zt_mapping.findings if "unverified" in f]
         if _unverified:
             metrics().record_ztmm_unverified(len(_unverified))
+        # 지상 세그먼트 사각도 정적 posture — 로드 시 1회 계량·캐시.
+        self._ground_segment = _load_ground_segment()
 
     async def run(self, state: SOCState) -> SOCState:
         """리포트 + OSCAL 증거 구성."""
@@ -228,6 +247,7 @@ class ReportAgent(BaseSOCAgent):
             incident_directive=incident_directive,
             aibom_findings=self._aibom_findings,
             zt_mapping=self._zt_mapping,
+            ground_segment=self._ground_segment,
             recovery_plan=recovery_plan,
             mission_continuity=mission_continuity,
             stride_threats=stride_threats,
@@ -249,6 +269,13 @@ class ReportAgent(BaseSOCAgent):
         if self._aibom_findings:
             report.guardrail_flags = list(report.guardrail_flags) + [
                 f"AIBOM 거버넌스 위반 {len(self._aibom_findings)}건(AI 공급망·출처)"
+            ]
+        # 지상 세그먼트 사각 posture — blind 존재 시 report 당 1개 guardrail(캐시 참조).
+        if self._ground_segment is not None and self._ground_segment.blind:
+            gs = self._ground_segment
+            report.guardrail_flags = list(report.guardrail_flags) + [
+                f"지상 세그먼트 방어 사각 {gs.blind}면(UAV*_CL 밖) — "
+                f"계측 백로그 {len(gs.backlog)}건"
             ]
 
         # spec A1: 인과 체인 매핑
