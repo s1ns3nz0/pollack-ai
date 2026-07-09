@@ -1467,6 +1467,10 @@ class OscalEvidence(BaseModel):
     """OSCAL 증거(등급별 차등). 실제 OSCAL 모델은 인프라 lane."""
 
     evidence_level: str
+    implementation_status: Literal["stub", "mapped"] = Field(
+        default="stub",
+        description="OSCAL control mapping 구현 상태. stub 은 control_refs 과장 금지.",
+    )
     alert_id: str
     scenario_id: str
     severity: Severity | None = None

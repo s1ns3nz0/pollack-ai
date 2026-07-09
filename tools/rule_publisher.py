@@ -57,7 +57,7 @@ class StubRulePublisher:
         return pr.model_copy(
             update={
                 "status": "proposed",
-                "url": f"(stub)https://github.com/{pr.repo}/pull/new/{pr.branch}",
+                "url": f"stub://rule-pr/{pr.repo}/{pr.branch}",
             }
         )
 

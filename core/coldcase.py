@@ -76,11 +76,17 @@ class ColdCaseReopener:
         # 주입된 빈 ledger 를 새 인스턴스로 갈아치운다(호출자 큐와 분리되는 버그).
         self._ledger = ledger if ledger is not None else ReopenLedger()
         self._on_reopen = on_reopen
+        self._last_scan_complete = True
 
     @property
     def ledger(self) -> ReopenLedger:
         """재심 큐."""
         return self._ledger
+
+    @property
+    def last_scan_complete(self) -> bool:
+        """마지막 억제 재심 스캔이 완전 열거였으면 True."""
+        return self._last_scan_complete
 
     async def reopen_for_actor(
         self, actor_fingerprint: str, trigger_alert_id: str
@@ -131,7 +137,14 @@ class ColdCaseReopener:
     ) -> list[ReopenedCase]:
         """매칭 술어에 걸린 미revoke 억제를 revoke + 큐 적재한다."""
         reopened: list[ReopenedCase] = []
-        for rec in await self._store.ascan_suppressions():
+        suppressions = await self._store.ascan_suppressions()
+        self._last_scan_complete = self._store.last_suppression_scan_complete
+        if not self._last_scan_complete:
+            _logger.warning(
+                "cold-case reopen 스캔 불완전 — RAGFlow retrieval cap 으로 "
+                "일부 억제 누락 가능"
+            )
+        for rec in suppressions:
             if not match(rec):
                 continue
             ok = await self._store.arevoke(rec.content_hash, reason)

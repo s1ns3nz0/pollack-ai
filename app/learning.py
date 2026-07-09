@@ -1,8 +1,8 @@
 """Deployment B — 경험/학습 루프(버스티, 비동기, HPA 대상).
 
-핫패스와 분리된 백그라운드 워커: 3 개 사이클 워커를 조정한다.
+핫패스와 분리된 백그라운드 워커를 조정한다.
 
-1. **OutcomeProbe** (매 사이클) — Observation → exp/actors/pb_scores 자동 라벨링.
+1. **OutcomeProbe** (외부 주입 시 매 사이클) — Observation source 필요.
 2. **ThreatLandscape** (`feed_refresh_hours` 주기) — ATT&CK/ATLAS/KEV 갱신 →
    graph yaml 자동 패치 / 변경 PR.
 3. **AutoKqlRuleSuggester** (T1 이 신규 technique 감지 시 즉시) — LLM 이 KQL draft

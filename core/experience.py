@@ -92,6 +92,11 @@ class ReopenableStore(Protocol):
         """지문 레코드를 revoke(억제 무효화). 성공 시 True(없으면 False)."""
         ...
 
+    @property
+    def last_suppression_scan_complete(self) -> bool:
+        """마지막 억제 스캔이 완전 열거였으면 True."""
+        ...
+
 
 @runtime_checkable
 class Signer(Protocol):
@@ -141,6 +146,11 @@ class InMemoryExperienceStore:
             for r in self._by_fingerprint.values()
             if r.env_verdict == EnvVerdict.CONFIRMED_FP and not r.revoked
         ]
+
+    @property
+    def last_suppression_scan_complete(self) -> bool:
+        """인메모리 저장소는 전체 딕셔너리를 열거하므로 항상 완전 스캔."""
+        return True
 
     async def arevoke(self, fingerprint: str, reason: str) -> bool:
         """지문 레코드를 revoke — content_hash/서명 유지(fingerprint 불포함)."""

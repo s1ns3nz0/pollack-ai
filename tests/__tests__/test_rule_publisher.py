@@ -320,3 +320,10 @@ class TestPublisherGuards:
         out = await StubRulePublisher().apublish(_pr(_add()))
         assert out.status == "proposed"
         assert out.url
+
+    @pytest.mark.asyncio
+    async def test_stub_publisher_url_is_not_confusable_with_real_pr(self) -> None:
+        """stub URL 은 실 GitHub PR URL 로 오인/복붙되지 않아야 한다."""
+        out = await StubRulePublisher().apublish(_pr(_add()))
+        assert out.url.startswith("stub://")
+        assert "https://" not in out.url

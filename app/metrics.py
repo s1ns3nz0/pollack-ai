@@ -16,6 +16,15 @@ import threading
 _CONTENT_TYPE = "text/plain; version=0.0.4; charset=utf-8"
 
 
+def _policy_unavailable_metric(component: str) -> list[str]:
+    """정책/정적 리포트 로드 실패를 컴포넌트 라벨 gauge 로 노출한다."""
+    return [
+        "# HELP soc_policy_unavailable 정책/정적 리포트 로드 실패(1=degraded)",
+        "# TYPE soc_policy_unavailable gauge",
+        _line("soc_policy_unavailable", 1, f'{{component="{component}"}}'),
+    ]
+
+
 class _Counters:
     """프로세스 내 런타임 카운터(스레드 안전)."""
 
@@ -418,7 +427,7 @@ _CATO_AUTH_CODE = {"authorized": 0, "conditional": 1, "at_risk": 2}
 
 
 def _cato_metrics() -> list[str]:
-    """cATO 지속 인가 게이지 — BAS 커버리지 + SLO 위반 합성(정책 없으면 빈 목록)."""
+    """cATO 지속 인가 게이지 — 로드 실패 시 unavailable gauge."""
     try:
         from core.bas import BASRunner
         from core.cato import CatoAssessor, CatoControls
@@ -430,7 +439,7 @@ def _cato_metrics() -> list[str]:
             bas=bas, slo_breaches=breaches
         )
     except Exception:  # noqa: BLE001 - 메트릭 조회 실패가 스크레이프를 깨지 않게
-        return []
+        return _policy_unavailable_metric("cato")
     return [
         "# HELP soc_cato_authorization cATO 인가(0=auth/1=cond/2=at_risk)",
         "# TYPE soc_cato_authorization gauge",
@@ -442,13 +451,13 @@ def _cato_metrics() -> list[str]:
 
 
 def _bas_metrics() -> list[str]:
-    """BAS 방어 검증 게이지(시나리오 없으면 빈 목록)."""
+    """BAS 방어 검증 게이지 — 로드 실패 시 unavailable gauge."""
     try:
         from core.bas import BASRunner
 
         report = BASRunner.from_yaml().run()
     except Exception:  # noqa: BLE001 - 메트릭 조회 실패가 스크레이프를 깨지 않게
-        return []
+        return _policy_unavailable_metric("bas")
     out: list[str] = [
         "# HELP soc_bas_detection_ratio BAS 방어 검증 탐지 비율(detected/total)",
         "# TYPE soc_bas_detection_ratio gauge",
@@ -480,13 +489,13 @@ def _bas_metrics() -> list[str]:
 
 
 def _runbook_metrics() -> list[str]:
-    """Runbook 준비도 게이지(정책 없으면 빈 목록)."""
+    """Runbook 준비도 게이지 — 로드 실패 시 unavailable gauge."""
     try:
         from core.runbook import load_runbooks
 
         summary = load_runbooks().readiness_summary()
     except Exception:  # noqa: BLE001 - 메트릭 조회 실패가 스크레이프를 깨지 않게
-        return []
+        return _policy_unavailable_metric("runbook")
     return [
         "# HELP soc_runbook_readiness_ratio curated runbook 비율",
         "# TYPE soc_runbook_readiness_ratio gauge",
@@ -536,14 +545,14 @@ def _ground_metrics() -> list[str]:
 def _killweb_metrics() -> list[str]:
     """Kill Web 커버리지 breadth 게이지 — 정적 posture(스크레이프 시점).
 
-    single_technique 는 SPOF 아님(정직) — breadth 지표. 조회 실패는 빈 목록.
+    single_technique 는 SPOF 아님(정직) — breadth 지표.
     """
     try:
         from core.killweb import KillWebBuilder
 
         r = KillWebBuilder.load().resilience()
     except Exception:  # noqa: BLE001 - 조회 실패가 스크레이프를 깨지 않게
-        return []
+        return _policy_unavailable_metric("killweb")
     return [
         "# HELP soc_killweb_coverage_breadth_ratio 단계 커버리지 breadth(multi/범위내)",
         "# TYPE soc_killweb_coverage_breadth_ratio gauge",
@@ -561,13 +570,13 @@ def _killweb_metrics() -> list[str]:
 
 
 def _coverage_metrics() -> list[str]:
-    """커버리지 KPI 게이지(데이터 없으면 빈 목록)."""
+    """커버리지 KPI 게이지 — 로드 실패 시 unavailable gauge."""
     try:
         from tools.coverage import CoverageMatrix
 
         report = CoverageMatrix.from_yaml().report()
     except Exception:  # noqa: BLE001 - 메트릭 조회 실패가 스크레이프를 깨지 않게
-        return []
+        return _policy_unavailable_metric("coverage")
 
     out: list[str] = [
         "# HELP soc_attack_coverage_ratio ATT&CK 커버리지 비율(covered/total)",

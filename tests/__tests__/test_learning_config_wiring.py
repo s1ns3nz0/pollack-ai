@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
-from pydantic import SecretStr
+from typing import cast
 
+from pydantic import SecretStr
+import pytest
+
+import app.learning as learning
 from app.learning import (
     _build_auto_kql,
     _build_publisher,
     _build_threat_landscape,
 )
+from core.llm import LLMClient
 from core.settings import Settings
+from tools.rule_publisher import RulePublisher
 
 
 class TestPublisherFactory:
@@ -36,13 +42,36 @@ class TestThreatLandscapeFactory:
 
 class TestAutoKqlFactory:
     def test_default_settings_returns_none(self) -> None:
-        # main 미머지 상태에서 auto_kql_enabled 필드 자체가 없어도 안전.
         assert _build_auto_kql(Settings()) is None
 
-    def test_enabled_flag_wires_agent_if_module_available(self) -> None:
-        # A-2 모듈이 로컬에 있으면 배선, 없으면 None (둘 다 예외 없음).
-        settings = Settings()
-        # 임의로 flag 설정 (SettingsConfigDict extra="ignore" 라 미지원 필드는 무시).
-        # 여기선 그냥 팩토리가 예외 없이 호출되는지만 검증.
+    def test_enabled_without_publisher_returns_none(self) -> None:
+        settings = Settings(auto_kql_enabled=True, github_token=SecretStr(""))
+
         result = _build_auto_kql(settings)
-        assert result is None or result is not None  # 항상 참 — 예외 없음 검증
+        assert result is None
+
+    def test_enabled_flag_wires_agent_when_dependencies_available(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        settings = Settings(auto_kql_enabled=True)
+
+        class _FakeLlm:
+            async def acomplete(self, system: str, user: str) -> str:
+                return "```kql\nSecurityEvent | take 1\n```"
+
+        class _FakePublisher:
+            pass
+
+        monkeypatch.setattr(
+            "core.llm.get_llm_client",
+            lambda _settings: cast(LLMClient, _FakeLlm()),
+        )
+        monkeypatch.setattr(
+            learning,
+            "_build_publisher",
+            lambda _settings: cast(RulePublisher, _FakePublisher()),
+        )
+
+        result = _build_auto_kql(settings)
+
+        assert result is not None

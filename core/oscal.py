@@ -1,7 +1,8 @@
-"""OSCAL 증거 빌더(stub).
+"""OSCAL 증거 빌더.
 
 실제 OSCAL 모델/스키마는 인프라·컴플라이언스 lane. 여기서는 Report Agent 가 남길
-증거의 최소 형태만 등급별 수준 차등으로 생성한다.
+증거의 최소 형태만 등급별 수준 차등으로 생성한다. 통제 매핑이 없는 동안은
+`implementation_status="stub"` 으로 명시하고 근거 없는 control ref 를 채우지 않는다.
 """
 
 from __future__ import annotations
@@ -27,7 +28,8 @@ def build_evidence(state: SOCState, evidence_level: str) -> OscalEvidence:
         severity=state.get("severity"),
         verdict=state.get("verdict"),
         mitre=alert.mitre,
-        control_refs=["TBD-OSCAL-CONTROL"],
+        implementation_status="stub",
+        control_refs=[],
         pipeline_trace=state.get("trace", []),
     )
     if evidence_level in ("full", "standard"):

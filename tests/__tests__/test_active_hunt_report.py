@@ -118,3 +118,19 @@ def test_oscal_evidence_includes_active_hunt_findings() -> None:
     )
 
     assert evidence.active_hunt_findings == [finding]
+
+
+def test_oscal_evidence_marks_stub_without_tbd_controls() -> None:
+    """OSCAL 미매핑 상태는 TBD control ref 가 아니라 명시 상태로 노출한다."""
+    evidence = build_evidence(
+        {
+            "alert": _alert(),
+            "severity": Severity.HIGH,
+            "verdict": Verdict.TRUE_POSITIVE,
+        },
+        "summary",
+    )
+
+    assert evidence.implementation_status == "stub"
+    assert evidence.control_refs == []
+    assert all("TBD" not in ref for ref in evidence.control_refs)

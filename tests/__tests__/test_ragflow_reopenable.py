@@ -93,7 +93,9 @@ class _FakeRagflow:
 
 def _store(fake: _FakeRagflow) -> RagflowExperienceStore:
     settings = Settings(
-        ragflow_api_token=SecretStr("tok"), ragflow_exp_dataset_id="exp-ds"
+        ragflow_api_token=SecretStr("tok"),
+        ragflow_exp_dataset_id="exp-ds",
+        ragflow_top_k=1,
     )
 
     def factory() -> httpx.AsyncClient:
@@ -134,6 +136,16 @@ class TestScanSuppressions:
         fake.docs["bad"] = ("bad.json", "{not json")
         out = await _store(fake).ascan_suppressions()
         assert len(out) == 1
+
+    @pytest.mark.asyncio
+    async def test_scan_cap_marks_completeness_false(self) -> None:
+        """RAGFlow top-k 상한 도달은 완전 스캔으로 오해하면 안 된다."""
+        fake = _FakeRagflow(records=[_rec(scenario=f"S{i}") for i in range(100)])
+        store = _store(fake)
+
+        await store.ascan_suppressions()
+
+        assert store.last_suppression_scan_complete is False
 
 
 class TestRevoke:

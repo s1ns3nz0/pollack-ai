@@ -41,6 +41,7 @@ class RagflowExperienceStore:
         # 재심(cold-case) 캐시 — arevoke 가 갱신 재업로드할 레코드 전체를 보관.
         # ascan_suppressions 가 채운다(ColdCaseReopener 는 scan→revoke 순서 호출).
         self._suppression_cache: dict[str, ExperienceRecord] = {}
+        self._last_suppression_scan_complete = True
 
     def _make_client(self) -> httpx.AsyncClient:
         if self._client_factory is not None:
@@ -199,12 +200,20 @@ class RagflowExperienceStore:
             self._suppression_cache[record.content_hash] = record
             out.append(record)
         if scanned >= cap:
+            self._last_suppression_scan_complete = False
             _logger.warning(
                 "억제 스캔 상한(%d) 도달 — 저순위 억제 누락 가능(재심 불완전). "
                 "완전 열거는 RAGFlow 문서 다운로드 API 필요(후속).",
                 cap,
             )
+        else:
+            self._last_suppression_scan_complete = True
         return out
+
+    @property
+    def last_suppression_scan_complete(self) -> bool:
+        """마지막 억제 스캔이 RAGFlow retrieval cap 에 잘리지 않았으면 True."""
+        return self._last_suppression_scan_complete
 
     async def arevoke(self, fingerprint: str, reason: str) -> bool:
         """지문 레코드를 revoke — 기존 문서 삭제 후 갱신 레코드 재업로드.

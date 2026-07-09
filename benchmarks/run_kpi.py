@@ -37,7 +37,7 @@ from agents.graph import build_soc_graph  # noqa: E402
 from agents.investigation_agent import ContextRetriever  # noqa: E402
 from agents.validation_agent import signal_judge  # noqa: E402
 from app.metrics import metrics as _metrics  # noqa: E402
-from core.models import Alert, Severity, Verdict  # noqa: E402
+from core.models import Alert, OscalEvidence, Severity, Verdict  # noqa: E402
 from tools.kb_stub_tool import KbStubRetriever  # noqa: E402
 
 POC = ROOT / "projects" / "uav_soc_rag_poc"
@@ -187,6 +187,54 @@ def _avg(xs: list[float]) -> float | None:
     return round(sum(xs) / len(xs), 2) if xs else None
 
 
+def evidence_ratios(evidence: list[OscalEvidence], total: int) -> dict[str, float | None]:
+    """Calculate evidence presence and mapped-control ratios.
+
+    Args:
+        evidence: OSCAL evidence objects emitted by reports.
+        total: Total evaluated cases.
+
+    Returns:
+        `present` counts any emitted evidence object. `mapped` only counts evidence
+        whose OSCAL control mapping is implemented, preventing stub evidence from
+        inflating completeness.
+    """
+    if total <= 0:
+        return {"present": None, "mapped": None}
+    mapped = [
+        ev
+        for ev in evidence
+        if ev.implementation_status == "mapped" and bool(ev.control_refs)
+    ]
+    return {
+        "present": round(len(evidence) / total, 3),
+        "mapped": round(len(mapped) / total, 3),
+    }
+
+
+def llm_runtime(requested: bool, available: bool) -> dict[str, object]:
+    """Describe LLM runtime mode without disguising degradation.
+
+    Args:
+        requested: True if the run was invoked with --with-llm.
+        available: True if a live LLM client was actually obtained.
+
+    Returns:
+        `llm` is "live", "deterministic" (by design), or "deterministic-fallback"
+        (requested but unavailable). `degraded` lists dimensions that silently
+        fell back so downstream consumers can separate quality metrics.
+    """
+    if available:
+        return {"llm": "live", "llm_requested": requested, "degraded": []}
+    if requested:
+        return {
+            "llm": "deterministic-fallback",
+            "llm_requested": True,
+            "degraded": ["llm-unavailable"],
+        }
+    return {"llm": "deterministic", "llm_requested": False, "degraded": []}
+
+
 async def main(with_llm: bool = False) -> None:
     """KPI 평가셋을 파이프라인에 통과시켜 지표를 산출한다.
 
@@ -217,7 +265,7 @@ async def main(with_llm: bool = False) -> None:
     conf_scores, ctx_counts = [], []
     tp = fp = fn = tn = 0
     playbook_ok = playbook_total = 0
-    evidence_ok = 0
+    evidence_items: list[OscalEvidence] = []
 
     for alert, label in cases:
         graph = build_soc_graph(retriever=retriever, llm=llm, judge=signal_judge)
@@ -246,14 +294,17 @@ async def main(with_llm: bool = False) -> None:
             playbook_ok += int(
                 bool(state.get("response") and state["response"].playbook_id)
             )
-        if state.get("oscal_evidence") is not None:
-            evidence_ok += 1
+        evidence = state.get("oscal_evidence")
+        if evidence is not None:
+            evidence_items.append(evidence)
 
     n = len(cases)
     precision = round(tp / (tp + fp), 3) if (tp + fp) else None
     recall = round(tp / (tp + fn), 3) if (tp + fn) else None
     fpr = round(fp / (fp + tn), 3) if (fp + tn) else None
     fnr = round(fn / (fn + tp), 3) if (fn + tp) else None
+
+    evidence = evidence_ratios(evidence_items, n)
 
     results = {
         "mode": mode,
@@ -273,9 +324,10 @@ async def main(with_llm: bool = False) -> None:
             round(playbook_ok / playbook_total, 3) if playbook_total else None
         ),
         "report_latency_ms": _avg(report_ms),
-        "report_evidence_completeness": round(evidence_ok / n, 3) if n else None,
+        "report_evidence_present_ratio": evidence["present"],
+        "report_evidence_completeness": evidence["mapped"],
         "pipeline_total_ms_avg": _avg(total_ms),
-        "llm": "live" if llm is not None else "deterministic-fallback",
+        **llm_runtime(requested=with_llm, available=llm is not None),
         # 예측 폐루프: 세션 내 hit/miss 판정 통계(없으면 None — 단발 평가셋).
         "prediction": _metrics().prediction_stats() or None,
     }
@@ -311,6 +363,8 @@ async def main(with_llm: bool = False) -> None:
     print(
         f"  파이프라인 총 소요(평균)        : {results['pipeline_total_ms_avg']} ms  [LLM:{results['llm']}]"
     )
+    if results["degraded"]:
+        print(f"  [주의] 요청 기능 폴백 발생      : {results['degraded']}")
     print(f"\n저장: {out / 'kpi_results.json'}")
 
 

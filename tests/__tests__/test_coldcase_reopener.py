@@ -61,6 +61,7 @@ class TestReopenByActor:
         assert hits == []
         assert len(ledger.cases()) == 1
         assert ledger.cases()[0].trigger_alert_id == "trig-1"
+        assert reopener.last_scan_complete is True
 
     @pytest.mark.asyncio
     async def test_different_actor_untouched(self) -> None:

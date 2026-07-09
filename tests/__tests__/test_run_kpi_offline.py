@@ -4,8 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from benchmarks.run_kpi import load_tp_alerts, resolve_eval_source
-from core.models import Verdict
+from benchmarks.run_kpi import (
+    evidence_ratios,
+    llm_runtime,
+    load_tp_alerts,
+    resolve_eval_source,
+)
+from core.models import OscalEvidence, Verdict
 
 _SCN_YAML = """\
 scenario_id: S1-GNSS-SPOOF
@@ -85,3 +90,62 @@ class TestLoadTpAlerts:
         alerts = load_tp_alerts(tmp_path)
 
         assert [a.scenario_id for a in alerts] == ["S2-FW-TAMPER", "S10-EXFIL"]
+
+
+class TestEvidenceRatios:
+    """KPI evidence 산식은 stub OSCAL 을 완성 증거로 세지 않는다."""
+
+    def test_stub_evidence_is_present_but_not_mapped(self) -> None:
+        evidence = [
+            OscalEvidence(
+                evidence_level="summary",
+                implementation_status="stub",
+                alert_id="a1",
+                scenario_id="S1",
+            )
+        ]
+
+        ratios = evidence_ratios(evidence, total=1)
+
+        assert ratios["present"] == 1.0
+        assert ratios["mapped"] == 0.0
+
+    def test_mapped_evidence_counts_as_mapped(self) -> None:
+        evidence = [
+            OscalEvidence(
+                evidence_level="summary",
+                implementation_status="mapped",
+                alert_id="a1",
+                scenario_id="S1",
+                control_refs=["NIST-IR-4"],
+            )
+        ]
+
+        ratios = evidence_ratios(evidence, total=1)
+
+        assert ratios["present"] == 1.0
+        assert ratios["mapped"] == 1.0
+
+
+class TestLlmRuntime:
+    """LLM 런타임 표기는 기본 결정론과 요청 실패 폴백을 구분한다."""
+
+    def test_default_deterministic_is_not_labeled_fallback(self) -> None:
+        runtime = llm_runtime(requested=False, available=False)
+
+        assert runtime["llm"] == "deterministic"
+        assert runtime["llm_requested"] is False
+        assert runtime["degraded"] == []
+
+    def test_requested_but_unavailable_is_degraded_fallback(self) -> None:
+        runtime = llm_runtime(requested=True, available=False)
+
+        assert runtime["llm"] == "deterministic-fallback"
+        assert runtime["llm_requested"] is True
+        assert runtime["degraded"] == ["llm-unavailable"]
+
+    def test_requested_and_available_is_live(self) -> None:
+        runtime = llm_runtime(requested=True, available=True)
+
+        assert runtime["llm"] == "live"
+        assert runtime["degraded"] == []

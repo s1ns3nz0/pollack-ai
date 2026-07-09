@@ -48,14 +48,15 @@ class TestCatoMetrics:
         assert "soc_cato_poam_total" in text
 
     def test_cato_metrics_graceful(self, monkeypatch) -> None:  # type: ignore[no-untyped-def]
-        """의존 로드 실패 시 빈 목록(스크레이프 안 깨짐)."""
+        """의존 로드 실패 시 unavailable gauge 로 관측 가능."""
         import core.bas as bas_mod
 
         def _boom(*_a: object, **_k: object) -> object:
             raise RuntimeError("no policy")
 
         monkeypatch.setattr(bas_mod.BASRunner, "from_yaml", classmethod(_boom))
-        assert _cato_metrics() == []
+        text = "\n".join(_cato_metrics())
+        assert 'soc_policy_unavailable{component="cato"} 1' in text
 
 
 class TestBdaInWorker:

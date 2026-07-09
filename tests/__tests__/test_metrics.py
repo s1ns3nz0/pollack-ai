@@ -1,5 +1,6 @@
 """Prometheus 메트릭 렌더 — 런타임 카운터 + 커버리지 KPI exposition."""
 
+import app.metrics as metrics_mod
 from app.metrics import _Counters, render_text
 
 
@@ -49,3 +50,13 @@ class TestRenderText:
                 continue
             assert len(line.rsplit(" ", 1)) == 2
             float(line.rsplit(" ", 1)[1])  # 값은 숫자
+
+
+class TestPolicyUnavailableMetric:
+    def test_policy_load_failure_is_observable_by_component(self) -> None:
+        lines = metrics_mod._policy_unavailable_metric("runbook")
+
+        assert any("soc_policy_unavailable" in line for line in lines)
+        assert any(
+            'component="runbook"' in line and line.endswith(" 1") for line in lines
+        )
