@@ -61,10 +61,10 @@ def _state(scenario_id: str) -> SOCState:
 class TestCampaignReport:
     @pytest.mark.asyncio
     async def test_campaign_progress_exposed(self) -> None:
-        """actor 가 S14→S4 관측 후 현 S1 → C2 캠페인 완료 매칭 노출."""
+        """actor 가 S78→S33 관측 후 현 S1 → C2 캠페인 완료 매칭 노출."""
         store = InMemoryActorStore()
-        # kill_chain 에 S14, S4 이력(신번호 접두 포함 형식)
-        read = await _actor_read(store, ["S14-TI-SOURCE-POISON", "S4-FW-TAMPER"])
+        # kill_chain 에 S78, S33 이력(신번호 접두 포함 형식)
+        read = await _actor_read(store, ["S78-TI-SOURCE-POISON", "S33-FW-TAMPER"])
         agent = ReportAgent(
             Settings(),
             SeverityEngine(),
@@ -77,13 +77,13 @@ class TestCampaignReport:
         matches = out["report"].campaign_matches
         c2 = next((m for m in matches if m.chain_id == "C2"), None)
         assert c2 is not None
-        assert c2.matched == 3  # S14, S4, S1 전부
+        assert c2.matched == 3  # S78, S33, S1 전부
 
     @pytest.mark.asyncio
     async def test_next_expected_when_partial(self) -> None:
-        """부분 진행(S6→S13) → C1 다음 예상 S15."""
+        """부분 진행(S34→S37) → C1 다음 예상 S79."""
         store = InMemoryActorStore()
-        read = await _actor_read(store, ["S6-GCS-COMPROMISE"])
+        read = await _actor_read(store, ["S34-GCS-COMPROMISE"])
         agent = ReportAgent(
             Settings(),
             SeverityEngine(),
@@ -91,22 +91,22 @@ class TestCampaignReport:
             campaign_detector=_detector(),
         )
 
-        out = await agent.run(_state("S13-CT-LEVEL-TAMPER"))
+        out = await agent.run(_state("S37-CT-LEVEL-TAMPER"))
 
         c1 = next(
             (m for m in out["report"].campaign_matches if m.chain_id == "C1"), None
         )
         assert c1 is not None
         assert c1.matched == 2
-        assert c1.next_expected == "S15"
+        assert c1.next_expected == "S79"
 
     @pytest.mark.asyncio
     async def test_no_detector_empty(self) -> None:
         """detector 미주입 시 빈 리스트."""
         store = InMemoryActorStore()
-        read = await _actor_read(store, ["S6-GCS-COMPROMISE"])
+        read = await _actor_read(store, ["S34-GCS-COMPROMISE"])
         agent = ReportAgent(Settings(), SeverityEngine(), actor_read=read)
 
-        out = await agent.run(_state("S13-CT-LEVEL-TAMPER"))
+        out = await agent.run(_state("S37-CT-LEVEL-TAMPER"))
 
         assert out["report"].campaign_matches == []

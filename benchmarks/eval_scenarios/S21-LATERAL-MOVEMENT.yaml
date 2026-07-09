@@ -1,0 +1,25 @@
+# 골든 픽스처 — 구 S6-GCS-COMPROMISE(옛 번호, 대응하는 실제 룰 없었음)를 대체.
+# 출처: dah-sentinel-content AnalyticsRules/S21_Lateral_Movement.json.
+scenario_id: S21-LATERAL-MOVEMENT
+title: 지상세그먼트 횡적확산 (impacket/crackmapexec 시그니처)
+target_asset:
+  id: GCS
+  tier: T1-Critical
+mission_context:
+  phase: ground-ops
+severity_baseline: h
+telemetry:
+  signals:
+    - "UAVFileAudit_CL에서 impacket/crackmapexec류 측면이동 도구 프로세스명 탐지"
+    - "동일 운영자(User)가 다수 컨테이너에 걸쳐 해당 프로세스 실행"
+expected_detection:
+  sentinel_rule: S21_Lateral_Movement.json
+mitre:
+  attack_ics: ["T1570", "T1021"]
+defense_playbook:
+  id: PB-GCS-CONTAIN-06
+  actions:
+    - "의심 세션 격리 + 재지정 명령 보류"
+    - "기체 재지정 2차 승인 강제"
+    - "운용자 자격증명 전면 회전"
+  failover: "GCS 신뢰 회복 전 백업 GCS 로 지휘권 이관"

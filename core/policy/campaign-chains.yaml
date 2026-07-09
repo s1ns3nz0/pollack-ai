@@ -12,57 +12,69 @@
 #
 # sequence: 캠페인 킬체인 시나리오 순서(BAS/eval id 접두 S{n}- 와 매칭).
 # connect_key: 노션 연결키(Operator/UAVId 등). connect_type: 연결고리 유형.
+#
+# 2026-07-10: S-번호를 dah-sentinel-content S1~S129 재정렬 신번호로 번역
+# (구 S6→S34 등 — bas-scenarios.yaml 재구성과 동기화). C34 추가.
+# 주의: dah C-룰 설명서는 신/구 번호 혼재 상태 — C8~C33 시퀀스는 dah 쪽
+# 번호 정리 후 이관 예정(bas-scenarios 의 campaign back-ref 도 그때 재생성).
 # =============================================================================
 
-version: 0.1
+version: 0.2
 owner: 황준식
 
 chains:
   - id: C1
     name: GCS침해→CT하향→야간C4I→무장
-    sequence: [S6, S13, S15, S11]
+    sequence: [S34, S37, S79, S3]
     connect_key: Operator
     connect_type: 공유 식별자 + 시간
     severity: critical
 
   - id: C2
     name: TI오염→펌웨어변조→GNSS스푸핑
-    sequence: [S14, S4, S1]
+    sequence: [S78, S33, S1]
     connect_key: UAVId
     connect_type: 전역시각 + 인과
     severity: critical
 
   - id: C3
     name: 자기승인임무→AOI이탈→SATCOM유출
-    sequence: [S12, S16, S3]
+    sequence: [S36, S109, S117]
     connect_key: UAVId
     connect_type: 인과 의존성
     severity: high
 
   - id: C4
     name: 계정탈취→임무자기승인→무장
-    sequence: [S6, S12, S11]
+    sequence: [S34, S36, S3]
     connect_key: Operator
     connect_type: 공유 식별자
     severity: critical
 
   - id: C5
     name: Failsafe무력화→중간자삽입→DoS
-    sequence: [S19, S18, S25]
+    sequence: [S4, S18, S52]
     connect_key: UAVId + 전역시각
     connect_type: 공유 식별자 + 인과
     severity: critical
 
   - id: C6
     name: 정비임플란트→펌웨어변조→SAR표적유출
-    sequence: [S21, S4, S17]
+    sequence: [S38, S33, S92]
     connect_key: UAVId
     connect_type: 인과 의존성
     severity: high
 
   - id: C7
     name: 서비스중단→탐지맹점→GCS침해
-    sequence: [S23, S6]
+    sequence: [S51, S34]
     connect_key: 전역시각
     connect_type: 시간 인접성 + 인과
+    severity: high
+
+  - id: C34
+    name: 자동수집→아카이브→SATCOM유출
+    sequence: [S127, S128, S65]
+    connect_key: ContainerName
+    connect_type: 공유 식별자 + 전역 게이트
     severity: high

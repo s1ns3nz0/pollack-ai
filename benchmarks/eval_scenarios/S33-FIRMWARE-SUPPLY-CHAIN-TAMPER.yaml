@@ -1,0 +1,35 @@
+# 골든 픽스처(issue #83) — 펌웨어 공급망 변조(preflight hash/SBOM).
+# 출처: dah-sentinel-content AnalyticsRules/S33_Firmware_Supply_Chain_Tamper.json.
+# 구 S4-FW-TAMPER 파일을 이 시나리오로 재매핑(내용 유사 — 파일명만 신번호로 변경).
+fixture_id: FX-S33-FW-SUPPLY-CHAIN
+scenario_id: S33-FIRMWARE-SUPPLY-CHAIN-TAMPER
+title: 펌웨어 공급망 변조 (Preflight Hash/SBOM)
+asset_id: AUTOPILOT
+target_asset:
+  id: AUTOPILOT
+  tier: T1-Critical
+mission_context:
+  phase: pre-flight
+severity_baseline: h
+telemetry:
+  signals:
+    - "펌웨어 해시 불일치(HashMatch=false)"
+    - "금지 SBOM 컴포넌트 탑재(SbomForbiddenCount>0)"
+    - "preflight 실패(Passed=false) 또는 Approved_Firmware_Hash_List 미포함"
+expected_detection:
+  sentinel_rule: S33_Firmware_Supply_Chain_Tamper.json
+mitre:
+  attack_ics: ["T1195", "T1495"]
+expected_tactic: InitialAccess
+expected_techniques: ["T1195", "T1495"]
+expected_cacao_playbook_id: playbook--uav-ia-0001
+expected_resilience_level: ABORT
+expected_fallback_contains: "안전착륙"
+expected_report_evidence: "비행제어"
+defense_playbook:
+  id: PB-FW-INTEG-04
+  actions:
+    - "비행금지 게이트 발동(해당 기체 그라운드)"
+    - "검증 이미지로 재이미징"
+    - "SBOM 재검증 + 공급망 소스 추적"
+  failover: "서명 검증 통과 전 임무 배정 금지"

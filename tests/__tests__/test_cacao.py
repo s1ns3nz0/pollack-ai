@@ -16,6 +16,8 @@ from core.cacao import (
     _load_matrix_raw,
     load_playbooks,
     resolve_playbook,
+    scenario_tactic_map,
+    select_playbook,
     validate_condition,
     validate_playbook,
 )
@@ -256,3 +258,21 @@ class TestInvariants:
         coa, rec = _matrices()
         with pytest.raises(PlaybookError):
             validate_playbook(CacaoPlaybook.model_validate(item), coa, rec)
+
+
+class TestScenarioTacticMap:
+    """scenario_id→tactic 맵 — Enterprise 명명 별칭 정규화."""
+
+    def test_defense_evasion_normalized_to_stealth_evasion(self) -> None:
+        """bas-scenarios 의 DefenseEvasion 은 UAV ATT&CK StealthEvasion 으로 정규화."""
+        tactics = set(scenario_tactic_map().values())
+        assert "DefenseEvasion" not in tactics
+        assert "StealthEvasion" in tactics
+
+    def test_normalized_tactic_selects_stealth_playbook(self) -> None:
+        """정규화된 전술이 실제 카탈로그 플레이북 선택으로 이어진다."""
+        m = scenario_tactic_map()
+        tactic = m.get("S89-RAG-POISONING-ORIENT-DECEPTION")
+        assert tactic == "StealthEvasion"
+        pb = select_playbook(tactic, load_playbooks())
+        assert pb is not None and pb.id == "playbook--uav-stealth-0001"

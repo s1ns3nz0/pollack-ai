@@ -313,13 +313,25 @@ def playbook_requires_hitl(pb: CacaoPlaybook, mr: MissionRisk | None) -> bool:
         return True
 
 
+# Enterprise ATT&CK 명명 → UAV ATT&CK 15전술 명명. bas-scenarios 는
+# dah-sentinel-content 원본(Enterprise 표기)에서 생성되므로 재생성 시
+# DefenseEvasion 이 재유입될 수 있다 — 맵 경계에서 정규화해 카탈로그
+# (StealthEvasion)와 select_playbook exact-match 를 보장한다.
+_TACTIC_ALIASES = {"DefenseEvasion": "StealthEvasion"}
+
+
 def scenario_tactic_map(path: str | Path | None = None) -> dict[str, str]:
-    """bas-scenarios 에서 scenario_id→tactic 맵(로드 실패 → 빈 맵 → 폴백)."""
+    """bas-scenarios 에서 scenario_id→tactic 맵(로드 실패 → 빈 맵 → 폴백).
+
+    Enterprise 명명은 UAV ATT&CK 명명으로 정규화된다(_TACTIC_ALIASES).
+    """
     try:
         from core.bas import BASRunner
 
         return {
-            s.id: s.tactic for s in BASRunner.from_yaml(path)._scenarios if s.tactic
+            s.id: _TACTIC_ALIASES.get(s.tactic, s.tactic)
+            for s in BASRunner.from_yaml(path)._scenarios
+            if s.tactic
         }
     except SOCPlatformError:
         return {}

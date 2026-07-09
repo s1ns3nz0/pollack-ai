@@ -26,18 +26,30 @@ class BASScenario(BaseModel):
 
     id: str
     name: str = ""
+    status: str = Field(
+        default="deployed",
+        description="MaGMA 라이프사이클: planned|deployed|deprecated.",
+    )
     signals: list[str] = Field(default_factory=list)
     detection_rule: str = ""
     tactic: str = ""
     stride: list[str] = Field(default_factory=list)
     campaign: list[str] = Field(
-        default_factory=list, description="소속 캠페인 체인 id(C1~C7)."
+        default_factory=list, description="소속 캠페인 체인 id(C1~C34)."
     )
 
     @property
     def detected(self) -> bool:
-        """방어 판정: 신호 존재 + 매칭 탐지룰 존재 시 탐지 가능."""
-        return bool(self.signals) and bool(self.detection_rule)
+        """방어 판정: 배포 상태 + 신호 존재 + 매칭 탐지룰 존재 시 탐지 가능.
+
+        deployed 아닌 룰(planned/deprecated)은 실배포가 아니므로 탐지로
+        집계하지 않는다 — 커버리지 부풀림 방지.
+        """
+        return (
+            self.status == "deployed"
+            and bool(self.signals)
+            and bool(self.detection_rule)
+        )
 
 
 class BASCategoryStat(BaseModel):

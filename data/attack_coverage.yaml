@@ -31,11 +31,11 @@ archetypes:
 tactics:
   - name: Reconnaissance
     order: 1
-    covered: [T1595, T1592]
+    # T1590/T1596: S99_Passive_Asset_Network_Enumeration.json("Proxy - Design Blind Spot"
+    # 명시 — 진짜 pre-compromise 관측 아니라 내부 근사 신호). dah 재정렬 이후 실배포 확인.
+    covered: [T1595, T1592, T1590, T1596]
     planned: []
-    uncovered:
-      - { id: T1590, name: "Gather Victim Network Information", archetype: A_pre_compromise }
-      - { id: T1596, name: "Search Open Technical Databases", archetype: A_pre_compromise }
+    uncovered: []
 
   - name: ResourceDevelopment
     order: 2
@@ -72,10 +72,10 @@ tactics:
 
   - name: StealthEvasion
     order: 7
-    covered: [T1070, T1036, T1601, T1692.001, T0878]
+    # T1014: S62_Rootkit_LD_Preload.json — dah 재정렬 이후 실배포 확인.
+    covered: [T1070, T1036, T1601, T1692.001, T0878, T1014]
     planned: []
-    uncovered:
-      - { id: T1014, name: "Rootkit", archetype: E_destruction_prevention }
+    uncovered: []
 
   - name: Discovery
     order: 8
@@ -91,21 +91,19 @@ tactics:
 
   - name: Collection
     order: 10
-    covered: [T1185]
+    # T1125/T1113/T1005: S98_Passive_Plaintext_Interception.json. T1074: S95_Staged_Split_Exfil.json
+    # (+C12/C29 캠페인). dah S1~S126 재정렬 이후 실배포 확인(2026-07) — attack_coverage.yaml
+    # 갱신 누락돼 있던 것 재동기화. T1119/T1560: 신규 저작 S127/S128(2026-07, az 실측 검증).
+    # T0882: 신규 저작 S129 — 원래 Impact 전술 아래 잘못 분류돼 있었음(MITRE 공식은 Collection).
+    covered: [T1185, T1125, T1113, T1005, T1074, T1119, T1560, T0882]
     planned: []
     uncovered:
-      - { id: T1125, name: "Video Capture", archetype: B_passive_collection }
-      - { id: T1119, name: "Automated Collection", archetype: B_passive_collection }
       - { id: T0845, name: "Program Upload", archetype: B_passive_collection }
       - { id: T0801, name: "Monitor Process State", archetype: B_passive_collection }
       - { id: T0887, name: "Wireless Sniffing (collection)", archetype: B_passive_collection }
-      - { id: T1113, name: "Screen Capture", archetype: B_passive_collection }
-      - { id: T1005, name: "Data from Local System", archetype: B_passive_collection }
       - { id: T0868, name: "Detect Operating Mode", archetype: B_passive_collection }
       - { id: T0861, name: "Point & Tag Identification", archetype: B_passive_collection }
       - { id: T1056, name: "Input Capture", archetype: B_passive_collection }
-      - { id: T1074, name: "Data Staged", archetype: B_passive_collection }
-      - { id: T1560, name: "Archive Collected Data", archetype: B_passive_collection }
 
   - name: CommandAndControl
     order: 11
@@ -119,11 +117,10 @@ tactics:
 
   - name: Exfiltration
     order: 12
-    covered: [T1041, T1020, T1029, T1048, T1030]
+    # T1011/T1567: S65_Exfil_SATCOM_Web.json — dah 재정렬 이후 실배포 확인, 재동기화.
+    covered: [T1041, T1020, T1029, T1048, T1030, T1011, T1567]
     planned: []
-    uncovered:
-      - { id: T1011, name: "Exfiltration Over Other Network Medium", archetype: D_uninstrumented_exfil }
-      - { id: T1567, name: "Exfiltration Over Web Service", archetype: D_uninstrumented_exfil }
+    uncovered: []
 
   - name: ImpairProcessControl
     order: 13
@@ -143,11 +140,13 @@ tactics:
 
   - name: Impact
     order: 15
-    covered: [T0832, T0827, T0880, T0879, T1498, T1565, T0831, T0813, T0826, T0837, T0828, T1499, T1529, T1495]
+    # T1485: S61_Data_Destruction.json — dah 재정렬 이후 실배포 확인.
+    # T0882(Theft of Operational Information)은 원래 여기 uncovered로 잘못 분류돼 있었음
+    # — MITRE ATT&CK for ICS 공식 전술은 Collection. S129 신규 저작(2026-07)과 함께
+    # Collection 전술의 covered 로 이동(하단 Collection 블록 참고).
+    covered: [T0832, T0827, T0880, T0879, T1498, T1565, T0831, T0813, T0826, T0837, T0828, T1499, T1529, T1495, T1485]
     planned: [T0815, T0829, T1531]
-    uncovered:
-      - { id: T0882, name: "Theft of Operational Information", archetype: B_passive_collection }
-      - { id: T1485, name: "Data Destruction", archetype: E_destruction_prevention }
+    uncovered: []
 
 # ── data_quality (DeTT&CT 방법론 — 선택, 점진적 채움) ─────────────────────────
 # visibility(0~3): 로그원 자체의 정보 가치. 0=없음 1=최소(존재만 확인) 2=양호(맥락 있음)

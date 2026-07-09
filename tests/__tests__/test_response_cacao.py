@@ -240,8 +240,8 @@ class TestGraphWiring:
         store = InMemoryActorStore()
         alert = Alert(
             id="A-GRAPH",
-            scenario_id="S5-RAG-POISON",
-            title="RAG 포이즈닝",
+            scenario_id="S9-IMU-SPOOFING",
+            title="IMU 스푸핑",
             severity_baseline=Severity.HIGH,
             signals=["정책 기대등급-판정 괴리"],
             expected_detection={"sigma_rule": "s5.yml"},
