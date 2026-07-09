@@ -1,0 +1,291 @@
+:root {
+  color-scheme: dark;
+  --bg: #08111f;
+  --panel: #101a2b;
+  --panel-2: #14243a;
+  --line: #2b3d58;
+  --text: #e8eef7;
+  --muted: #8da2bd;
+  --good: #26d9a8;
+  --warn: #f2c94c;
+  --bad: #ef476f;
+  --info: #4ea1ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+.dashboard-shell {
+  display: grid;
+  grid-template-rows: auto minmax(360px, 1fr) minmax(180px, 26vh) auto;
+  gap: 12px;
+  min-height: 100vh;
+  padding: 14px;
+}
+
+.top-strip,
+.workbench,
+.topology-panel,
+.replay-controls {
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.top-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 1px;
+  overflow: hidden;
+}
+
+.metric {
+  min-height: 64px;
+  padding: 10px 12px;
+  background: var(--panel-2);
+}
+
+.metric-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.metric-value {
+  margin-top: 6px;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.workbench {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) 1fr;
+  min-height: 0;
+}
+
+.story-rail {
+  border-right: 1px solid var(--line);
+  overflow: auto;
+}
+
+.story-card {
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.story-card.active {
+  background: #183250;
+  box-shadow: inset 3px 0 0 var(--info);
+}
+
+.story-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.story-meta,
+.alert-ref,
+.bluf-row,
+.node-meta {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text);
+}
+
+.badge.pending,
+.cell.gap {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.badge.abort {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+.main-panel {
+  display: grid;
+  grid-template-rows: 1fr minmax(150px, auto);
+  min-width: 0;
+}
+
+.navigator-panel,
+.bluf-card,
+.topology-panel {
+  padding: 12px;
+}
+
+.navigator-panel {
+  border-bottom: 1px solid var(--line);
+}
+
+.panel-title {
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.navigator-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.cell {
+  position: relative;
+  min-height: 82px;
+  padding: 9px;
+  border: 1px solid var(--line);
+  background: #0d1727;
+}
+
+.cell.current {
+  border-color: var(--info);
+}
+
+.cell.observed {
+  box-shadow: inset 0 3px 0 var(--good);
+}
+
+.cell.predicted {
+  outline: 2px solid var(--warn);
+}
+
+.cell-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cell-order {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  color: var(--good);
+  font-size: 12px;
+}
+
+.bluf-card {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.bluf-block {
+  min-height: 106px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  background: #0d1727;
+}
+
+.bluf-label {
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.topology-map {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.node {
+  min-height: 74px;
+  padding: 9px;
+  border: 1px solid var(--line);
+  background: #0d1727;
+}
+
+.node.active {
+  border-color: var(--warn);
+  box-shadow: inset 0 3px 0 var(--warn);
+}
+
+.node.SUSTAINED {
+  border-color: var(--good);
+}
+
+.node.MINIMAL {
+  border-color: var(--warn);
+}
+
+.node.ABORT {
+  border-color: var(--bad);
+}
+
+.node-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.replay-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 12px;
+}
+
+button.control {
+  min-width: 38px;
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.status-line {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .top-strip,
+  .workbench,
+  .bluf-card,
+  .topology-map,
+  .navigator-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .story-rail {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    max-height: 260px;
+  }
+}

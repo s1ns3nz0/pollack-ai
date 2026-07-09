@@ -4,8 +4,35 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>UAV AI SOC Defense Dashboard</title>
+    <link rel="stylesheet" href="/static/dashboard.css" />
   </head>
   <body>
-    <main id="app">UAV AI SOC Defense Dashboard</main>
+    <main class="dashboard-shell">
+      <header class="top-strip" id="top-strip" aria-label="상태 요약"></header>
+      <section class="workbench">
+        <aside
+          class="story-rail"
+          id="story-rail"
+          aria-label="진행 중 story"
+        ></aside>
+        <section class="main-panel">
+          <section class="navigator-panel">
+            <div class="panel-title">UAV ATT&amp;CK Navigator</div>
+            <div class="navigator-grid" id="navigator"></div>
+          </section>
+          <section
+            class="bluf-card"
+            id="bluf-card"
+            aria-label="참모 조언"
+          ></section>
+        </section>
+      </section>
+      <section class="topology-panel">
+        <div class="panel-title">UAS Asset Topology</div>
+        <div class="topology-map" id="topology-map"></div>
+      </section>
+      <footer class="replay-controls" id="replay-controls"></footer>
+    </main>
+    <script src="/static/dashboard.js" defer></script>
   </body>
 </html>
