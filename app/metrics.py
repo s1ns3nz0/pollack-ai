@@ -60,12 +60,33 @@ class _Counters:
         self.commander_decision_total = 0
         # OODA 결심 여유: verdict(margin|contested|unknown)별 판정 누적
         self.decision_margin_total: dict[str, int] = {}
+        # 크로스-alert 상관: 패턴(alert_storm|multi_axis)별 발화 + 집약/실패 카운터
+        self.correlation_fired_total: dict[str, int] = {}
+        self.aggregate_alerts_total = 0
+        self.correlation_error_total = 0
 
     def record_alert(self, verdict: str) -> None:
         """경보 1건 처리 + 판정 집계."""
         with self._lock:
             self.alerts_total += 1
             self.verdict_total[verdict] = self.verdict_total.get(verdict, 0) + 1
+
+    def record_correlation_fired(self, pattern: str) -> None:
+        """크로스-alert 상관 발화 1건 누적(패턴별 — alert_storm/multi_axis)."""
+        with self._lock:
+            self.correlation_fired_total[pattern] = (
+                self.correlation_fired_total.get(pattern, 0) + 1
+            )
+
+    def record_aggregate_alert(self) -> None:
+        """S9 집약 alert 파이프라인 처리 1건 누적(inbound alerts_total 과 분리)."""
+        with self._lock:
+            self.aggregate_alerts_total += 1
+
+    def record_correlation_error(self) -> None:
+        """집약 재투입 실패 1건 누적(inbound 은 영향 없음)."""
+        with self._lock:
+            self.correlation_error_total += 1
 
     def observe_node(self, node: str, elapsed_ms: float) -> None:
         """노드 실행 지연(ms) 관측 — 평균 산출용 합/카운트 누적."""
@@ -291,6 +312,23 @@ def render_text() -> str:
         out.append("# HELP soc_mission_abort_total 임무 중단(ABORT) 판정 수")
         out.append("# TYPE soc_mission_abort_total counter")
         out.append(_line("soc_mission_abort_total", c.mission_abort_total))
+
+    # 크로스-alert 상관: 발화(패턴별) + 집약 처리 + 실패(inbound alerts_total 과 분리)
+    if c.correlation_fired_total:
+        out.append("# HELP soc_correlation_fired_total 크로스-alert 상관 발화 수")
+        out.append("# TYPE soc_correlation_fired_total counter")
+        for pattern, n in sorted(c.correlation_fired_total.items()):
+            out.append(
+                _line("soc_correlation_fired_total", n, f'{{pattern="{pattern}"}}')
+            )
+    if c.aggregate_alerts_total:
+        out.append("# HELP soc_aggregate_alerts_total S9 집약 alert 처리 수")
+        out.append("# TYPE soc_aggregate_alerts_total counter")
+        out.append(_line("soc_aggregate_alerts_total", c.aggregate_alerts_total))
+    if c.correlation_error_total:
+        out.append("# HELP soc_correlation_error_total 집약 재투입 실패 수")
+        out.append("# TYPE soc_correlation_error_total counter")
+        out.append(_line("soc_correlation_error_total", c.correlation_error_total))
 
     # deception/MBCRA/BDA: 신규 격상·조치 신호 카운터
     if c.decoy_hit_total:

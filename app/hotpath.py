@@ -11,17 +11,78 @@ RuleUpdate→Report)을 1건씩 실행한다. 상태 보유 컴포넌트(AlertCo
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
+import threading
+from typing import TYPE_CHECKING, cast
 
 from agents.graph import build_soc_graph
 from app.health import content_type_for, route
 from app.metrics import metrics
-from core.models import UntrustedAlertPayload, has_forged_internal_fields
-from core.settings import get_settings
+from core.correlation import AlertCorrelator, CorrelatedIncident
+from core.models import Alert, UntrustedAlertPayload, has_forged_internal_fields
+from core.settings import Settings, get_settings
 from utils.logging import get_logger
 
+if TYPE_CHECKING:
+    from langgraph.graph.state import CompiledStateGraph
+
+    from core.models import SOCState
+
 _logger = get_logger("hotpath")
+
+# 크로스-alert 상관: 지속(persistent) 모듈-전역 correlator. hotpath 는 단일레플리카·
+# 비-threading HTTPServer(요청 직렬)라 공유 윈도우가 스레드-안전하나, 향후 threaded
+# 전환 대비 correlator 뮤테이션(observe+to_aggregate)을 lock 으로 감싼다(Codex I1).
+_correlator: AlertCorrelator | None = None
+_correlator_ready = False
+_corr_lock = threading.Lock()
+
+
+def _now() -> datetime:
+    """수신시각(UTC). 테스트가 monkeypatch 로 윈도우 시간을 제어(Codex I4)."""
+    return datetime.now(UTC)
+
+
+def _get_correlator(settings: Settings) -> AlertCorrelator | None:
+    """지속 correlator 를 지연 구성(비활성이면 None). 최초 1회만.
+
+    지연-init 도 lock 으로 감싼다(double-checked) — 향후 threaded 서버에서 최초
+    동시 진입 시 이중 구성 방지(Codex diff Low).
+    """
+    global _correlator, _correlator_ready
+    if not _correlator_ready:
+        with _corr_lock:
+            if not _correlator_ready:  # 재확인(threaded 최초진입 경합 대비)
+                _correlator = (
+                    AlertCorrelator(
+                        window_sec=settings.correlation_window_sec,
+                        storm_count=settings.correlation_storm_count,
+                        multi_axis_assets=settings.correlation_multi_axis_assets,
+                    )
+                    if settings.correlation_enabled
+                    else None
+                )
+                _correlator_ready = True
+    return _correlator
+
+
+def reset_correlator() -> None:
+    """테스트 격리용 — correlator 상태 리셋(autouse fixture 에서 호출)."""
+    global _correlator, _correlator_ready
+    with _corr_lock:
+        _correlator = None
+        _correlator_ready = False
+
+
+def _record_timings(state: SOCState, *, prefix: str = "") -> None:
+    """상태의 node_timings 를 메트릭으로 계측(집약은 prefix 로 구분)."""
+    for timing in state.get("node_timings", []):
+        node = timing.get("node")
+        elapsed = timing.get("elapsed_ms")
+        if isinstance(node, str) and isinstance(elapsed, (int, float)):
+            metrics().observe_node(f"{prefix}{node}", float(elapsed))
 
 
 async def _run_alert(payload: dict[str, object]) -> dict[str, object]:
@@ -31,28 +92,73 @@ async def _run_alert(payload: dict[str, object]) -> dict[str, object]:
     모델)로만 파싱한다. 파이프라인 내부/게이트 산출 필드(actor_id·enrich 플래그·
     ground_truth·posture·defense_playbook 등 `_INTERNAL_ONLY_FIELDS`)는 wire 모델에
     없어 위조가 구조적으로 불가능하다. 위조 시도는 로깅해 telemetry 로 남긴다.
+
+    크로스-alert 상관: inbound 처리 후 지속 correlator 로 관측한다. 폭주/다축이
+    확정되면 S9 집약 alert 를 동일 그래프에 재투입한다(상관 가설 — 권고전용, severity
+    escalate-only). 집약 실패는 격리되어 inbound 판정을 무너뜨리지 않는다(Codex I6-2).
     """
     forged = has_forged_internal_fields(payload)
     if forged:
         _logger.warning("inbound alert 내부전용 필드 위조 시도 드롭: %s", forged)
+    settings = get_settings()
     alert = UntrustedAlertPayload.model_validate(payload).to_alert()
-    graph = build_soc_graph(settings=get_settings())
+    graph = build_soc_graph(settings=settings)
     state = await graph.ainvoke({"alert": alert})
     report = state["report"]
     verdict = str(report.verdict)
     metrics().record_alert(verdict)
     if report.decoy_placements:
         metrics().record_decoy_placed(len(report.decoy_placements))
-    for timing in state.get("node_timings", []):
-        node = timing.get("node")
-        elapsed = timing.get("elapsed_ms")
-        if isinstance(node, str) and isinstance(elapsed, (int, float)):
-            metrics().observe_node(node, float(elapsed))
-    return {
+    _record_timings(cast("SOCState", state))
+    result: dict[str, object] = {
         "alert_id": alert.id,
         "verdict": verdict,
         "severity": str(state.get("severity", "")),
     }
+
+    # 크로스-alert 상관: inbound alert 만 관측(집약 alert 는 재관측 금지 — 피드백 방지).
+    corr = _get_correlator(settings)
+    if corr is not None:
+        with _corr_lock:
+            incident = corr.observe(alert, _now())
+            agg = corr.to_aggregate_alert(incident) if incident is not None else None
+        if incident is not None and agg is not None:
+            metrics().record_correlation_fired(incident.pattern)
+            # 집약 재투입은 inbound POST 경로에서 동기 실행(발화 시 2× graph run).
+            # 의도적(상관 판정을 한 응답에 반환) — 발화 드물어 지연 수용. 지연 우려 시
+            # 배포에서 비동기 큐로 분리(Codex diff Medium — SLO 트레이드오프).
+            result["correlation"] = await _process_aggregate(graph, incident, agg)
+    return result
+
+
+async def _process_aggregate(
+    graph: CompiledStateGraph[SOCState],
+    incident: CorrelatedIncident,
+    agg: Alert,
+) -> dict[str, object]:
+    """S9 집약 alert 를 파이프라인에 재투입(실패 격리). 상관 요약 dict 반환.
+
+    집약 처리 예외는 여기서 삼켜 inbound 판정을 보호한다(Codex I6-2). 집약은
+    best-effort — 실패 시 correlation.error 로 정직히 표기하고 실패 메트릭 계량.
+    """
+    base: dict[str, object] = {
+        "pattern": incident.pattern,
+        "count": incident.count,
+        "distinct_assets": incident.distinct_assets,
+        "aggregate_id": agg.id,
+    }
+    try:
+        agg_state = await graph.ainvoke({"alert": agg})
+    except Exception as exc:  # noqa: BLE001 — 집약 실패 격리 경계(inbound 보호)
+        metrics().record_correlation_error()
+        _logger.warning("집약 재투입 실패(inbound 판정 유지): %s", exc)
+        base["error"] = str(exc)
+        return base
+    metrics().record_aggregate_alert()
+    _record_timings(cast("SOCState", agg_state), prefix="agg:")
+    base["aggregate_verdict"] = str(agg_state["report"].verdict)
+    base["aggregate_severity"] = str(agg_state.get("severity", ""))
+    return base
 
 
 class _Handler(BaseHTTPRequestHandler):
