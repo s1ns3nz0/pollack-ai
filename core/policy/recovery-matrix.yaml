@@ -60,3 +60,11 @@ matrix:
     restore:
       - { action: "안전정지 후 백업 기체·GCS 로 임무 이관", d3fend: "D3-RA" }
     verify: "제어권 미회복(reoccurred) 시 축출 실패 — 기동 불능화 + 물리 회수 절차"
+
+  InhibitResponseFunction:
+    evict:
+      - { action: "알람 억제·차단 유발 비인가 세션/규칙 축출", d3fend: "D3-CE" }
+      - { action: "재밍/DoS 소스 대응 — 링크 재라우팅·주파수 재할당", d3fend: "D3-NTF" }
+    restore:
+      - { action: "알람 설정·보고채널 무결성 복원 + 이중화 링크 페일오버", d3fend: "D3-RA" }
+    verify: "알람·보고 재억제(reoccurred) 시 축출 실패 — 대역외 감시 + 수동 상태확인"

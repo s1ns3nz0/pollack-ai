@@ -1,0 +1,301 @@
+# =============================================================================
+# CACAO 2.0 대응 플레이북 카탈로그 (exemplar) — 표준 7층
+# -----------------------------------------------------------------------------
+# OASIS CACAO 2.0 스키마 · NIST SP 800-53 IR 통제 · 800-61 생애주기(Contain/Eradicate/
+# Recover) · 800-184 복구검증 · 800-160v2 회복탄력(Adapt) · MITRE ATT&CK for UAV 전술 ·
+# 임무영향 게이트(if-condition). 실행은 command type="manual"(인간)만 — 권고전용.
+# step.labels.source_ref 는 coa-matrix/recovery-matrix 셀 참조(단일출처, core/cacao.py
+# validator 가 해결 검증). core/cacao.py load_playbooks 로 로드·검증.
+# =============================================================================
+
+playbooks:
+  # ── Impact(임무 영향) — T0827 Loss of Control · T0831 Manipulation of Control ──
+  - type: playbook
+    spec_version: cacao-2.0
+    id: "playbook--uav-impact-0001"
+    name: "UAV Impact 대응 — 제어권 상실/조작"
+    description: "임무 영향(제어권 상실·제어 조작·안전 상실) 탐지 시 봉쇄→축출→복구→적응.
+      임무영향 게이트로 고-민간블라스트/핵심자산 시 auto-RTB 금지·HITL failsafe."
+    created: "2026-07-09T00:00:00Z"
+    modified: "2026-07-09T00:00:00Z"
+    created_by: "황준식"
+    playbook_types: ["mitigation", "remediation"]
+    playbook_activities: ["step-sequence"]
+    tactic: "Impact"
+    workflow_start: "start--0"
+    agent_definitions:
+      agent--analyst:
+        type: individual
+        name: "uav-soc-analyst"
+    external_references:
+      - { source_name: "mitre-attack", external_id: "T0827", url: "https://attack.mitre.org/techniques/T0827", description: "Loss of Control" }
+      - { source_name: "mitre-attack", external_id: "T0831", url: "https://attack.mitre.org/techniques/T0831", description: "Manipulation of Control" }
+      - { source_name: "nist-800-53", external_id: "IR-8", description: "Incident Response Plan" }
+    labels: { framework: "cacao-2.0" }
+    workflow:
+      start--0:
+        type: start
+        on_completion: "action--contain"
+      action--contain:
+        type: action
+        name: "봉쇄 — 비인가 명령 거부"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "화이트리스트 외 명령·업링크 거부, 항법 무결성 게이트 활성" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:Impact:Deny" }
+        external_references:
+          - { source_name: "nist-800-61", external_id: "Containment", description: "800-61 lifecycle" }
+        on_completion: "if--mission-gate"
+      if--mission-gate:
+        type: if-condition
+        name: "임무영향 게이트"
+        condition: 'mission_risk.score >= 6 or mission_risk.factors["civil_geo"] >= 1'
+        labels: { mission_gate: true }
+        on_true: "action--contain-hitl"
+        on_false: "action--contain-auto"
+      action--contain-hitl:
+        type: action
+        name: "보수 봉쇄 — HITL failsafe(고위험/민간)"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "auto-RTB 금지. ROE 확인 후 운용자 승인 failsafe·graceful-degrade(고도유지/제어이관) 권고" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:Impact:Disrupt" }
+        on_completion: "action--eradicate"
+      action--contain-auto:
+        type: action
+        name: "자동 적격 봉쇄(저위험)"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "저-임무위험 — 자동 RTB/페일세이프 적격(운용자 통지)" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:Impact:Disrupt" }
+        on_completion: "action--eradicate"
+      action--eradicate:
+        type: action
+        name: "축출 — 노획위험 zeroize·자격증명 폐기"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "노획 위험 시 키·임무데이터 원격 zeroize, 탈취 자격증명 즉시 폐기" }
+        labels: { phase: eradicate, nist_ir: "IR-4", source_ref: "recovery:Impact:evict:0" }
+        on_completion: "action--recover"
+      action--recover:
+        type: action
+        name: "복구 — 백업 기체/GCS 임무 이관"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "안전정지 후 백업 기체·GCS 로 임무 이관" }
+        labels: { phase: recover, nist_ir: "IR-4", source_ref: "recovery:Impact:restore:0" }
+        external_references:
+          - { source_name: "nist-800-184", external_id: "Tactical-Recovery", url: "https://csrc.nist.gov/pubs/sp/800/184/final", description: "Event Recovery" }
+        on_completion: "action--recover-verify"
+      action--recover-verify:
+        type: action
+        name: "복구 검증 — 재발 관측(800-184)"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "outcome_probe 로 제어권 재상실(reoccurred) 관측 — 미회복 시 축출 실패 → 기동 불능화·물리 회수" }
+        labels: { phase: recover, verify: true, nist_ir: "IR-6", source_ref: "recovery:Impact:verify" }
+        on_completion: "action--adapt"
+      action--adapt:
+        type: action
+        name: "적응 — 항법 이중화(회복탄력)"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "INS/다중 GNSS 이중화 페일오버 재구성 — 단일 항법소스 의존 제거" }
+        labels: { phase: adapt, nist_ir: "IR-8", resiliency_technique: "Redundancy" }
+        external_references:
+          - { source_name: "nist-800-160v2", external_id: "Redundancy", url: "https://csrc.nist.gov/pubs/sp/800/160/v2/r1/final", description: "Cyber Resiliency" }
+        on_completion: "end--0"
+      end--0:
+        type: end
+
+  # ── ImpairProcessControl — T0836 Modify Parameter · T0806 Brute Force I/O ──
+  - type: playbook
+    spec_version: cacao-2.0
+    id: "playbook--uav-ipc-0001"
+    name: "UAV 공정제어 저해 대응 — 파라미터 조작"
+    description: "제어 파라미터 변조·I/O 무차별 시 봉쇄→축출→복구→적응. 임무게이트 분기."
+    created: "2026-07-09T00:00:00Z"
+    modified: "2026-07-09T00:00:00Z"
+    created_by: "황준식"
+    playbook_types: ["mitigation", "remediation"]
+    playbook_activities: ["step-sequence"]
+    tactic: "ImpairProcessControl"
+    workflow_start: "start--0"
+    agent_definitions:
+      agent--analyst:
+        type: individual
+        name: "uav-soc-analyst"
+    external_references:
+      - { source_name: "mitre-attack", external_id: "T0836", url: "https://attack.mitre.org/techniques/T0836", description: "Modify Parameter" }
+      - { source_name: "mitre-attack", external_id: "T0806", url: "https://attack.mitre.org/techniques/T0806", description: "Brute Force I/O" }
+      - { source_name: "nist-800-53", external_id: "IR-8", description: "Incident Response Plan" }
+    labels: { framework: "cacao-2.0" }
+    workflow:
+      start--0:
+        type: start
+        on_completion: "action--contain"
+      action--contain:
+        type: action
+        name: "봉쇄 — 파라미터 쓰기 차단"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "제어 파라미터 쓰기 차단·이상 명령률 강등, GNSS 신뢰도 강등 유지" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:ImpairProcessControl:Deny" }
+        on_completion: "if--mission-gate"
+      if--mission-gate:
+        type: if-condition
+        name: "임무영향 게이트"
+        condition: 'mission_risk.score >= 6 or mission_risk.is_key_terrain'
+        labels: { mission_gate: true }
+        on_true: "action--contain-hitl"
+        on_false: "action--contain-auto"
+      action--contain-hitl:
+        type: action
+        name: "보수 봉쇄 — HITL 파라미터 롤백"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "운용자 승인 후 안전 파라미터 롤백, 자율 페일세이프 대기(즉시 자동조정 금지)" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:ImpairProcessControl:Disrupt" }
+        on_completion: "action--eradicate"
+      action--contain-auto:
+        type: action
+        name: "자동 적격 봉쇄"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "저-임무위험 — 검증된 파라미터 자동 롤백 적격" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:ImpairProcessControl:Detect" }
+        on_completion: "action--eradicate"
+      action--eradicate:
+        type: action
+        name: "축출 — 위조 명령원 제거"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "위조 명령원 축출 + GNSS 신뢰도 강등 유지" }
+        labels: { phase: eradicate, nist_ir: "IR-4", source_ref: "recovery:ImpairProcessControl:evict:0" }
+        on_completion: "action--recover"
+      action--recover:
+        type: action
+        name: "복구 — INS/센서퓨전 항법 복구"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "INS/센서퓨전 기반 항법 복구 + 제어로직 재검증" }
+        labels: { phase: recover, nist_ir: "IR-4", source_ref: "recovery:ImpairProcessControl:restore:0" }
+        external_references:
+          - { source_name: "nist-800-184", external_id: "Tactical-Recovery", url: "https://csrc.nist.gov/pubs/sp/800/184/final", description: "Event Recovery" }
+        on_completion: "action--recover-verify"
+      action--recover-verify:
+        type: action
+        name: "복구 검증 — 제어 변조 재발 관측"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "outcome_probe 재발 관측 — 재변조 시 자율 페일세이프 + 운용자 수동 인계" }
+        labels: { phase: recover, verify: true, nist_ir: "IR-6", source_ref: "recovery:ImpairProcessControl:verify" }
+        on_completion: "action--adapt"
+      action--adapt:
+        type: action
+        name: "적응 — 제어 명령 인증 강화"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "제어 명령 서명·논스 검증 강화, 파라미터 변경 이력 무결성 로깅(Non-Persistence)" }
+        labels: { phase: adapt, nist_ir: "IR-8", resiliency_technique: "SubstantiatedIntegrity" }
+        external_references:
+          - { source_name: "nist-800-160v2", external_id: "SubstantiatedIntegrity", url: "https://csrc.nist.gov/pubs/sp/800/160/v2/r1/final", description: "Cyber Resiliency" }
+        on_completion: "end--0"
+      end--0:
+        type: end
+
+  # ── InhibitResponseFunction — T0814 DoS · T0838 Modify Alarm Settings ──
+  - type: playbook
+    spec_version: cacao-2.0
+    id: "playbook--uav-irf-0001"
+    name: "UAV 대응저해 대응 — DoS/알람 조작"
+    description: "대응 기능 저해(DoS·알람 조작·재밍) 시 봉쇄→축출→복구→적응. 임무게이트."
+    created: "2026-07-09T00:00:00Z"
+    modified: "2026-07-09T00:00:00Z"
+    created_by: "황준식"
+    playbook_types: ["mitigation", "remediation"]
+    playbook_activities: ["step-sequence"]
+    tactic: "InhibitResponseFunction"
+    workflow_start: "start--0"
+    agent_definitions:
+      agent--analyst:
+        type: individual
+        name: "uav-soc-analyst"
+    external_references:
+      - { source_name: "mitre-attack", external_id: "T0814", url: "https://attack.mitre.org/techniques/T0814", description: "Denial of Service" }
+      - { source_name: "mitre-attack", external_id: "T0838", url: "https://attack.mitre.org/techniques/T0838", description: "Modify Alarm Settings" }
+      - { source_name: "nist-800-53", external_id: "IR-8", description: "Incident Response Plan" }
+    labels: { framework: "cacao-2.0" }
+    workflow:
+      start--0:
+        type: start
+        on_completion: "action--contain"
+      action--contain:
+        type: action
+        name: "봉쇄 — 알람 무결성 감시"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "알람 설정 변경 탐지·대역외 상태 감시 활성, DoS/재밍 소스 식별" }
+        labels: { phase: contain, nist_ir: "IR-5", source_ref: "coa:InhibitResponseFunction:Detect" }
+        on_completion: "if--mission-gate"
+      if--mission-gate:
+        type: if-condition
+        name: "임무영향 게이트"
+        condition: 'mission_risk.score >= 6 or mission_risk.factors["civil_geo"] >= 1'
+        labels: { mission_gate: true }
+        on_true: "action--contain-hitl"
+        on_false: "action--contain-auto"
+      action--contain-hitl:
+        type: action
+        name: "보수 봉쇄 — HITL 링크 재라우팅"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "운용자 승인 후 링크 재라우팅·주파수 재할당, 이중화 링크 페일오버 권고(자동 대응 보류)" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:InhibitResponseFunction:Degrade" }
+        on_completion: "action--eradicate"
+      action--contain-auto:
+        type: action
+        name: "자동 적격 봉쇄"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "저-임무위험 — 이중화 링크 자동 페일오버 적격" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:InhibitResponseFunction:Degrade" }
+        on_completion: "action--eradicate"
+      action--eradicate:
+        type: action
+        name: "축출 — 억제 유발 세션 제거"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "알람 억제·차단 유발 비인가 세션/규칙 축출" }
+        labels: { phase: eradicate, nist_ir: "IR-4", source_ref: "recovery:InhibitResponseFunction:evict:0" }
+        on_completion: "action--recover"
+      action--recover:
+        type: action
+        name: "복구 — 알람/보고 채널 무결성 복원"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "알람 설정·보고채널 무결성 복원 + 이중화 링크 페일오버" }
+        labels: { phase: recover, nist_ir: "IR-4", source_ref: "recovery:InhibitResponseFunction:restore:0" }
+        external_references:
+          - { source_name: "nist-800-184", external_id: "Tactical-Recovery", url: "https://csrc.nist.gov/pubs/sp/800/184/final", description: "Event Recovery" }
+        on_completion: "action--recover-verify"
+      action--recover-verify:
+        type: action
+        name: "복구 검증 — 재억제 관측"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "outcome_probe 로 알람·보고 재억제 관측 — 재발 시 대역외 감시 + 수동 상태확인" }
+        labels: { phase: recover, verify: true, nist_ir: "IR-6", source_ref: "recovery:InhibitResponseFunction:verify" }
+        on_completion: "action--adapt"
+      action--adapt:
+        type: action
+        name: "적응 — 통신 경로 다양화(회복탄력)"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "SATCOM/LOS/메시 다중 경로 다양화 + 대역외 감시채널 상시화(Diversity)" }
+        labels: { phase: adapt, nist_ir: "IR-8", resiliency_technique: "Diversity" }
+        external_references:
+          - { source_name: "nist-800-160v2", external_id: "Diversity", url: "https://csrc.nist.gov/pubs/sp/800/160/v2/r1/final", description: "Cyber Resiliency" }
+        on_completion: "end--0"
+      end--0:
+        type: end
