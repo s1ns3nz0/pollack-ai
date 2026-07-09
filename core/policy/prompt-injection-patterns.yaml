@@ -18,10 +18,12 @@ prompt_injection:
       confidence: medium
       atlas: "AML.T0051"
       regex: "(?i)(you\\s+are\\s+now\\s+(a|an|the|no\\s+longer)\\b|from\\s+now\\s+on,?\\s+you\\s+(are|must|will|should)\\b|ignore\\s+your\\s+(instruction|role|guideline|rule))"
+    # high 자격 — 우리 judge 출력형식 강제(명령형 or score=X;reason= 페어)만. 정상 ML
+    # 텔레메트리(model score=0.92, verdict=0)는 미탐(Codex Med — FP 방지).
     - id: score_manipulation
       confidence: high
       atlas: "AML.T0051"
-      regex: "(?i)\\b(score|verdict)\\s*=\\s*[01](\\.\\d+)?\\b"
+      regex: "(?i)(\\b(output|set|return|make|force|give|use)\\b[^.\\n]{0,20}\\b(score|verdict)\\s*=\\s*[01]|\\b(score|verdict)\\s*=\\s*[01](\\.\\d+)?\\s*;?\\s*reason\\s*=)"
     - id: system_exfil
       confidence: medium
       atlas: "AML.T0051.000"
