@@ -19,6 +19,7 @@ from core.aibom import (
     expected_component_types,
     settings_datasets,
 )
+from core.brief import CommanderBriefBuilder
 from core.campaign import CampaignDetector
 from core.causal import CausalReasoner
 from core.coa import CoaPlanner
@@ -344,6 +345,9 @@ class ReportAgent(BaseSOCAgent):
             ooda=ooda_alignment(present),
         )
         metrics().record_decision_margin(report.decision_advantage.verdict)
+
+        # 정보 산출물 스파인: 모든 렌즈·필드 확정 후 BLUF 합성(순수·단일필드 대입).
+        report.commander_brief = CommanderBriefBuilder().build(report, alert)
 
         evidence = oscal.build_evidence(state, evidence_level)
         if report.causal_summary is not None:

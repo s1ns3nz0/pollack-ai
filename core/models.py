@@ -779,6 +779,32 @@ class StagedDefense(BaseModel):
     note: str = ""
 
 
+class CommanderBrief(BaseModel):
+    """지휘관 결심용 BLUF 산출물 — 결정론 템플릿 합성(LLM 무관·읽기전용).
+
+    평판 필드-백을 지휘관 결심 정보 산출물로 합성한다. **기존 authoritative 필드만
+    재조립 — 새 주장·verdict/severity/CAT 변경 없음.** 각 렌즈의 provisional·unknown·
+    breadth-only 불확실성을 caveats 로 그대로 승계한다(정직성 세탁 금지).
+
+    Attributes:
+        bluf: Bottom Line Up Front(임무영향+확신도+권고, 고정순서 조립).
+        confidence: provisional(미확증)/authoritative(확정)/unknown(사건없음).
+        decision_required: 지휘관 결심 필요 항목·사유(degraded 시 보수적 전부).
+        routine: 통상 SOC 가시성 항목(은폐 아님 — 리포트 항상 존재).
+        ooda: O/O/D/A 구조(decision_advantage 승계).
+        key_facts: 핵심 사실 요약(고정 순서·결정론).
+        caveats: 렌즈 정직성 주석 승계(tempo unknown·기법수≠센서·의도 degraded 등).
+    """
+
+    bluf: str = ""
+    confidence: Literal["provisional", "authoritative", "unknown"] = "unknown"
+    decision_required: list[str] = Field(default_factory=list)
+    routine: list[str] = Field(default_factory=list)
+    ooda: dict[str, list[str]] = Field(default_factory=dict)
+    key_facts: list[str] = Field(default_factory=list)
+    caveats: list[str] = Field(default_factory=list)
+
+
 class KillWebResilience(BaseModel):
     """Mosaic/Kill Web — 단계별 커버리지 breadth(자문·정직 프록시).
 
@@ -1410,6 +1436,10 @@ class SOCReport(BaseModel):
     kill_web_resilience: KillWebResilience | None = Field(
         default=None,
         description="Mosaic/Kill Web: 단계별 커버리지 breadth(정적 posture·자문).",
+    )
+    commander_brief: CommanderBrief | None = Field(
+        default=None,
+        description="정보 산출물: 지휘관 결심용 BLUF 합성(결정론·자문, 스파인).",
     )
 
 
