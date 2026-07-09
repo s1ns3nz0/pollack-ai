@@ -257,6 +257,7 @@ class TopologyPolicy(BaseModel):
 
 
 _ATTACK_COVERAGE = Path(__file__).resolve().parents[1] / "data" / "attack_coverage.yaml"
+_COVERAGE_DEGRADED_CAVEAT = "Navigator degraded: coverage overlay unavailable."
 
 
 def _now_iso() -> str:
@@ -432,18 +433,24 @@ def _build_story(state: SOCState, report: SOCReport | None) -> DashboardStory:
     )
 
 
-def _build_navigator(report: SOCReport | None) -> list[DashboardNavigatorCell]:
+def _build_navigator(
+    report: SOCReport | None,
+) -> tuple[list[DashboardNavigatorCell], str | None]:
     """Build UAV ATT&CK navigator cells for the selected story.
 
     Args:
         report: Final SOC report.
 
     Returns:
-        Ordered tactic cells with current/predicted/gap flags.
+        Ordered tactic cells with current/predicted/gap flags and an optional
+        degradation caveat.
     """
     current = _tactic_from_report(report)
     predicted = _next_expected_tactic(report)
-    cells = _coverage_cells()
+    try:
+        cells = _coverage_cells()
+    except PolicyError:
+        return [], _COVERAGE_DEGRADED_CAVEAT
     for cell in cells:
         if cell.tactic == current:
             cell.current = True
@@ -453,13 +460,14 @@ def _build_navigator(report: SOCReport | None) -> list[DashboardNavigatorCell]:
             cell.predicted = True
         if cell.predicted and cell.gap:
             cell.note = "다음 예상 수순이 현재 미커버 전술입니다."
-    return cells
+    return cells, None
 
 
 def _build_bluf(
     state: SOCState,
     report: SOCReport | None,
     story: DashboardStory,
+    extra_caveats: list[str] | None = None,
 ) -> DashboardBluf:
     """Build the BLUF staff advice card.
 
@@ -500,7 +508,8 @@ def _build_bluf(
         next_move=next_move,
         confidence=brief.confidence if brief is not None else "unknown",
         hitl_badge=story.hitl_status,
-        caveats=list(brief.caveats) if brief is not None else [],
+        caveats=(list(brief.caveats) if brief is not None else [])
+        + (extra_caveats or []),
     )
 
 
@@ -556,7 +565,13 @@ def build_dashboard_snapshot(
     report = _report(state)
     policy = topology or TopologyPolicy.from_yaml()
     story = _build_story(state, report)
-    bluf = _build_bluf(state, report, story)
+    navigator, navigator_caveat = _build_navigator(report)
+    bluf = _build_bluf(
+        state,
+        report,
+        story,
+        extra_caveats=[navigator_caveat] if navigator_caveat else None,
+    )
     decision = (
         report.decision_advantage.verdict
         if report is not None and report.decision_advantage is not None
@@ -576,7 +591,7 @@ def build_dashboard_snapshot(
         ),
         stories=[story],
         selected_story_id=story.story_id,
-        navigator=_build_navigator(report),
+        navigator=navigator,
         topology=_overlay_topology(policy, report),
         bluf=bluf,
         source=DashboardSource(

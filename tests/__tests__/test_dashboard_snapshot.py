@@ -3,6 +3,7 @@
 from _pytest.monkeypatch import MonkeyPatch
 
 from core.dashboard import TopologyPolicy, build_dashboard_snapshot
+from core.exceptions import PolicyError
 from core.models import (
     Alert,
     ApprovalResult,
@@ -230,3 +231,20 @@ def test_topology_highlights_degraded_asset_node() -> None:
 
     assert nodes["datalink-los"].active is True
     assert nodes["datalink-los"].status == "MINIMAL"
+
+
+def test_coverage_load_failure_degrades_navigator_without_aborting(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Coverage policy failures degrade navigator and preserve snapshot output."""
+    monkeypatch.setattr(
+        "core.dashboard._coverage_cells",
+        lambda: (_ for _ in ()).throw(PolicyError("attack coverage load failed")),
+    )
+
+    snap = build_dashboard_snapshot(_state(), topology=TopologyPolicy.from_yaml())
+
+    assert snap.navigator == []
+    assert any(
+        "coverage overlay unavailable" in caveat.lower() for caveat in snap.bluf.caveats
+    )

@@ -1,6 +1,7 @@
 """Dashboard static asset smoke tests."""
 
 from pathlib import Path
+import re
 
 _STATIC = Path("app/dashboard_static")
 
@@ -42,3 +43,24 @@ def test_dashboard_js_handles_replay_and_sse() -> None:
     assert ".addEventListener(" in js
     assert "innerHTML" not in js
     assert "onclick=" not in js
+
+
+def test_dashboard_js_keeps_topology_and_reconnects_in_empty_or_error_states() -> None:
+    """JavaScript preserves topology on empty replay and avoids closing SSE on error."""
+    js = (_STATIC / "dashboard.js").read_text(encoding="utf-8")
+
+    assert "No replay snapshots loaded" in js
+    assert "renderTopology(snapshot);" in js
+    assert "state.topology" in js
+    assert "if (state.snapshots.length === 0) {" in js
+    assert "SSE reconnecting" in js
+
+    onerror_match = re.search(
+        r"state\.eventSource\.onerror\s*=\s*\(\)\s*=>\s*\{(?P<body>.*?)\n\s*\};",
+        js,
+        re.DOTALL,
+    )
+    assert onerror_match is not None
+    onerror_body = onerror_match.group("body")
+    assert "closeLiveConnection()" not in onerror_body
+    assert ".close()" not in onerror_body

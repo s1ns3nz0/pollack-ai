@@ -3,6 +3,7 @@ const state = {
   index: 0,
   selectedStoryId: "",
   live: false,
+  connectionState: "replay",
   eventSource: null,
   topology: { nodes: [], edges: [] },
 };
@@ -297,13 +298,39 @@ function renderControls() {
     "step-counter",
     `Step ${state.index + 1} / ${state.snapshots.length || 0}`,
   );
-  const status = createElement(
-    "span",
-    "status-line",
-    state.live ? "SSE connected" : "Replay mode",
-  );
+  let statusText = "Replay mode";
+  if (state.connectionState === "connected") {
+    statusText = "SSE connected";
+  } else if (state.connectionState === "reconnecting") {
+    statusText = "SSE reconnecting";
+  }
+  const status = createElement("span", "status-line", statusText);
 
   container.append(previousButton, nextButton, liveButton, step, status);
+}
+
+function emptyReplaySnapshot() {
+  return {
+    summary: {
+      active_story_count: 0,
+      max_mission_impact: "UNKNOWN",
+      hitl_pending_count: 0,
+      decision_advantage: "unknown",
+    },
+    stories: [],
+    selected_story_id: "",
+    navigator: [],
+    topology: state.topology,
+    bluf: {
+      situation: "No replay snapshots loaded",
+      mission_impact: "Replay snapshot data unavailable.",
+      recommendation: "Load replay snapshots or connect live.",
+      next_move: "Topology remains available.",
+      confidence: "unknown",
+      hitl_badge: "NOT_REQUIRED",
+      caveats: ["Replay dataset is empty."],
+    },
+  };
 }
 
 function renderEmptyState() {
@@ -323,6 +350,11 @@ function renderEmptyState() {
 function renderSnapshot(snapshot) {
   if (!snapshot) {
     renderEmptyState();
+    const emptySnapshot = emptyReplaySnapshot();
+    renderStoryRail(emptySnapshot);
+    renderNavigator(emptySnapshot);
+    renderBluf(emptySnapshot);
+    renderTopology(emptySnapshot);
     renderControls();
     return;
   }
@@ -336,11 +368,17 @@ function renderSnapshot(snapshot) {
 }
 
 function previousSnapshot() {
+  if (state.snapshots.length === 0) {
+    return;
+  }
   state.index = Math.max(0, state.index - 1);
   renderSnapshot(currentSnapshot());
 }
 
 function nextSnapshot() {
+  if (state.snapshots.length === 0) {
+    return;
+  }
   state.index = Math.min(state.snapshots.length - 1, state.index + 1);
   renderSnapshot(currentSnapshot());
 }
@@ -355,6 +393,7 @@ async function loadReplay() {
   const payload = await response.json();
   state.snapshots = Array.isArray(payload.snapshots) ? payload.snapshots : [];
   state.index = 0;
+  state.connectionState = "replay";
   renderSnapshot(currentSnapshot());
 }
 
@@ -363,6 +402,8 @@ function closeLiveConnection() {
     state.eventSource.close();
     state.eventSource = null;
   }
+  state.live = false;
+  state.connectionState = "replay";
 }
 
 function connectLive() {
@@ -372,7 +413,13 @@ function connectLive() {
 
   state.eventSource = new EventSource('/events');
   state.live = true;
+  state.connectionState = "reconnecting";
   renderControls();
+
+  state.eventSource.onopen = () => {
+    state.connectionState = "connected";
+    renderControls();
+  };
 
   state.eventSource.addEventListener("snapshot", (event) => {
     const snapshot = JSON.parse(event.data);
@@ -382,8 +429,7 @@ function connectLive() {
   });
 
   state.eventSource.onerror = () => {
-    closeLiveConnection();
-    state.live = false;
+    state.connectionState = "reconnecting";
     renderControls();
   };
 }
