@@ -33,7 +33,10 @@ _TLP_MARKINGS = {
     "white": "marking-definition--613f2e26-407d-48c7-9eca-b8e91df99dc9",
 }
 
-_DOMAIN_RE = re.compile(r"^(?=.{1,253}$)([A-Za-z0-9-]{1,63}\.)+[A-Za-z]{2,}$")
+# 라벨은 하이픈으로 시작/끝 금지(RFC — 무효 도메인 IOC 공유 방지, Codex Med).
+_DOMAIN_RE = re.compile(
+    r"^(?=.{1,253}$)([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$"
+)
 _HASH_ALG = {32: "MD5", 40: "SHA-1", 64: "SHA-256"}
 _HEX_RE = re.compile(r"^[A-Fa-f0-9]+$")
 
@@ -161,6 +164,9 @@ class StixExporter:
                 # source_ref=indicator, indicates, target_ref=threat-actor(방향 명확).
                 objects.append(self._rel(ind_id, "indicates", ta_id, common))
 
+        # identity 만 남으면(위협 SDO/SRO 0 — IOC 전부 무효 등) 공유 가치 없음 → None.
+        if len(objects) <= 1:
+            return None
         return {
             "type": "bundle",
             "id": _sid("bundle", f"{actor}|{','.join(techs)}|{','.join(iocs)}"),

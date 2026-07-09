@@ -103,6 +103,12 @@ class TestIocClassify:
         assert _ioc_pattern("garbage!!") is None
         assert _ioc_pattern("") is None
 
+    def test_hyphen_edge_domain_rejected(self) -> None:
+        """Codex Med — 하이픈 시작/끝 라벨 도메인 무효(skip)."""
+        assert _ioc_pattern("-a.com") is None
+        assert _ioc_pattern("a-.com") is None
+        assert _ioc_pattern("a-b.com") == "[domain-name:value = 'a-b.com']"
+
     def test_bundle_skips_bad_ioc(self) -> None:
         b = _bundle(infrastructure=["1.2.3.4", "garbage!!"])
         assert len(_objs(b, "indicator")) == 1  # bad IOC skip
@@ -116,3 +122,8 @@ class TestDeterminismAndEmpty:
 
     def test_empty_diamond_none(self) -> None:
         assert StixExporter().from_diamond(DiamondEvent(), _TS) is None
+
+    def test_invalid_only_iocs_none(self) -> None:
+        """Codex Low — IOC 전부 무효(위협 SDO 0) → identity-only 아닌 None."""
+        d = DiamondEvent(infrastructure=["garbage!!", "also bad"])
+        assert StixExporter().from_diamond(d, _TS) is None
