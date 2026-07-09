@@ -197,7 +197,14 @@ class TestModelCard:
         assert "missing_model_card" not in _issues([c])
 
     def test_dataset_exempt(self) -> None:
-        c = _c(name="m2", component_type="dataset", version="2.0", source="reg-ok")
+        # 카드 없어도 dataset 은 면제(Codex Low — model_card="" 명시).
+        c = _c(
+            name="m2",
+            component_type="dataset",
+            version="2.0",
+            source="reg-ok",
+            model_card="",
+        )
         assert "missing_model_card" not in _issues([c])
 
     def test_manifest_models_have_cards(self) -> None:
