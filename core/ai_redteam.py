@@ -104,6 +104,12 @@ class AiRedTeamRunner:
         )
         if not cases:
             raise PolicyError("AI 레드팀 시나리오가 비어있음.")
+        # expect 오타 봉쇄 — 미지값이 benign 으로 조용 처리되면 게이트 무력화(Low).
+        for case in cases:
+            if case.expect not in _VALID_EXPECT:
+                raise PolicyError(
+                    f"AI 레드팀 케이스({case.id}) expect 오류: {case.expect!r}"
+                )
         return cls(cases, guard)
 
     def _case_passes(self, case: AiRedTeamCase) -> bool:
