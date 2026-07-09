@@ -204,6 +204,45 @@ class AibomFinding(BaseModel):
     detail: str = ""
 
 
+class ZtAttestation(BaseModel):
+    """ZTMM 통제 매핑 한 건 — self-attested(측정 아님, 근거 강제).
+
+    Attributes:
+        name: 기둥/교차역량 이름(예: Identity).
+        kind: "pillar"(5 기둥) | "cross_cutting"(3 교차역량).
+        declared: 선언 성숙도(traditional/initial/advanced/optimal).
+        effective: 근거 검증 후 실효 성숙도(근거 없는 고등급은 initial 로 cap).
+        control_ref: 실제 구현 참조(감사용). evidence: 근거 유형.
+    """
+
+    name: str
+    kind: str = "pillar"
+    declared: str = "traditional"
+    effective: str = "traditional"
+    control_ref: str = ""
+    evidence: str = "self_attested"
+
+
+class ZtMapping(BaseModel):
+    """ZTMM self-attested 통제 매핑 결과(단일 overall 없음 — 기둥별 matrix).
+
+    Attributes:
+        capabilities: 기둥/교차역량별 매핑 목록.
+        minimum_declared: 선언 최저 성숙도(보수적 rollup — "overall" 아님).
+        minimum_effective: 근거검증 후 최저(사슬 최약 링크).
+        findings: 거버넌스 위험(근거 없는 고등급 주장 등).
+        measurement_status: 항상 "not_measured"(self-attested 명시 — overclaim 방지).
+        assessment_basis: "self_attested_policy_yaml".
+    """
+
+    capabilities: list[ZtAttestation] = Field(default_factory=list)
+    minimum_declared: str = "traditional"
+    minimum_effective: str = "traditional"
+    findings: list[str] = Field(default_factory=list)
+    measurement_status: str = "not_measured"
+    assessment_basis: str = "self_attested_policy_yaml"
+
+
 class Severity(StrEnum):
     """심각도 등급(정책 엔진 산정값)."""
 
@@ -1225,6 +1264,10 @@ class SOCReport(BaseModel):
     aibom_findings: list[AibomFinding] = Field(
         default_factory=list,
         description="AIBOM 거버넌스 위험(AI 공급망·출처) — 정적 posture(캐시).",
+    )
+    zt_mapping: ZtMapping | None = Field(
+        default=None,
+        description="ZTMM self-attested 통제 매핑(측정 아님) — 정적 거버넌스(캐시).",
     )
 
 

@@ -1,0 +1,47 @@
+# ZTMM self-attested 통제 매핑(CISA Zero Trust Maturity Model 2.0).
+# 5 기둥(pillar) + 3 교차역량(cross_cutting), 4 성숙도(traditional/initial/advanced/optimal).
+# **측정 아님 — self-attested 선언.** 근거(evidence)를 강제한다:
+#   verified_runtime  = 런타임 검증됨(테스트/메트릭)
+#   implemented_static= 코드/설정 구현됨(control_ref 로 감사)
+#   self_attested     = 근거 없는 주장 → advanced/optimal 은 effective 가 initial 로 cap.
+maturity:
+  - name: Identity
+    kind: pillar
+    declared: advanced
+    evidence: implemented_static
+    control_ref: "core/actors.py(ActorWriteGate/ReadGate 서명검증)"
+  - name: Devices
+    kind: pillar
+    declared: initial
+    evidence: self_attested
+    control_ref: "asset-tiers.yaml(자산 tier 분류)"
+  - name: Networks
+    kind: pillar
+    declared: initial
+    evidence: self_attested
+    control_ref: ""
+  - name: "Applications and Workloads"
+    kind: pillar
+    declared: advanced
+    evidence: implemented_static
+    control_ref: "core/prompt_guard.py + inbound-trust-boundary(UntrustedAlertPayload)"
+  - name: Data
+    kind: pillar
+    declared: advanced
+    evidence: implemented_static
+    control_ref: "core/aibom.py + core/sbom.py + inbound 신뢰경계"
+  - name: "Visibility and Analytics"
+    kind: cross_cutting
+    declared: advanced
+    evidence: implemented_static
+    control_ref: "app/metrics.py + core/monitoring.py(SLO)"
+  - name: "Automation and Orchestration"
+    kind: cross_cutting
+    declared: advanced
+    evidence: implemented_static
+    control_ref: "LangGraph 파이프라인 + core/bas.py + 예측 폐루프"
+  - name: Governance
+    kind: cross_cutting
+    declared: advanced
+    evidence: implemented_static
+    control_ref: "core/cato.py(cATO/POA&M) + compliance/oscal"
