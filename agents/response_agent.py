@@ -36,6 +36,17 @@ class ResponseAgent(BaseSOCAgent):
         auto_response = opt_str(meta.get("auto_response"))
         if approval is not None and approval.required and not approval.approved:
             auto_response = "보류(운용자 거부 — 자동대응 미실행)"
+        # METT-TC 임무위험 맥락 부착(강제 게이트는 approval 노드가 이미 처리 — 상향만).
+        # hitl=False 그래프(approval 부재)에선 표기로 인간검토 권고를 정직 반영.
+        mission_risk = state.get("mission_risk")
+        mr_score: int | None = None
+        mr_note: str | None = None
+        if mission_risk is not None:
+            mr_score = mission_risk.score
+            if mission_risk.score >= self._engine.mett_tc.hitl_force_threshold:
+                mr_note = f"임무위험 高(score={mission_risk.score}) — 인간검토 권고" + (
+                    "(운용자 게이트 통과)" if approval is not None else ""
+                )
         self._logger.info("response: alert=%s playbook=%s", alert.id, pb.get("id"))
         return {
             "response": ResponseResult(
@@ -44,6 +55,8 @@ class ResponseAgent(BaseSOCAgent):
                 failover=opt_str(pb.get("failover")),
                 auto_response=auto_response,
                 hitl=opt_str(meta.get("hitl")),
+                mission_risk_score=mr_score,
+                mission_risk_note=mr_note,
             ),
             "trace": ["response"],
         }

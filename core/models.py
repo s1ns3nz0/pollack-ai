@@ -1130,6 +1130,9 @@ class ResponseResult(BaseModel):
     failover: str | None = None
     auto_response: str | None = None
     hitl: str | None = None
+    # METT-TC 임무위험 맥락(triage 산출 mission_risk 반영 — 표시/감사용).
+    mission_risk_score: int | None = None
+    mission_risk_note: str | None = None
 
 
 class ApprovalResult(BaseModel):
@@ -1371,3 +1374,4 @@ class SOCState(TypedDict, total=False):
     trace: Annotated[list[str], operator.add]
     guardrail_flags: Annotated[list[str], operator.add]
     node_timings: Annotated[list[dict[str, object]], operator.add]
+    mission_risk: MissionRisk  # triage 산출 METT-TC 임무위험(approval/report 소비)

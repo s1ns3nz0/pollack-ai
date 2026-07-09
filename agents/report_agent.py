@@ -225,9 +225,11 @@ class ReportAgent(BaseSOCAgent):
                 alert.sbom_components, vuln=self._vuln
             )
         campaign_matches = await self._build_campaign(alert, profile)
-        mission_risk = (
-            self._mission_risk.assess(alert) if self._mission_risk is not None else None
-        )
+        # triage 가 산출한 mission_risk 재사용(재계산 시 발산 방지). 없으면(하위호환)
+        # 여기서 산출.
+        mission_risk = state.get("mission_risk")
+        if mission_risk is None and self._mission_risk is not None:
+            mission_risk = self._mission_risk.assess(alert)
         diamond = self._build_diamond(alert, profile)
         hunt_hypotheses = self._build_hunt(alert, inv, campaign_matches, profile)
         incident_case = (
