@@ -41,6 +41,10 @@ class _Counters:
         self.mission_abort_total = 0
         # deception: decoy 자산/canary 미끼 접촉 격상 누적(Report 노드가 갱신)
         self.decoy_hit_total = 0
+        # 예측 유도 허니팟: 배치/접촉 누적(deception canary hit 과 별 population —
+        # 혼동 방지 위해 전용 카운터. 접촉 탐지 배선 전엔 hit=0).
+        self.decoy_placed_total = 0
+        self.decoy_placement_hit_total = 0
         # MBCRA: 사이버 핵심지형(KT-C) 자산 침해 격상 누적(Report 노드가 갱신)
         self.key_terrain_total = 0
         # BDA: 교전피해평가 복구/재교전 권고 누적(OutcomeProbeAgent 가 갱신)
@@ -99,6 +103,32 @@ class _Counters:
         """decoy/canary 미끼 접촉 격상 1건 누적."""
         with self._lock:
             self.decoy_hit_total += 1
+
+    def record_decoy_placed(self, count: int = 1) -> None:
+        """예측 유도 디코이 배치 count 건 누적(예측 폐루프 허니팟)."""
+        with self._lock:
+            self.decoy_placed_total += count
+
+    def record_decoy_placement_hit(self, count: int = 1) -> None:
+        """배치된 예측 디코이 접촉 count 건 누적(canary hit 과 별 population)."""
+        with self._lock:
+            self.decoy_placement_hit_total += count
+
+    def decoy_stats(self) -> dict[str, float]:
+        """디코이 배치/접촉 통계. 배치 0 이면 빈 dict.
+
+        hits 는 예측-디코이 전용 카운터(deception canary hit 과 혼동 금지 — Codex).
+        접촉 탐지 배선 전엔 0.
+        """
+        with self._lock:
+            if self.decoy_placed_total == 0:
+                return {}
+            hits = self.decoy_placement_hit_total
+            return {
+                "placed": self.decoy_placed_total,
+                "hits": hits,
+                "hit_ratio": round(hits / self.decoy_placed_total, 3),
+            }
 
     def record_key_terrain(self) -> None:
         """사이버 핵심지형(KT-C) 침해 격상 1건 누적."""
@@ -244,6 +274,15 @@ def render_text() -> str:
         out.append("# HELP soc_decoy_hit_total decoy/canary 미끼 접촉 격상 수")
         out.append("# TYPE soc_decoy_hit_total counter")
         out.append(_line("soc_decoy_hit_total", c.decoy_hit_total))
+    # 예측 유도 허니팟: 배치 카운터 + 접촉률(hit 은 위 decoy_hit_total 재사용)
+    decoy = c.decoy_stats()
+    if decoy:
+        out.append("# HELP soc_decoy_placed_total 배치된 예측 유도 디코이 수")
+        out.append("# TYPE soc_decoy_placed_total counter")
+        out.append(_line("soc_decoy_placed_total", decoy["placed"]))
+        out.append("# HELP soc_decoy_hit_ratio 디코이 접촉률(hit/placed)")
+        out.append("# TYPE soc_decoy_hit_ratio gauge")
+        out.append(_line("soc_decoy_hit_ratio", decoy["hit_ratio"]))
     if c.key_terrain_total:
         out.append("# HELP soc_key_terrain_total 사이버 핵심지형(KT-C) 침해 격상 수")
         out.append("# TYPE soc_key_terrain_total counter")

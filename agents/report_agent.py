@@ -27,6 +27,7 @@ from core.commander import IncidentCommander
 from core.degradation import DegradationAssessor
 from core.diamond import DiamondAnalyzer
 from core.exceptions import SOCPlatformError
+from core.honeypot import HoneypotPlanner
 from core.hunt import HuntPlanner
 from core.incident import CaseManager
 from core.lineage import LineageCollector
@@ -36,6 +37,7 @@ from core.models import (
     Alert,
     CampaignMatch,
     CoaOption,
+    DecoyPlacement,
     DiamondEvent,
     HuntHypothesis,
     InvestigationResult,
@@ -141,6 +143,7 @@ class ReportAgent(BaseSOCAgent):
         diamond: DiamondAnalyzer | None = None,
         case_mgr: CaseManager | None = None,
         hunt: HuntPlanner | None = None,
+        planner: HoneypotPlanner | None = None,
     ) -> None:
         super().__init__(settings)
         self._engine = engine
@@ -159,6 +162,7 @@ class ReportAgent(BaseSOCAgent):
         self._actor_read = actor_read
         self._lineage = lineage
         self._stager = stager
+        self._planner = planner
         # AIBOM 은 정적 posture — 로드 시 1회 계산·캐시(per-alert 재계산·재계상 금지).
         self._aibom_findings = _load_aibom_findings(settings)
         # ZTMM self-attested 매핑도 정적 — 로드 시 1회 캐시.
@@ -180,10 +184,15 @@ class ReportAgent(BaseSOCAgent):
         inv = state.get("investigation")
         hunt_candidates: list[str] = []
         staged_defenses: list[StagedDefense] = []
+        decoy_placements: list[DecoyPlacement] = []
         if inv is not None and inv.predictions:
             hunt_candidates = [p.next_technique for p in inv.predictions]
             if self._stager is not None:
                 staged_defenses = self._stager.stage(inv.predictions)
+            if self._planner is not None:
+                decoy_placements = self._planner.plan(
+                    inv.predictions, asset_hint=alert.asset_id
+                )
 
         # actor 프로필은 report 소비처(coa·diamond·campaign·recovery·pb_scores)가 공유 —
         # 지연민감 노드라 1회만 회상해 재사용(Codex 중복 recall 반영).
@@ -240,6 +249,7 @@ class ReportAgent(BaseSOCAgent):
             hunt_candidates=hunt_candidates,
             hunt_hypotheses=hunt_hypotheses,
             staged_defenses=staged_defenses,
+            decoy_placements=decoy_placements,
             coa_options=coa_options,
             mission_risk=mission_risk,
             diamond=diamond,

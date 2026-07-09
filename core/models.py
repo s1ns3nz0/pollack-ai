@@ -767,6 +767,32 @@ class StagedDefense(BaseModel):
     note: str = ""
 
 
+class DecoyPlacement(BaseModel):
+    """예측 유도 디코이(허니팟) 배치 한 건(예측 폐루프).
+
+    예측된 다음 technique 이 노리는 표적 자산에 미리 배치하는 미끼. 공격자가
+    signature 로 식별되는 디코이를 건드리면 = 100% 확정 정탐(is_decoy_hit).
+
+    Attributes:
+        decoy_id: 배치 식별자(signature 파생 — 결정론).
+        decoy_type: 미끼 자산 유형(GCS 세션/텔레메트리/자격증명/파일 미끼).
+        target_technique: 이 미끼가 겨냥하는 예측 MITRE technique.
+        target_asset: 미끼가 배치되는 표적 자산 식별자.
+        probability: 예측 발행 시점 조건부 확률.
+        placed_at: 배치 ISO8601(없으면 빈값 — 결정론 테스트 허용).
+        signature: (technique, target_asset) 기반 SHA-256 미끼 식별 토큰 —
+            실제 자산과 디코이를 구분하며, 알람 신호에 나타나면 접촉으로 판정.
+    """
+
+    decoy_id: str
+    decoy_type: str
+    target_technique: str
+    target_asset: str
+    probability: float = Field(default=0.0, ge=0.0, le=1.0)
+    placed_at: str = ""
+    signature: str
+
+
 class CoaOption(BaseModel):
     """Courses of Action 한 셀 — (kill chain 단계, 7D 방어) 방어 옵션(교리 COA matrix).
 
@@ -1223,6 +1249,10 @@ class SOCReport(BaseModel):
     staged_defenses: list[StagedDefense] = Field(
         default_factory=list,
         description="예측 폐루프: 예측 TTP 선제 스테이징 판정(staged/accelerate/gap).",
+    )
+    decoy_placements: list[DecoyPlacement] = Field(
+        default_factory=list,
+        description="예측 폐루프: 예측 TTP 표적 자산에 배치한 디코이(허니팟) 배치안.",
     )
     coa_options: list[CoaOption] = Field(
         default_factory=list,

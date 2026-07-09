@@ -52,6 +52,7 @@ from core.diamond import DiamondAnalyzer
 from core.engage import EngageAdvancer, EngageMatrix
 from core.exceptions import SOCPlatformError
 from core.experience import MemoryReadGate
+from core.honeypot import HoneypotPlanner
 from core.hunt import HuntPlanner
 from core.incident import CaseManager, incident_store
 from core.killchain import KillChainProgressor
@@ -379,6 +380,7 @@ def build_soc_graph(
         diamond=DiamondAnalyzer(),
         case_mgr=CaseManager(incident_store()),
         hunt=_hunt_planner,
+        planner=HoneypotPlanner(),
     )
 
     graph: StateGraph[SOCState] = StateGraph(SOCState)

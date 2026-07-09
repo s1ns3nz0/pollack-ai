@@ -41,6 +41,8 @@ async def _run_alert(payload: dict[str, object]) -> dict[str, object]:
     report = state["report"]
     verdict = str(report.verdict)
     metrics().record_alert(verdict)
+    if report.decoy_placements:
+        metrics().record_decoy_placed(len(report.decoy_placements))
     for timing in state.get("node_timings", []):
         node = timing.get("node")
         elapsed = timing.get("elapsed_ms")
