@@ -21,8 +21,11 @@ from agents.graph import build_soc_graph
 from app.health import content_type_for, route
 from app.metrics import metrics
 from core.correlation import AlertCorrelator, CorrelatedIncident
+from core.dynamics import DynamicsTracker
+from core.exceptions import SOCPlatformError
 from core.models import Alert, UntrustedAlertPayload, has_forged_internal_fields
 from core.settings import Settings, get_settings
+from core.terrain import KeyTerrainMap
 from utils.logging import get_logger
 
 if TYPE_CHECKING:
@@ -76,6 +79,52 @@ def reset_correlator() -> None:
         _correlator_ready = False
 
 
+# dynamics(체류시간·횡적상관): 지속 모듈-전역 tracker. correlator 와 동형 — 그래프는
+# alert 마다 재빌드되나 같은 인스턴스를 주입해 이력을 지속한다(dwelling 산정 필수).
+_dynamics: DynamicsTracker | None = None
+_dynamics_ready = False
+_dyn_lock = threading.Lock()
+
+
+def _build_dynamics(settings: Settings) -> DynamicsTracker:
+    """레지스트리 upstream(asset-tiers dependents)을 주입한 tracker 구성.
+
+    KeyTerrainMap 로드 실패 시 upstream_assets=None(레거시 substring 판정)으로 degrade.
+    """
+    upstream: frozenset[str] | None = None
+    try:
+        upstream = KeyTerrainMap.from_yaml().upstream_assets()
+    except SOCPlatformError as exc:
+        _logger.warning("dynamics upstream 레지스트리 로드 실패, 레거시 판정: %s", exc)
+    return DynamicsTracker(
+        upstream_active_min=settings.dynamics_upstream_active_min,
+        upstream_assets=upstream,
+        retention_min=settings.dynamics_retention_min,
+        max_entries=settings.dynamics_max_entries,
+    )
+
+
+def _get_dynamics(settings: Settings) -> DynamicsTracker | None:
+    """지속 dynamics tracker 지연 구성(비활성이면 None). double-checked lock."""
+    global _dynamics, _dynamics_ready
+    if not _dynamics_ready:
+        with _dyn_lock:
+            if not _dynamics_ready:
+                _dynamics = (
+                    _build_dynamics(settings) if settings.dynamics_enabled else None
+                )
+                _dynamics_ready = True
+    return _dynamics
+
+
+def reset_dynamics() -> None:
+    """테스트 격리용 — dynamics tracker 상태 리셋."""
+    global _dynamics, _dynamics_ready
+    with _dyn_lock:
+        _dynamics = None
+        _dynamics_ready = False
+
+
 def _record_timings(state: SOCState, *, prefix: str = "") -> None:
     """상태의 node_timings 를 메트릭으로 계측(집약은 prefix 로 구분)."""
     for timing in state.get("node_timings", []):
@@ -102,7 +151,7 @@ async def _run_alert(payload: dict[str, object]) -> dict[str, object]:
         _logger.warning("inbound alert 내부전용 필드 위조 시도 드롭: %s", forged)
     settings = get_settings()
     alert = UntrustedAlertPayload.model_validate(payload).to_alert()
-    graph = build_soc_graph(settings=settings)
+    graph = build_soc_graph(settings=settings, dynamics=_get_dynamics(settings))
     state = await graph.ainvoke({"alert": alert})
     report = state["report"]
     verdict = str(report.verdict)
