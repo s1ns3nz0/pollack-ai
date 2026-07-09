@@ -132,7 +132,37 @@ def expected_component_types(settings: Settings) -> set[str]:
         # RAGFlow 검색기 활성 → 검색 백엔드 + 임베딩 모델 선언 기대.
         expected.add("ragflow")
         expected.add("embedding")
+    if getattr(settings, "ragflow_dataset_id", "") or getattr(
+        settings, "ragflow_exp_dataset_id", ""
+    ):
+        # RAG corpus(dataset) 활성 → poisoning 공급망 거버넌스 대상.
+        expected.add("dataset")
     return expected
+
+
+def settings_datasets(settings: Settings) -> list[AibomComponent]:
+    """실행 중 RAG corpus(dataset) 를 관측 컴포넌트로 산출한다(실행값 관측).
+
+    ragflow_dataset_id(검색 KB)·ragflow_exp_dataset_id(경험메모리)를 dataset 으로 —
+    선언 매니페스트가 아닌 *실제 설정값*이라 shadow corpus 를 정확히 잡는다.
+
+    Args:
+        settings: 플랫폼 설정.
+
+    Returns:
+        설정된 dataset 컴포넌트 목록(미설정 시 빈 목록).
+    """
+    src = str(getattr(settings, "ragflow_base_url", "") or "ragflow")
+    out: list[AibomComponent] = []
+    for attr in ("ragflow_dataset_id", "ragflow_exp_dataset_id"):
+        did = str(getattr(settings, attr, "") or "")
+        if did:
+            out.append(
+                AibomComponent(
+                    name=did, component_type="dataset", version=did, source=src
+                )
+            )
+    return out
 
 
 class AIBOMVerifier:
