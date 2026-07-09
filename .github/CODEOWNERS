@@ -24,13 +24,17 @@
 /deploy/sentinel-tables/                @mara89ma
 /docs/sentinel-watchlist-schemas.md     @mara89ma
 
+# ── scenario 카탈로그 — 단일작성자(detection). analysis 는 읽기만 ──
+# 동시-쓰기 충돌 0을 위해 mara89ma 단독 소유(그녀가 쓰고 s1ns3nz0 는 소비만).
+/core/policy/bas-scenarios.yaml         @mara89ma
+
 # ── 계약(CONTRACT) — detection·analysis 양측 리뷰 필수(마지막=최우선) ──
 # detection→analysis 인터페이스. 변경 시 양측 승인 + docs/CONTRACT 갱신.
-/core/policy/bas-scenarios.yaml         @s1ns3nz0 @mara89ma
+/core/alert.py                          @s1ns3nz0 @mara89ma
+/core/primitives.py                     @s1ns3nz0 @mara89ma
 /data/attack_coverage.yaml              @s1ns3nz0 @mara89ma
 /data/ground_segment_coverage.yaml      @s1ns3nz0 @mara89ma
 /benchmarks/eval_scenarios/             @s1ns3nz0 @mara89ma
 /docs/CONTRACT-detection-analysis.md    @s1ns3nz0 @mara89ma
-# core/models.py 의 Alert·WatchlistUpdate·RulePullRequest 는 계약이나 파일이 거대
-# (SOCReport 등 analysis 모델도 공존) → 전체 양측리뷰는 과함. Alert/Watchlist 변경 시
-# 수동으로 동료 리뷰 요청(파일 단위 CODEOWNERS 는 클래스 단위 불가). 계약문서에 명시.
+# Alert 는 이제 core/alert.py 로 분리됨(계약 파일화 완료 — 위에서 양측 리뷰).
+# core/models.py 는 analysis 모델(SOCReport 등) 전용 → s1ns3nz0 단독(충돌 감소).

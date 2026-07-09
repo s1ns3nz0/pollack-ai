@@ -13,8 +13,10 @@
 ## 계약 표면 (양측이 의존 — 함부로 바꾸지 말 것)
 
 ### 1. Alert — detection이 산출, analysis가 소비 (wire 스키마)
-`core/models.py` `UntrustedAlertPayload`(외부 유입 형태) → `Alert`. detection이 채우는
-**wire 필드(15)**만 신뢰 입력이다:
+**`core/alert.py`**(계약 파일 — models.py 에서 분리, 양측 리뷰). `UntrustedAlertPayload`
+(외부 유입 형태) → `Alert`. 공유 원시타입(Severity/Verdict/SbomComponent)은
+`core/primitives.py`. `from core.models import Alert` 는 하위호환 re-export 로 그대로
+동작. detection이 채우는 **wire 필드(15)**만 신뢰 입력이다:
 ```
 id, scenario_id, title, asset_id, asset_tier, mission_phase, severity_baseline,
 mitre(dict), signals(list), iocs(list), cves(list), sbom_components(list),
@@ -26,7 +28,9 @@ llm_suggested_severity, lat, lon
   (Alert + UntrustedAlertPayload + drift-guard 테스트 동시 수정). analysis 내부 enrich
   필드는 detection과 무관(자유).
 
-### 2. Scenario 카탈로그 — detection↔analysis 매핑 (`core/policy/bas-scenarios.yaml`)
+### 2. Scenario 카탈로그 — **단일작성자**(`core/policy/bas-scenarios.yaml`)
+**mara89ma(detection) 단독 소유·쓰기. s1ns3nz0(analysis) 는 읽기만** → 동시-쓰기 충돌 0
+(CODEOWNERS 강제). analysis가 signals/tactic 의미를 바꿔야 하면 mara89ma에게 요청.
 scenario_id → 어떤 룰이 탐지하고 analysis가 어떤 신호를 기대하는지. 엔트리 스키마:
 ```yaml
 - id: S1-GNSS-SPOOF          # scenario_id (Alert.scenario_id 와 일치)
