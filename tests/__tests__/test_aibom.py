@@ -170,6 +170,15 @@ class TestDatasetLineage:
         f = AIBOMVerifier(ApprovedAibom.from_yaml()).verify(comps, exp)
         assert any(x.component == "shadow-kb" and x.issue == "unregistered" for x in f)
 
+    def test_dataset_authoritative_no_manifest_duplicate(self) -> None:
+        """Codex Low — dataset 은 settings 만 authoritative(매니페스트 dataset 제외)."""
+        from agents.report_agent import _load_aibom_findings
+        from core.settings import Settings
+
+        # 기본(dataset_id 빈값): dataset 컴포넌트 0 → dataset findings 없음.
+        out = _load_aibom_findings(Settings())
+        assert not any(f.component_type == "dataset" for f in out)
+
 
 class TestPolicyDegraded:
     def test_clean_default(self) -> None:

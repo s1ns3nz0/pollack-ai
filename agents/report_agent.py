@@ -71,8 +71,12 @@ def _load_aibom_findings(settings: Settings) -> list[AibomFinding]:
     """
     try:
         approved = ApprovedAibom.from_yaml()
-        # 선언 매니페스트 + 실행 중 RAG corpus(dataset 실행값 관측) 병합.
-        components = AibomInventory.from_manifest() + settings_datasets(settings)
+        # dataset 은 settings(실행값)가 authoritative 관측 — 매니페스트의 dataset 선언은
+        # 제외해 이중소스 중복/모순 봉인(Codex Low). 그 외 유형은 매니페스트 선언.
+        manifest = [
+            c for c in AibomInventory.from_manifest() if c.component_type != "dataset"
+        ]
+        components = manifest + settings_datasets(settings)
     except SOCPlatformError as exc:
         # 정책 로드 실패 — "AIBOM 부재"를 "AIBOM 정상"과 구분(관측가능 degraded, Codex).
         get_logger("report").warning("AIBOM 정책 로드 실패, degraded: %s", exc)
