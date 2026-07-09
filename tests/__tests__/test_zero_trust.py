@@ -10,6 +10,7 @@ def _att(**kw: object) -> ZtAttestation:
         "kind": "pillar",
         "declared": "advanced",
         "evidence": "implemented_static",
+        "control_ref": "core/x.py",
     }
     base.update(kw)
     a = ZtAttestation.model_validate(base)
@@ -17,7 +18,7 @@ def _att(**kw: object) -> ZtAttestation:
         name=a.name,
         kind=a.kind,
         declared=a.declared,
-        effective=_effective(a.declared, a.evidence),
+        effective=_effective(a.declared, a.evidence, a.control_ref),
         control_ref=a.control_ref,
         evidence=a.evidence,
     )
@@ -25,8 +26,8 @@ def _att(**kw: object) -> ZtAttestation:
 
 class TestEvidenceGate:
     def test_verified_keeps_declared(self) -> None:
-        assert _effective("advanced", "implemented_static") == "advanced"
-        assert _effective("optimal", "verified_runtime") == "optimal"
+        assert _effective("advanced", "implemented_static", "core/x.py") == "advanced"
+        assert _effective("optimal", "verified_runtime", "core/y.py") == "optimal"
 
     def test_unverified_high_capped(self) -> None:
         """근거 없는 advanced/optimal → initial 로 cap(거버넌스 씨어터 봉쇄)."""
@@ -36,6 +37,12 @@ class TestEvidenceGate:
     def test_low_unaffected(self) -> None:
         assert _effective("initial", "self_attested") == "initial"
         assert _effective("traditional", "self_attested") == "traditional"
+
+    def test_verified_requires_control_ref(self) -> None:
+        """Codex H1 — verified 근거라도 control_ref 없으면 cap(감사 불가)."""
+        assert _effective("advanced", "implemented_static", "") == "initial"
+        assert _effective("optimal", "verified_runtime", "") == "initial"
+        assert _effective("advanced", "implemented_static", "core/x.py") == "advanced"
 
 
 class TestAssess:

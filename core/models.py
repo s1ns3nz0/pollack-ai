@@ -11,7 +11,7 @@ from enum import StrEnum
 import hashlib
 import json
 import operator
-from typing import Annotated, TypedDict
+from typing import Annotated, Literal, TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -239,8 +239,9 @@ class ZtMapping(BaseModel):
     minimum_declared: str = "traditional"
     minimum_effective: str = "traditional"
     findings: list[str] = Field(default_factory=list)
-    measurement_status: str = "not_measured"
-    assessment_basis: str = "self_attested_policy_yaml"
+    # Literal 고정 — downstream 이 "measured" 로 위장 못하게(overclaim 봉쇄, Codex H).
+    measurement_status: Literal["not_measured"] = "not_measured"
+    assessment_basis: Literal["self_attested_policy_yaml"] = "self_attested_policy_yaml"
 
 
 class Severity(StrEnum):

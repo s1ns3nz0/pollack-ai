@@ -33,12 +33,13 @@ def _rank(maturity: str) -> int:
     return _MATURITY_ORDER.get(maturity.strip().lower(), 0)
 
 
-def _effective(declared: str, evidence: str) -> str:
-    """근거검증 후 실효 성숙도 — 근거 없는 advanced/optimal 은 initial 로 cap(Crit)."""
-    if _rank(declared) >= _MATURITY_ORDER["advanced"] and evidence not in (
-        _VERIFIED_EVIDENCE
-    ):
-        return "initial"
+def _effective(declared: str, evidence: str, control_ref: str = "") -> str:
+    """근거검증 후 실효 성숙도(Crit) — advanced/optimal 은 검증근거 + 감사 control_ref
+    가 모두 있어야 인정. 근거 없거나 control_ref 빈값 → initial 로 cap(씨어터 봉쇄).
+    """
+    if _rank(declared) >= _MATURITY_ORDER["advanced"]:
+        if evidence not in _VERIFIED_EVIDENCE or not control_ref.strip():
+            return "initial"
     return declared.strip().lower() if declared.strip() else "traditional"
 
 
@@ -68,6 +69,7 @@ class ZtAssessor:
                 continue
             declared = str(item.get("declared", "traditional"))
             evidence = str(item.get("evidence", "self_attested"))
+            control_ref = str(item.get("control_ref", ""))
             out.append(
                 ZtAttestation(
                     name=str(item.get("name", "")),
@@ -77,8 +79,8 @@ class ZtAssessor:
                         else "pillar"
                     ),
                     declared=declared,
-                    effective=_effective(declared, evidence),
-                    control_ref=str(item.get("control_ref", "")),
+                    effective=_effective(declared, evidence, control_ref),
+                    control_ref=control_ref,
                     evidence=evidence,
                 )
             )
@@ -111,7 +113,12 @@ class ZtAssessor:
 
 
 def load_zt_mapping() -> ZtMapping:
-    """기본 정책으로 ZTMM 매핑 산정 — 실패 시 degraded(관측가능, AIBOM M-b 교훈)."""
+    """기본 정책으로 ZTMM 매핑을 산정한다(실패 시 degraded).
+
+    Returns:
+        ZTMM 매핑. 정책 로드 실패 시 ztmm_assessment_unavailable finding(관측가능,
+        AIBOM M-b 교훈 — 침묵 정상 아님).
+    """
     from core.exceptions import SOCPlatformError
 
     try:
