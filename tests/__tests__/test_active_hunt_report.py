@@ -10,6 +10,7 @@ from core.models import (
     Severity,
     Verdict,
 )
+from core.oscal import build_evidence
 from core.settings import Settings
 from core.severity import SeverityEngine
 
@@ -32,6 +33,7 @@ def _alert() -> Alert:
 
 
 async def test_report_includes_active_hunt_findings() -> None:
+    """matched finding 존재 시 report 노출 + guardrail/brief 반영 확인."""
     finding = ActiveHuntFinding(
         direction="backward",
         technique="T1133",
@@ -60,7 +62,8 @@ async def test_report_includes_active_hunt_findings() -> None:
     assert any("active hunt" in fact for fact in report.commander_brief.key_facts)
 
 
-def test_oscal_evidence_includes_active_hunt_findings() -> None:
+async def test_unmatched_finding_no_guardrail_but_evidence_retained() -> None:
+    """matched=False 만 존재 시 guardrail/brief 미노출 + 증거는 보존 확인."""
     finding = ActiveHuntFinding(
         direction="forward",
         technique="T1071",
@@ -70,8 +73,36 @@ def test_oscal_evidence_includes_active_hunt_findings() -> None:
         row_count=0,
         rationale="추가 비콘 흔적 없음",
     )
+    agent = ReportAgent(Settings(), SeverityEngine())
+    out = await agent.run(
+        {
+            "alert": _alert(),
+            "severity": Severity.HIGH,
+            "verdict": Verdict.TRUE_POSITIVE,
+            "investigation": InvestigationResult(confidence=0.7),
+            "active_hunt_findings": [finding],
+            "guardrail_flags": [],
+            "node_timings": [],
+        }
+    )
 
-    from core.oscal import build_evidence
+    report = out["report"]
+    assert not any("active hunt matched" in flag for flag in report.guardrail_flags)
+    assert not any("active hunt" in fact for fact in report.commander_brief.key_facts)
+    assert report.active_hunt_findings == [finding]
+
+
+def test_oscal_evidence_includes_active_hunt_findings() -> None:
+    """OSCAL 증거에 active hunt findings 포함 확인(unmatched 포함)."""
+    finding = ActiveHuntFinding(
+        direction="forward",
+        technique="T1071",
+        tactic="CommandAndControl",
+        query_id="T1071_c2_beaconing",
+        matched=False,
+        row_count=0,
+        rationale="추가 비콘 흔적 없음",
+    )
 
     evidence = build_evidence(
         {

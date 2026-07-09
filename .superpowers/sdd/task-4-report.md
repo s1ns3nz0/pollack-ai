@@ -115,3 +115,23 @@ All checks passed!
 - Staged scope: `agents/report_agent.py`, `core/brief.py`, `core/models.py`,
   `core/oscal.py`, `tests/__tests__/test_active_hunt_report.py`,
   `.superpowers/sdd/task-4-report.md`
+
+## Review Fix Round 1
+
+- [Medium] `tests/__tests__/test_active_hunt_report.py`: added negative-path test
+  `test_unmatched_finding_no_guardrail_but_evidence_retained` — `matched=False`
+  finding only → no "active hunt matched" guardrail flag, no "active hunt"
+  commander-brief key fact, and the finding is still retained in
+  `report.active_hunt_findings` (evidence preserved when unmatched).
+- [Low] `agents/report_agent.py`: `matched_hunts` filter now operates on the
+  pydantic-validated `report.active_hunt_findings` (SOCReport is constructed
+  before the guardrail computation, so this was the minimal change) instead of
+  the raw state list. Behavior identical for the normal case.
+- [Low] `tests/__tests__/test_active_hunt_report.py`: added one-line Korean
+  docstrings to test functions (style of `test_recovery_report.py`) and moved
+  the mid-function `from core.oscal import build_evidence` import to the
+  top-of-file import block per isort ordering.
+
+Verification: `black` 3 files unchanged, `ruff check` passed,
+`pytest test_active_hunt_report.py test_active_hunt_agent.py -v` → 8 passed,
+`pytest tests/__tests__/ -k "report or oscal or brief" -q` → 83 passed.

@@ -306,7 +306,10 @@ class ReportAgent(BaseSOCAgent):
                 f"지상 세그먼트 방어 사각 {gs.blind}면(UAV*_CL 밖) — "
                 f"계측 백로그 {len(gs.backlog)}건"
             ]
-        matched_hunts = [finding for finding in active_hunt_findings if finding.matched]
+        # pydantic 검증본(report.active_hunt_findings) 기준으로 matched 필터.
+        matched_hunts = [
+            finding for finding in report.active_hunt_findings if finding.matched
+        ]
         if matched_hunts:
             report.guardrail_flags = list(report.guardrail_flags) + [
                 "active hunt matched "
