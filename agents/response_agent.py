@@ -10,10 +10,20 @@ CACAO 분기는 라벨/표면일 뿐 actuator 실행 없음.
 from __future__ import annotations
 
 from agents.base import BaseSOCAgent
+from core.actors import ActorReadGate
 from core.cacao import CacaoPlaybook, resolve_playbook, select_playbook
 from core.coerce import opt_str, str_list
+from core.degradation import DegradationAssessor
 from core.exceptions import PlaybookError
-from core.models import ResponseResult, SOCState
+from core.models import (
+    ActorProfile,
+    Alert,
+    MissionContinuity,
+    MissionRisk,
+    ResponseMissionContext,
+    ResponseResult,
+    SOCState,
+)
 from core.settings import Settings
 from core.severity import SeverityEngine
 
@@ -27,11 +37,15 @@ class ResponseAgent(BaseSOCAgent):
         engine: SeverityEngine,
         playbooks: list[CacaoPlaybook] | None = None,
         scenario_tactic: dict[str, str] | None = None,
+        actor_read: ActorReadGate | None = None,
+        degradation: DegradationAssessor | None = None,
     ) -> None:
         super().__init__(settings)
         self._engine = engine
         self._playbooks = playbooks
         self._scenario_tactic = scenario_tactic or {}
+        self._actor_read = actor_read
+        self._degradation = degradation
 
     async def run(self, state: SOCState) -> SOCState:
         """플레이북 + 등급별 자동대응/HITL 구성.
@@ -85,6 +99,17 @@ class ResponseAgent(BaseSOCAgent):
                     # approval 강제는 후속(그래프 라우팅). 여기선 인간검토 권고 표기.
                     if plan.hitl_required and mr_note is None:
                         mr_note = "CACAO 보수분기(임무게이트 高) — 인간검토 권고"
+        mission_continuity = self._assess_mission_continuity(state)
+        resilience_note = self._resilience_note(mission_continuity)
+        if resilience_note is not None:
+            mr_note = f"{mr_note} | {resilience_note}" if mr_note else resilience_note
+        mr_note = await self._append_pb_effect_note(alert.actor_id, cacao_id, mr_note)
+        mission_context = self._build_mission_context(
+            alert=alert,
+            mission_risk=mission_risk,
+            mission_continuity=mission_continuity,
+            mission_branch=mission_branch,
+        )
 
         self._logger.info(
             "response: alert=%s playbook=%s cacao=%s branch=%s",
@@ -102,9 +127,162 @@ class ResponseAgent(BaseSOCAgent):
                 hitl=opt_str(meta.get("hitl")),
                 mission_risk_score=mr_score,
                 mission_risk_note=mr_note,
+                mission_continuity=mission_continuity,
+                resilience_note=resilience_note,
+                mission_context=mission_context,
                 cacao_playbook_id=cacao_id,
                 cacao_steps=cacao_steps,
                 mission_branch=mission_branch,
             ),
             "trace": ["response"],
         }
+
+    def _build_mission_context(
+        self,
+        *,
+        alert: Alert,
+        mission_risk: MissionRisk | None,
+        mission_continuity: MissionContinuity | None,
+        mission_branch: str | None,
+    ) -> ResponseMissionContext | None:
+        """임무위험과 지속성 판정을 response 용 구조화 카드로 합성한다."""
+        if mission_risk is None and mission_continuity is None:
+            return None
+
+        asset_id = self._context_asset_id(alert, mission_risk, mission_continuity)
+        mission_phase = mission_risk.mission_phase if mission_risk is not None else ""
+        posture = self._operator_posture(
+            mission_risk=mission_risk,
+            mission_continuity=mission_continuity,
+            mission_branch=mission_branch,
+        )
+        fallback = mission_continuity.fallback if mission_continuity is not None else ""
+        continuity_level = (
+            mission_continuity.level if mission_continuity is not None else ""
+        )
+        summary = self._mission_context_summary(
+            asset_id=asset_id,
+            mission_phase=mission_phase,
+            posture=posture,
+            mission_risk=mission_risk,
+            continuity_level=continuity_level,
+            fallback=fallback,
+        )
+
+        return ResponseMissionContext(
+            asset_id=asset_id,
+            mission_phase=mission_phase,
+            risk_score=mission_risk.score if mission_risk is not None else None,
+            risk_factors=dict(mission_risk.factors) if mission_risk is not None else {},
+            is_key_terrain=(
+                mission_risk.is_key_terrain if mission_risk is not None else False
+            ),
+            dependents=(
+                list(mission_risk.dependents) if mission_risk is not None else []
+            ),
+            rationale=list(mission_risk.rationale) if mission_risk is not None else [],
+            continuity_level=continuity_level,
+            fallback=fallback,
+            operator_posture=posture,
+            summary=summary,
+        )
+
+    @staticmethod
+    def _context_asset_id(
+        alert: Alert,
+        mission_risk: MissionRisk | None,
+        mission_continuity: MissionContinuity | None,
+    ) -> str:
+        """가장 신뢰도 높은 순서로 response 맥락 자산 id 를 선택한다."""
+        if mission_risk is not None and mission_risk.asset_id:
+            return mission_risk.asset_id
+        if mission_continuity is not None and mission_continuity.asset_id:
+            return mission_continuity.asset_id
+        return alert.asset_id
+
+    def _operator_posture(
+        self,
+        *,
+        mission_risk: MissionRisk | None,
+        mission_continuity: MissionContinuity | None,
+        mission_branch: str | None,
+    ) -> str:
+        """임무 맥락을 운용자가 바로 쓸 수 있는 posture 라벨로 변환한다."""
+        if mission_continuity is not None and mission_continuity.level == "ABORT":
+            return "ABORT_SAFE_LAND"
+        if mission_risk is not None:
+            if mission_risk.score >= self._engine.mett_tc.hitl_force_threshold:
+                return "HITL_REQUIRED"
+        if mission_branch == "conservative":
+            return "HITL_REQUIRED"
+        if mission_continuity is not None and mission_continuity.level in {
+            "MINIMAL",
+            "SUSTAINED",
+        }:
+            return "CONTINUE_DEGRADED"
+        return "MONITOR_CONTINUE"
+
+    @staticmethod
+    def _mission_context_summary(
+        *,
+        asset_id: str,
+        mission_phase: str,
+        posture: str,
+        mission_risk: MissionRisk | None,
+        continuity_level: str,
+        fallback: str,
+    ) -> str:
+        """ResponseMissionContext 의 한 줄 운용 요약을 만든다."""
+        parts = [
+            f"asset={asset_id or '미상'}",
+            f"phase={mission_phase or '미상'}",
+            f"posture={posture}",
+        ]
+        if mission_risk is not None:
+            parts.append(f"risk={mission_risk.score}")
+            if mission_risk.is_key_terrain:
+                parts.append("key_terrain")
+            if mission_risk.dependents:
+                parts.append(f"dependents={','.join(mission_risk.dependents)}")
+        if continuity_level:
+            parts.append(f"continuity={continuity_level}")
+        if fallback:
+            parts.append(f"fallback={fallback}")
+        return " | ".join(parts)
+
+    def _assess_mission_continuity(self, state: SOCState) -> MissionContinuity | None:
+        """손상 자산의 mission assurance 판정을 response 에 즉시 부착한다."""
+        if self._degradation is None:
+            return None
+        return self._degradation.assess(state["alert"], state["verdict"])
+
+    @staticmethod
+    def _resilience_note(mc: MissionContinuity | None) -> str | None:
+        """MissionContinuity 를 response 표면용 한 줄 resilience note 로 변환한다."""
+        if mc is None:
+            return None
+        return (
+            f"Resilience {mc.level}: 손실={mc.capability_lost}; " f"대체={mc.fallback}"
+        )
+
+    async def _append_pb_effect_note(
+        self, actor_id: str | None, playbook_id: str | None, note: str | None
+    ) -> str | None:
+        """선택된 CACAO PB 의 actor별 과거 효과 점수를 임무 노트에 부착한다."""
+        if self._actor_read is None or not actor_id or not playbook_id:
+            return note
+        normalized_actor_id = actor_id.strip()
+        if not normalized_actor_id:
+            return note
+        profile: ActorProfile | None = await self._actor_read.recall(
+            normalized_actor_id
+        )
+        if profile is None:
+            return note
+        score = profile.pb_scores.get(playbook_id)
+        if score is None:
+            return note
+        effect_note = (
+            f"PB 효과 {score.playbook_id}={score.avg_effect:.2f}({score.count})"
+        )
+        return f"{note} | {effect_note}" if note else effect_note

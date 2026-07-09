@@ -220,6 +220,7 @@ def _default_vuln(settings: Settings) -> VulnContext | None:
     inner = CompositeVuln([CisaKevTool(settings), NvdTool(settings)])
     return BoundedVuln(inner, settings.enrichment_deadline_seconds)
 
+
 def _default_malware(settings: Settings) -> MalwareAnalysisClient | None:
     """Malware analysis MCP router 를 구성한다(default-deny, client 는 후속 주입)."""
     if not settings.malware_analysis_enabled:
@@ -301,9 +302,9 @@ def build_soc_graph(
 
         if not isinstance(vuln, BoundedVuln):
             vuln = BoundedVuln(vuln, settings.enrichment_deadline_seconds)
-
     if malware is None:
         malware = _default_malware(settings)
+
     # spec C1: predictor 미주입 시 인메모리 SequencePredictor 자동 배선.
     if predictor is None:
         predictor = SequencePredictor(
@@ -404,8 +405,20 @@ def build_soc_graph(
         get_logger("graph").warning("CACAO 카탈로그 로드 실패, 폴백: %s", exc)
         _playbooks = None
     _scenario_tactic = scenario_tactic_map()  # 1회 계산 — response·approval 공유.
+    # graceful degradation: degradation-matrix.yaml 있으면 임무지속성 평가기 배선.
+    try:
+        degradation: DegradationAssessor | None = DegradationAssessor(
+            DegradationMatrix.from_yaml()
+        )
+    except SOCPlatformError:
+        degradation = None
     response = ResponseAgent(
-        settings, engine, playbooks=_playbooks, scenario_tactic=_scenario_tactic
+        settings,
+        engine,
+        playbooks=_playbooks,
+        scenario_tactic=_scenario_tactic,
+        actor_read=actor_read,
+        degradation=degradation,
     )
     rule_update = RuleUpdateAgent(settings, rule_publisher)
     # spec D-1: lineage opt-in.
@@ -435,13 +448,6 @@ def build_soc_graph(
         )
     except SOCPlatformError:
         recovery_planner = None
-    # graceful degradation: degradation-matrix.yaml 있으면 임무지속성 평가기 배선.
-    try:
-        degradation: DegradationAssessor | None = DegradationAssessor(
-            DegradationMatrix.from_yaml()
-        )
-    except SOCPlatformError:
-        degradation = None
     # UAV STRIDE: stride-model.yaml 있으면 위협 분류기 배선.
     try:
         stride: StrideClassifier | None = StrideClassifier(StrideModel.from_yaml())

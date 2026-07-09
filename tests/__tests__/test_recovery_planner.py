@@ -26,7 +26,7 @@ class TestRecoveryMatrix:
 
     def test_unknown_tactic_none(self) -> None:
         rm = RecoveryMatrix.from_yaml()
-        assert rm.plan_for("Reconnaissance") is None
+        assert rm.plan_for("UnknownTactic") is None
 
 
 class TestRecoveryPlanner:
@@ -42,9 +42,9 @@ class TestRecoveryPlanner:
         assert plan is not None
         assert plan.tactic == "Impact"
 
-    def test_tactic_without_recovery_none(self) -> None:
+    def test_unknown_tactic_without_recovery_none(self) -> None:
         """recovery 정의 없는 tactic 만 있으면 None."""
-        plan = self._planner().plan(["Reconnaissance"])
+        plan = self._planner().plan(["UnknownTactic"])
 
         assert plan is None
 

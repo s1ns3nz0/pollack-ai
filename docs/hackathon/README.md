@@ -18,6 +18,10 @@
 - [양진수 셀프 브레인 스토밍 내용](brainstorm-yangjinsu.md)
 - [김수지 — 할 일](todo-kimsuji.md)
 - [황준식 과업 (진행 상황)](hwang-junsik-status.md)
+- [레드팀 에이전트 브리프](redteam-agent-brief.md)
+- [fried-pollack-ai 교리 반영 갭 분석 + 적용 브리프](fried-pollack-doctrine-gap-brief.md)
+- [UAV ATT&CK 15전술 CACAO 대응 플레이북 풀 카탈로그](uav-attack-cacao-full-catalog.md)
+- [예선 MVP 런북 — 관측 기반 PB 효과학습 폐루프](../demo-runbook-learning-loop.md)
 
 ## 페이지 본문
 

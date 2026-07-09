@@ -18,6 +18,28 @@ owner: 황준식
 defenses: [Discover, Detect, Deny, Disrupt, Degrade, Deceive, Destroy]
 
 matrix:
+  Reconnaissance:
+    Discover:
+      action: "승인 스캐너·외부 정찰 출처 식별 + 위협인텔 매칭"
+      d3fend: "D3-TI"
+    Detect:
+      action: "비인가 포트스캔·호스트정보 수집 시도 탐지"
+      d3fend: "D3-NTA"
+    Deceive:
+      action: "미끼 UAV 서비스 배너·허니 엔드포인트로 정찰 유인"
+      d3fend: "D3-DNR"
+
+  ResourceDevelopment:
+    Discover:
+      action: "UAV 악성도구·스테이징 인프라 IOC 수집"
+      d3fend: "D3-TI"
+    Detect:
+      action: "훈련장·C2 준비 인프라와 유사한 사전 스테이징 패턴 탐지"
+      d3fend: "D3-NTA"
+    Deceive:
+      action: "허니 문서·가짜 UAV 구성정보로 준비 단계 오염"
+      d3fend: "D3-DUC"
+
   InitialAccess:
     Detect:
       action: "비인가 원격서비스·유효계정 이상 로그인 탐지룰"
@@ -44,6 +66,39 @@ matrix:
     Deny:
       action: "비행금지 게이트 — 서명 검증 전 임무 배정 차단"
       d3fend: "D3-BA"         # Bootloader Authentication
+
+  PrivilegeEscalation:
+    Detect:
+      action: "권한상승 취약점 악용·특권 토큰 재사용 탐지"
+      d3fend: "D3-UBA"
+    Deny:
+      action: "최소권한 재적용 + 특권 명령 2차승인 강제"
+      d3fend: "D3-MFA"
+    Degrade:
+      action: "특권 세션 기능 제한 + 고위험 명령 rate-limit"
+      d3fend: "D3-RTSD"
+
+  StealthEvasion:
+    Detect:
+      action: "로그 삭제·명령 위장·알람 억제 이상행위 탐지"
+      d3fend: "D3-FA"
+    Deny:
+      action: "불변 로그 저장 + 보안설정 변경 쓰기 차단"
+      d3fend: "D3-BA"
+    Deceive:
+      action: "가짜 로그/센서 항목으로 은폐 시도 식별"
+      d3fend: "D3-DNR"
+
+  Discovery:
+    Detect:
+      action: "무선 스니핑·장치/운용모드 탐색 탐지"
+      d3fend: "D3-NTA"
+    Deny:
+      action: "관리 인터페이스 노출 축소 + 센서/토폴로지 조회 권한 제한"
+      d3fend: "D3-OTF"
+    Deceive:
+      action: "가짜 토폴로지·디코이 GCS 자산으로 탐색 유인"
+      d3fend: "D3-DE"
 
   LateralMovement:
     Detect:

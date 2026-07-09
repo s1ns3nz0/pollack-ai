@@ -108,6 +108,352 @@ playbooks:
       end--0:
         type: end
 
+  # ── Reconnaissance — T1595 Active Scanning · T1592 Host Information ──
+  - type: playbook
+    spec_version: cacao-2.0
+    id: "playbook--uav-recon-0001"
+    name: "UAV 정찰 대응 — 스캔/호스트 정보수집"
+    description: "정찰 단계 탐지 시 출처 식별→축출→노출면 복구→적응. 권고전용."
+    created: "2026-07-09T00:00:00Z"
+    modified: "2026-07-09T00:00:00Z"
+    created_by: "황준식"
+    playbook_types: ["mitigation", "remediation"]
+    playbook_activities: ["step-sequence"]
+    tactic: "Reconnaissance"
+    workflow_start: "start--0"
+    agent_definitions:
+      agent--analyst:
+        type: individual
+        name: "uav-soc-analyst"
+    external_references:
+      - { source_name: "mitre-attack", external_id: "T1595", url: "https://attack.mitre.org/techniques/T1595", description: "Active Scanning" }
+      - { source_name: "mitre-attack", external_id: "T1592", url: "https://attack.mitre.org/techniques/T1592", description: "Gather Victim Host Information" }
+      - { source_name: "nist-800-53", external_id: "IR-8", description: "Incident Response Plan" }
+    labels: { framework: "cacao-2.0" }
+    workflow:
+      start--0:
+        type: start
+        on_completion: "action--contain"
+      action--contain:
+        type: action
+        name: "봉쇄 — 정찰 탐지·유인"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "비인가 포트스캔·호스트정보 수집 출처 식별, 허니 엔드포인트로 정찰 유인" }
+        labels: { phase: contain, nist_ir: "IR-5", source_ref: "coa:Reconnaissance:Detect" }
+        on_completion: "action--eradicate"
+      action--eradicate:
+        type: action
+        name: "축출 — 정찰 출처 차단"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "비인가 정찰 출처 차단 + 승인 스캐너 allowlist 재검증" }
+        labels: { phase: eradicate, nist_ir: "IR-4", source_ref: "recovery:Reconnaissance:evict:0" }
+        on_completion: "action--recover"
+      action--recover:
+        type: action
+        name: "복구 — 노출면 최소화"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "노출 서비스 배너·메타데이터 최소화 상태 복원" }
+        labels: { phase: recover, nist_ir: "IR-4", source_ref: "recovery:Reconnaissance:restore:0" }
+        on_completion: "action--recover-verify"
+      action--recover-verify:
+        type: action
+        name: "복구 검증 — 정찰 재발 관측"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "outcome_probe 로 동일 출처 정찰 재발(reoccurred) 관측 — 재발 시 차단 확대" }
+        labels: { phase: recover, verify: true, nist_ir: "IR-6", source_ref: "recovery:Reconnaissance:verify" }
+        on_completion: "action--adapt"
+      action--adapt:
+        type: action
+        name: "적응 — 노출면 다양화·기만"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "EASM 주기점검 + decoy banner 로 공격자 정찰비용 증가(Deception)" }
+        labels: { phase: adapt, nist_ir: "IR-8", resiliency_technique: "Deception" }
+        on_completion: "end--0"
+      end--0:
+        type: end
+
+  # ── ResourceDevelopment — T1587 Develop · T1588 Obtain · T1608 Stage ──
+  - type: playbook
+    spec_version: cacao-2.0
+    id: "playbook--uav-rdev-0001"
+    name: "UAV 자원개발 대응 — 도구/인프라 준비"
+    description: "공격 준비 인프라·도구 스테이징 관측 시 인텔 차단→노출정보 회전→적응."
+    created: "2026-07-09T00:00:00Z"
+    modified: "2026-07-09T00:00:00Z"
+    created_by: "황준식"
+    playbook_types: ["mitigation", "remediation"]
+    playbook_activities: ["step-sequence"]
+    tactic: "ResourceDevelopment"
+    workflow_start: "start--0"
+    agent_definitions:
+      agent--analyst:
+        type: individual
+        name: "uav-soc-analyst"
+    external_references:
+      - { source_name: "mitre-attack", external_id: "T1587", url: "https://attack.mitre.org/techniques/T1587", description: "Develop Capabilities" }
+      - { source_name: "mitre-attack", external_id: "T1588", url: "https://attack.mitre.org/techniques/T1588", description: "Obtain Capabilities" }
+      - { source_name: "mitre-attack", external_id: "T1608", url: "https://attack.mitre.org/techniques/T1608", description: "Stage Capabilities" }
+      - { source_name: "nist-800-53", external_id: "IR-8", description: "Incident Response Plan" }
+    labels: { framework: "cacao-2.0" }
+    workflow:
+      start--0:
+        type: start
+        on_completion: "action--contain"
+      action--contain:
+        type: action
+        name: "봉쇄 — 준비 인프라 탐지"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "UAV 악성도구·스테이징 인프라 IOC 수집, 허니 문서 접촉 출처 식별" }
+        labels: { phase: contain, nist_ir: "IR-5", source_ref: "coa:ResourceDevelopment:Detect" }
+        on_completion: "action--eradicate"
+      action--eradicate:
+        type: action
+        name: "축출 — 스테이징 인프라 차단"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "스테이징 인프라 IOC 차단 + 허니 문서 접촉 출처 격리" }
+        labels: { phase: eradicate, nist_ir: "IR-4", source_ref: "recovery:ResourceDevelopment:evict:0" }
+        on_completion: "action--recover"
+      action--recover:
+        type: action
+        name: "복구 — 구성정보 회전"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "유출 가능 UAV 구성정보 회전 + 공개 기술정보 최소화" }
+        labels: { phase: recover, nist_ir: "IR-4", source_ref: "recovery:ResourceDevelopment:restore:0" }
+        on_completion: "action--recover-verify"
+      action--recover-verify:
+        type: action
+        name: "복구 검증 — 준비활동 재발 관측"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "outcome_probe 로 동일 인프라 준비활동 재발(reoccurred) 관측 — 재발 시 인텔 차단목록 확대" }
+        labels: { phase: recover, verify: true, nist_ir: "IR-6", source_ref: "recovery:ResourceDevelopment:verify" }
+        on_completion: "action--adapt"
+      action--adapt:
+        type: action
+        name: "적응 — 허니 정보 운영"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "허니 문서·가짜 UAV 구성정보 최신화로 준비 단계 오염(Deception)" }
+        labels: { phase: adapt, nist_ir: "IR-8", resiliency_technique: "Deception" }
+        on_completion: "end--0"
+      end--0:
+        type: end
+
+  # ── PrivilegeEscalation — T1068 Exploitation · T1078 Valid Accounts ──
+  - type: playbook
+    spec_version: cacao-2.0
+    id: "playbook--uav-privesc-0001"
+    name: "UAV 권한상승 대응 — 특권 세션/토큰"
+    description: "권한상승 관측 시 특권 세션 종료→최소권한 복구→특권명령 검증."
+    created: "2026-07-09T00:00:00Z"
+    modified: "2026-07-09T00:00:00Z"
+    created_by: "황준식"
+    playbook_types: ["mitigation", "remediation"]
+    playbook_activities: ["step-sequence"]
+    tactic: "PrivilegeEscalation"
+    workflow_start: "start--0"
+    agent_definitions:
+      agent--analyst:
+        type: individual
+        name: "uav-soc-analyst"
+    external_references:
+      - { source_name: "mitre-attack", external_id: "T1068", url: "https://attack.mitre.org/techniques/T1068", description: "Exploitation for Privilege Escalation" }
+      - { source_name: "mitre-attack", external_id: "T1078", url: "https://attack.mitre.org/techniques/T1078", description: "Valid Accounts" }
+      - { source_name: "nist-800-53", external_id: "IR-8", description: "Incident Response Plan" }
+    labels: { framework: "cacao-2.0" }
+    workflow:
+      start--0:
+        type: start
+        on_completion: "action--contain"
+      action--contain:
+        type: action
+        name: "봉쇄 — 특권 명령 제한"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "권한상승 취약점 악용·특권 토큰 재사용 탐지, 고위험 명령 rate-limit" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:PrivilegeEscalation:Detect" }
+        on_completion: "action--eradicate"
+      action--eradicate:
+        type: action
+        name: "축출 — 특권 세션 종료"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "특권 세션 종료 + 상승 권한 토큰 폐기, 권한상승 악용 취약점 임시 차단" }
+        labels: { phase: eradicate, nist_ir: "IR-4", source_ref: "recovery:PrivilegeEscalation:evict:0" }
+        on_completion: "action--recover"
+      action--recover:
+        type: action
+        name: "복구 — 최소권한 재적용"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "최소권한 정책 복원 + 특권 계정 재발급" }
+        labels: { phase: recover, nist_ir: "IR-4", source_ref: "recovery:PrivilegeEscalation:restore:0" }
+        on_completion: "action--recover-verify"
+      action--recover-verify:
+        type: action
+        name: "복구 검증 — 특권 명령 재발 관측"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "outcome_probe 로 특권 명령 재발(reoccurred) 관측 — 재발 시 권한 전면 회수" }
+        labels: { phase: recover, verify: true, nist_ir: "IR-6", source_ref: "recovery:PrivilegeEscalation:verify" }
+        on_completion: "action--adapt"
+      action--adapt:
+        type: action
+        name: "적응 — 특권 경로 최소화"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "특권 명령 2차승인·세션 분리·권한 수명 단축(Non-Persistence)" }
+        labels: { phase: adapt, nist_ir: "IR-8", resiliency_technique: "Non-Persistence" }
+        on_completion: "end--0"
+      end--0:
+        type: end
+
+  # ── StealthEvasion — T1070 Indicator Removal · T1036 Masquerading ──
+  - type: playbook
+    spec_version: cacao-2.0
+    id: "playbook--uav-stealth-0001"
+    name: "UAV 은폐/회피 대응 — 로그삭제/위장"
+    description: "은폐·회피 관측 시 불변로그 보존→은폐 도구 격리→감사 체인 복구."
+    created: "2026-07-09T00:00:00Z"
+    modified: "2026-07-09T00:00:00Z"
+    created_by: "황준식"
+    playbook_types: ["mitigation", "remediation"]
+    playbook_activities: ["step-sequence"]
+    tactic: "StealthEvasion"
+    workflow_start: "start--0"
+    agent_definitions:
+      agent--analyst:
+        type: individual
+        name: "uav-soc-analyst"
+    external_references:
+      - { source_name: "mitre-attack", external_id: "T1070", url: "https://attack.mitre.org/techniques/T1070", description: "Indicator Removal" }
+      - { source_name: "mitre-attack", external_id: "T1036", url: "https://attack.mitre.org/techniques/T1036", description: "Masquerading" }
+      - { source_name: "nist-800-53", external_id: "IR-8", description: "Incident Response Plan" }
+    labels: { framework: "cacao-2.0" }
+    workflow:
+      start--0:
+        type: start
+        on_completion: "action--contain"
+      action--contain:
+        type: action
+        name: "봉쇄 — 불변 로그 보존"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "로그 삭제·명령 위장·알람 억제 이상행위 탐지, 보안설정 변경 쓰기 차단" }
+        labels: { phase: contain, nist_ir: "IR-5", source_ref: "coa:StealthEvasion:Detect" }
+        on_completion: "action--eradicate"
+      action--eradicate:
+        type: action
+        name: "축출 — 은폐 세션·도구 격리"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "로그 삭제·알람 억제 세션 축출 + 은폐 도구·루트킷 의심 아티팩트 격리" }
+        labels: { phase: eradicate, nist_ir: "IR-4", source_ref: "recovery:StealthEvasion:evict:0" }
+        on_completion: "action--recover"
+      action--recover:
+        type: action
+        name: "복구 — 감사 체인 복원"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "불변 로그 체인 복원 + 탐지룰 재활성화" }
+        labels: { phase: recover, nist_ir: "IR-4", source_ref: "recovery:StealthEvasion:restore:0" }
+        on_completion: "action--recover-verify"
+      action--recover-verify:
+        type: action
+        name: "복구 검증 — 로그 공백 재발 관측"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "outcome_probe 로 로그 공백·알람 억제 재발(reoccurred) 관측 — 재발 시 오프보드 감사 강화" }
+        labels: { phase: recover, verify: true, nist_ir: "IR-6", source_ref: "recovery:StealthEvasion:verify" }
+        on_completion: "action--adapt"
+      action--adapt:
+        type: action
+        name: "적응 — 감사 이중화"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "오프보드 불변 로그·가짜 로그 항목으로 회피 비용 증가(Redundancy)" }
+        labels: { phase: adapt, nist_ir: "IR-8", resiliency_technique: "Redundancy" }
+        on_completion: "end--0"
+      end--0:
+        type: end
+
+  # ── Discovery — T0842 Network Sniffing · T0887 Wireless Sniffing ──
+  - type: playbook
+    spec_version: cacao-2.0
+    id: "playbook--uav-disc-0001"
+    name: "UAV 탐색 대응 — 무선 스니핑/운용모드 탐색"
+    description: "Discovery 관측 시 탐색 세션 차단→노출 인벤토리 복구→관리면 격리 적응."
+    created: "2026-07-09T00:00:00Z"
+    modified: "2026-07-09T00:00:00Z"
+    created_by: "황준식"
+    playbook_types: ["mitigation", "remediation"]
+    playbook_activities: ["step-sequence"]
+    tactic: "Discovery"
+    workflow_start: "start--0"
+    agent_definitions:
+      agent--analyst:
+        type: individual
+        name: "uav-soc-analyst"
+    external_references:
+      - { source_name: "mitre-attack", external_id: "T0842", url: "https://attack.mitre.org/techniques/T0842", description: "Network Sniffing" }
+      - { source_name: "mitre-attack", external_id: "T0887", url: "https://attack.mitre.org/techniques/T0887", description: "Wireless Sniffing" }
+      - { source_name: "nist-800-53", external_id: "IR-8", description: "Incident Response Plan" }
+    labels: { framework: "cacao-2.0" }
+    workflow:
+      start--0:
+        type: start
+        on_completion: "action--contain"
+      action--contain:
+        type: action
+        name: "봉쇄 — 탐색 세션 제한"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "무선 스니핑·장치/운용모드 탐색 탐지, 관리 인터페이스 조회 권한 제한" }
+        labels: { phase: contain, nist_ir: "IR-5", source_ref: "coa:Discovery:Detect" }
+        on_completion: "action--eradicate"
+      action--eradicate:
+        type: action
+        name: "축출 — 탐색 세션 차단"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "무선 스니핑·자산탐색 세션 차단 + 조회권한 회수" }
+        labels: { phase: eradicate, nist_ir: "IR-4", source_ref: "recovery:Discovery:evict:0" }
+        on_completion: "action--recover"
+      action--recover:
+        type: action
+        name: "복구 — 노출 인벤토리 최소화"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "자산 인벤토리·운용모드 노출 최소화 설정 복구" }
+        labels: { phase: recover, nist_ir: "IR-4", source_ref: "recovery:Discovery:restore:0" }
+        on_completion: "action--recover-verify"
+      action--recover-verify:
+        type: action
+        name: "복구 검증 — 탐색 재발 관측"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "outcome_probe 로 장치/운용모드 탐색 재발(reoccurred) 관측 — 재발 시 관리면 격리 확대" }
+        labels: { phase: recover, verify: true, nist_ir: "IR-6", source_ref: "recovery:Discovery:verify" }
+        on_completion: "action--adapt"
+      action--adapt:
+        type: action
+        name: "적응 — 디코이 토폴로지"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "가짜 토폴로지·디코이 GCS 자산 운영으로 탐색 비용 증가(Deception)" }
+        labels: { phase: adapt, nist_ir: "IR-8", resiliency_technique: "Deception" }
+        on_completion: "end--0"
+      end--0:
+        type: end
+
   # ── ImpairProcessControl — T0836 Modify Parameter · T0806 Brute Force I/O ──
   - type: playbook
     spec_version: cacao-2.0

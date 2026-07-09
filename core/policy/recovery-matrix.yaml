@@ -14,6 +14,20 @@ version: 0.1
 owner: 황준식
 
 matrix:
+  Reconnaissance:
+    evict:
+      - { action: "비인가 정찰 출처 차단 + 승인 스캐너 allowlist 재검증", d3fend: "D3-NTF" }
+    restore:
+      - { action: "노출 서비스 배너·메타데이터 최소화 상태 복원", d3fend: "D3-RA" }
+    verify: "동일 출처 정찰 재발(reoccurred) 시 축출 실패 — EASM 범위 재점검 + 차단 확대"
+
+  ResourceDevelopment:
+    evict:
+      - { action: "스테이징 인프라 IOC 차단 + 허니 문서 접촉 출처 격리", d3fend: "D3-NTF" }
+    restore:
+      - { action: "유출 가능 구성정보 회전 + 공개 기술정보 최소화", d3fend: "D3-RA" }
+    verify: "동일 인프라 준비활동 재발(reoccurred) 시 축출 실패 — 인텔 차단목록 확대"
+
   InitialAccess:
     evict:
       - { action: "탈취 유효계정 세션 무효화 + 자격증명 회전", d3fend: "D3-CR" }
@@ -29,6 +43,29 @@ matrix:
     restore:
       - { action: "SBOM 재검증 통과 이미지로 시스템 복원", d3fend: "D3-SYSR" }
     verify: "서명 불일치 재발(reoccurred) 시 축출 실패 — 공급망 소스 격리 + 재이미징 반복"
+
+  PrivilegeEscalation:
+    evict:
+      - { action: "특권 세션 종료 + 상승 권한 토큰 폐기", d3fend: "D3-CR" }
+      - { action: "권한상승 악용 취약점 임시 차단", d3fend: "D3-CE" }
+    restore:
+      - { action: "최소권한 정책 복원 + 특권 계정 재발급", d3fend: "D3-RA" }
+    verify: "특권 명령 재발(reoccurred) 시 축출 실패 — 권한 전면 회수 + 패치 게이트"
+
+  StealthEvasion:
+    evict:
+      - { action: "로그 삭제·알람 억제 세션 축출 + 보안설정 롤백", d3fend: "D3-CE" }
+      - { action: "은폐 도구·루트킷 의심 아티팩트 격리", d3fend: "D3-FEV" }
+    restore:
+      - { action: "불변 로그 체인 복원 + 탐지룰 재활성화", d3fend: "D3-SYSR" }
+    verify: "로그 공백·알람 억제 재발(reoccurred) 시 축출 실패 — 오프보드 감사 강화"
+
+  Discovery:
+    evict:
+      - { action: "무선 스니핑·자산탐색 세션 차단 + 조회권한 회수", d3fend: "D3-NTF" }
+    restore:
+      - { action: "자산 인벤토리·운용모드 노출 최소화 설정 복구", d3fend: "D3-RA" }
+    verify: "장치/운용모드 탐색 재발(reoccurred) 시 축출 실패 — 관리면 격리 확대"
 
   LateralMovement:
     evict:

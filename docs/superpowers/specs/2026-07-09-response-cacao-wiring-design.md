@@ -90,7 +90,7 @@ CACAO 카탈로그(별 PR — core/cacao.py 모델·validator + cacao-playbooks.
   HITL 을 approval 노드가 강제하려면 CACAO resolve 를 approval 전(前)에 수행하거나
   cacao_hitl_required 를 state 로 approval 에 전달. 별 PR(그래프 라우팅). 현재는 score≥
   임계 정렬로 강제되고 None 은 권고 표기.
-- 전체 15전술 카탈로그(별 작업) — 미커버는 폴백.
+- 전체 15전술 카탈로그 — `data/attack_coverage.yaml` 기준 UAV ATT&CK 전술 전체 커버.
 - 다중-tactic scenario(현 bas 1-tactic) — 확장 시 우선순위.
 - 게이트: **카탈로그 PR 머지 후** → Codex 설계리뷰→구현→black/ruff/mypy/pytest→
   clean-worktree→Codex diff→PR/머지.

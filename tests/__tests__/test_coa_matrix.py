@@ -65,7 +65,7 @@ class TestCoaMatrix:
         """매트릭스에 없는 tactic 은 7D 전부 gap."""
         coa = CoaMatrix.from_yaml()
 
-        options = coa.options_for("Reconnaissance")
+        options = coa.options_for("UnknownTactic")
 
         assert all(o.status == "gap" for o in options)
         assert len(options) == 7

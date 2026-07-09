@@ -73,6 +73,9 @@ data/knowledge_base/**
 # 관련 프로젝트 모음(별도 관리) — 팀 repo 추적/커밋 대상 아님
 projects/
 
+# Claude/Codex 보조 작업트리(별도 Git worktree) — 부모 repo 커밋 대상 아님
+.claude/worktrees/
+
 # 벤치마크 결과 산출물
 benchmarks/results/
 _workspace/

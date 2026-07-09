@@ -22,9 +22,14 @@ from core.cacao import (
 from core.exceptions import PlaybookError
 
 _TACTICS = {
+    "Reconnaissance",
+    "ResourceDevelopment",
     "InitialAccess",
     "Execution",
     "Persistence",
+    "PrivilegeEscalation",
+    "StealthEvasion",
+    "Discovery",
     "LateralMovement",
     "Collection",
     "CommandAndControl",
@@ -41,15 +46,15 @@ def _matrices() -> tuple[dict[str, Any], dict[str, Any]]:
 
 class TestCatalogLoad:
     def test_exemplars_load_and_validate(self) -> None:
-        """10 전술 카탈로그 로드, 전술 키 일치."""
+        """UAV ATT&CK 15 전술 카탈로그 로드, 전술 키 일치."""
         pbs = load_playbooks()
         assert {p.tactic for p in pbs} == _TACTICS
 
-    def test_ten_playbooks_all_validate(self) -> None:
-        """10 플레이북 전수 validate_playbook 통과(스키마·no-exec·게이트·source_ref)."""
+    def test_fifteen_playbooks_all_validate(self) -> None:
+        """15 플레이북 전수 validate_playbook 통과(스키마·no-exec·게이트·source_ref)."""
         coa, rec = _matrices()
         pbs = load_playbooks()
-        assert len(pbs) == 10
+        assert len(pbs) == 15
         for pb in pbs:
             validate_playbook(pb, coa, rec)
 

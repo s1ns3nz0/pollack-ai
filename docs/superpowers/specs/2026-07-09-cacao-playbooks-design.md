@@ -34,7 +34,7 @@ degrade 로 이미 반영 — 임무영향 중심 = 사이버 회복탄력의 UA
 | CACAO 충실도 | **권고전용 정합** — CACAO command `type="manual"`(인간 실행) = 권고전용 그 자체. actuator/agent 자동 dispatch 없음. **서브셋 아닌 표준 완전 정합** |
 | granularity | **전술별(15)** CACAO 플레이북. step.commands 를 coa-matrix(7D)·recovery-matrix 에서 소싱(기존 메뉴 통합). 기법은 step.external_references |
 | 임무 게이트 | CACAO **if-condition 스텝**이 MissionRisk/degradation 으로 분기: 고-임무위험/민간 → HITL 보수변형(auto-RTB 금지, ROE failsafe); 저 → auto-적격 |
-| 스코프 | 스키마/모델(core/cacao.py) + validator + **고-임무 전술 exemplar**(Impact·ImpairProcessControl·InhibitResponse) + 테스트. 나머지 12전술 + response 배선 후속 |
+| 스코프 | 스키마/모델(core/cacao.py) + validator + UAV ATT&CK 15전술 CACAO 카탈로그 + 테스트 |
 
 ## 3. 변경 상세
 
@@ -119,7 +119,7 @@ degrade 로 이미 반영 — 임무영향 중심 = 사이버 회복탄력의 UA
 - `test_invalid_playbook_raises`: 잘못된 참조/누락 → PlaybookError.
 
 ## 5. 미결 / 후속
-- 나머지 12전술 CACAO 플레이북 작성.
+- UAV ATT&CK 15전술 CACAO 플레이북 작성 완료.
 - **response_agent 배선**: alert.defense_playbook 대신 카탈로그에서 tactic+mission 으로
   선택·표면(if-condition 평가 = MissionRisk). 별 PR.
 - CACAO signatures/data-marking(coalition 공유) — 후속(releasability 연계).

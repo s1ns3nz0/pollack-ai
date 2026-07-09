@@ -51,7 +51,7 @@ class TestCacaoApprovalGate:
         )
 
     def test_uncovered_tactic_no_force(self) -> None:
-        """미커버 전술(Discovery) → CACAO 게이트 미발동(기존 게이트만)."""
+        """Discovery 는 mission-gate 없는 CACAO 경로라 HITL 강제 없음."""
         assert _agent()._cacao_forces_hitl(_state("S-DISC", None)) is False
 
     def test_no_catalog_no_force(self) -> None:
