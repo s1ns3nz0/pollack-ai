@@ -68,6 +68,55 @@ def _ioc_pattern(value: str) -> str | None:
     return None
 
 
+_TAXII_CONTENT_TYPE = "application/taxii+json;version=2.1"
+
+
+def taxii_content_type() -> str:
+    """TAXII 2.1 미디어 타입(Accept/Content-Type 헤더용)."""
+    return _TAXII_CONTENT_TYPE
+
+
+def to_taxii_envelope(
+    bundles: list[dict[str, object]], more: bool = False, next_id: str = ""
+) -> dict[str, object]:
+    """STIX bundle 들을 TAXII 2.1 envelope 로 직렬화한다(전송 X — 운영자 push 몫).
+
+    여러 bundle 의 objects 를 병합·id 중복제거해 하나의 envelope objects 로 만든다.
+    실제 TAXII 서버 push(외향)는 비목표 — envelope **포맷/직렬화**만 제공한다.
+
+    Args:
+        bundles: STIX 2.1 bundle dict 목록(from_diamond/from_campaign 산). None 은 무시.
+        more: 페이지네이션 — 후속 페이지 존재 여부.
+        next_id: 후속 페이지 커서(있으면 envelope 에 포함).
+
+    Returns:
+        TAXII 2.1 envelope. 객체 0이면 objects 생략(빈 리스트 안 냄).
+    """
+    seen: set[str] = set()
+    objects: list[dict[str, object]] = []
+    for bundle in bundles:
+        if not isinstance(bundle, dict):
+            continue
+        raw = bundle.get("objects", [])
+        if not isinstance(raw, list):
+            continue
+        for obj in raw:
+            if not isinstance(obj, dict):
+                continue
+            oid = str(obj.get("id", ""))
+            if oid and oid in seen:
+                continue  # id 중복제거(bundle 간 공유 identity/marking 등)
+            if oid:
+                seen.add(oid)
+            objects.append(obj)
+    envelope: dict[str, object] = {"more": more}
+    if objects:
+        envelope["objects"] = objects
+    if next_id:
+        envelope["next"] = next_id
+    return envelope
+
+
 class StixExporter:
     """DiamondEvent → STIX 2.1 bundle 생성기(결정론·OPSEC 안전).
 

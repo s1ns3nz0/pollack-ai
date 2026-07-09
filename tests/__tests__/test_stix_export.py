@@ -1,7 +1,12 @@
 """STIX 2.1 TI 생산 — DiamondEvent → 공유 bundle(OPSEC·TLP·결정론)."""
 
 from core.models import CampaignMatch, DiamondEvent
-from core.stix_export import StixExporter, _ioc_pattern
+from core.stix_export import (
+    StixExporter,
+    _ioc_pattern,
+    taxii_content_type,
+    to_taxii_envelope,
+)
 
 _TS = "2026-07-09T00:00:00Z"
 
@@ -149,6 +154,44 @@ class TestCampaign:
         a = StixExporter().from_campaign(self._cm(), _TS)
         b = StixExporter().from_campaign(self._cm(), _TS)
         assert a is not None and b is not None and a["id"] == b["id"]
+
+
+class TestTaxiiEnvelope:
+    def _bundles(self) -> list:
+        ex = StixExporter()
+        return [
+            ex.from_diamond(
+                DiamondEvent(adversary="APT-X", capabilities=["T1071"]), _TS
+            ),
+            ex.from_campaign(CampaignMatch(chain_id="C3", name="flow"), _TS),
+        ]
+
+    def test_content_type(self) -> None:
+        assert taxii_content_type() == "application/taxii+json;version=2.1"
+
+    def test_merges_objects(self) -> None:
+        env = to_taxii_envelope(self._bundles())
+        assert env["more"] is False and "objects" in env
+        types = {o["type"] for o in env["objects"]}
+        assert "threat-actor" in types and "campaign" in types
+
+    def test_identity_deduped(self) -> None:
+        """bundle 간 공유 producer identity id 중복제거."""
+        env = to_taxii_envelope(self._bundles())
+        idents = [o for o in env["objects"] if o["type"] == "identity"]
+        assert len(idents) == 1
+
+    def test_empty_omits_objects(self) -> None:
+        env = to_taxii_envelope([])
+        assert env == {"more": False}  # objects 키 없음
+
+    def test_none_bundles_ignored(self) -> None:
+        env = to_taxii_envelope([None, *self._bundles()])
+        assert "objects" in env
+
+    def test_pagination_fields(self) -> None:
+        env = to_taxii_envelope(self._bundles(), more=True, next_id="cursor-1")
+        assert env["more"] is True and env["next"] == "cursor-1"
 
 
 class TestDeterminismAndEmpty:
