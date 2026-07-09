@@ -7,9 +7,10 @@ or mission impact decisions.
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 import yaml
 
 from core.exceptions import PolicyError
@@ -90,11 +91,16 @@ class TopologyPolicy(BaseModel):
         policy_path = Path(path) if path is not None else _TOPOLOGY_POLICY
         try:
             raw = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
-        except OSError as exc:
+        except (OSError, yaml.YAMLError) as exc:
             raise PolicyError(f"asset topology policy load failed: {exc}") from exc
         if not isinstance(raw, dict):
             raise PolicyError("asset topology policy must be a mapping")
-        policy = cls.model_validate(raw)
+        try:
+            policy = cls.model_validate(raw)
+        except ValidationError as exc:
+            raise PolicyError(
+                f"asset topology policy validation failed: {exc}"
+            ) from exc
         policy._validate_references()
         return policy
 
@@ -103,8 +109,16 @@ class TopologyPolicy(BaseModel):
 
         Raises:
             ValueError: Any reference points to an unknown node.
+            PolicyError: Duplicate node ids are declared.
         """
-        node_ids = {node.id for node in self.nodes}
+        node_id_counts = Counter(node.id for node in self.nodes)
+        duplicates = sorted(
+            node_id for node_id, count in node_id_counts.items() if count > 1
+        )
+        if duplicates:
+            raise PolicyError(f"duplicate topology node id(s): {', '.join(duplicates)}")
+
+        node_ids = set(node_id_counts)
         for edge in self.edges:
             if edge.source not in node_ids or edge.target not in node_ids:
                 raise ValueError(

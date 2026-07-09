@@ -48,3 +48,36 @@ Results:
 ## Commit
 
 - Commit will be created after staging only the Task 1 files and this report.
+
+## Fix Report
+
+Reviewer findings addressed:
+
+- `TopologyPolicy.from_yaml()` now converts YAML parse failures and Pydantic
+  validation failures into `PolicyError`.
+- `TopologyPolicy._validate_references()` now rejects duplicate `TopologyNode.id`
+  values explicitly instead of collapsing them in a set.
+
+Test coverage added:
+
+- malformed YAML failure -> `PolicyError`
+- schema validation failure -> `PolicyError`
+- duplicate node id rejection -> `PolicyError`
+
+Verification:
+
+```bash
+pytest tests/__tests__/test_dashboard_topology.py -v
+black core/dashboard.py tests/__tests__/test_dashboard_topology.py
+ruff check core/dashboard.py tests/__tests__/test_dashboard_topology.py
+mypy core/dashboard.py tests/__tests__/test_dashboard_topology.py
+```
+
+Results:
+
+- `pytest tests/__tests__/test_dashboard_topology.py -v` -> 8 passed
+- `black core/dashboard.py tests/__tests__/test_dashboard_topology.py` ->
+  1 file reformatted, 1 file left unchanged
+- `ruff check core/dashboard.py tests/__tests__/test_dashboard_topology.py` ->
+  passed
+- `mypy core/dashboard.py tests/__tests__/test_dashboard_topology.py` -> passed

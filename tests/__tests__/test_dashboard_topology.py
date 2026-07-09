@@ -2,7 +2,10 @@
 
 from pathlib import Path
 
+import pytest
+
 from core.dashboard import TopologyPolicy
+from core.exceptions import PolicyError
 
 
 def test_asset_topology_loads_enabled_uav_sim_assets() -> None:
@@ -74,3 +77,69 @@ degradation_map: {}
         assert "unknown topology edge endpoint" in str(exc)
     else:
         raise AssertionError("expected ValueError")
+
+
+def test_from_yaml_rejects_malformed_yaml(tmp_path: Path) -> None:
+    """Broken YAML syntax is converted into PolicyError."""
+    bad_policy = tmp_path / "asset-topology.yaml"
+    bad_policy.write_text(
+        """
+version: 0.1
+nodes:
+  - id: av-muav
+    label: KUS-FS MUAV
+    plane: air
+    kind: air_vehicle
+edges:
+  - source: av-muav
+    target: datalink-los
+    kind: depends_on
+degradation_map: {]
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PolicyError, match="asset topology policy load failed"):
+        TopologyPolicy.from_yaml(bad_policy)
+
+
+def test_from_yaml_rejects_schema_validation_error(tmp_path: Path) -> None:
+    """Invalid topology schema data is converted into PolicyError."""
+    bad_policy = tmp_path / "asset-topology.yaml"
+    bad_policy.write_text(
+        """
+version: 0.1
+nodes:
+  - id: av-muav
+    plane: air
+edges: []
+degradation_map: {}
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PolicyError, match="asset topology policy validation failed"):
+        TopologyPolicy.from_yaml(bad_policy)
+
+
+def test_from_yaml_rejects_duplicate_node_ids(tmp_path: Path) -> None:
+    """Duplicate topology node ids are rejected."""
+    bad_policy = tmp_path / "asset-topology.yaml"
+    bad_policy.write_text(
+        """
+version: 0.1
+nodes:
+  - id: av-muav
+    label: KUS-FS MUAV
+    plane: air
+  - id: av-muav
+    label: Duplicate MUAV
+    plane: air
+edges: []
+degradation_map: {}
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PolicyError, match="duplicate topology node id"):
+        TopologyPolicy.from_yaml(bad_policy)
