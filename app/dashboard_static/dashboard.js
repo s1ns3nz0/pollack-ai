@@ -3,6 +3,8 @@ const state = {
   index: 0,
   selectedStoryId: "",
   live: false,
+  eventSource: null,
+  topology: { nodes: [], edges: [] },
 };
 
 function text(value) {
@@ -15,24 +17,66 @@ function currentSnapshot() {
   return state.snapshots[state.index] || null;
 }
 
-function setHtml(id, html) {
-  const el = document.getElementById(id);
-  if (el) {
-    el.innerHTML = html;
+function clearNode(node) {
+  node.replaceChildren();
+}
+
+function createElement(tagName, className, value) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
   }
+  if (value !== undefined) {
+    element.textContent = value;
+  }
+  return element;
+}
+
+function appendLabeledValue(parent, label, value, valueClass = "metric-value") {
+  const labelNode = createElement("div", "metric-label", label);
+  const valueNode = createElement("div", valueClass, text(value));
+  parent.append(labelNode, valueNode);
+}
+
+function createFallbackCard(className, message) {
+  return createElement("div", className, message);
 }
 
 function renderTopStrip(snapshot) {
+  const container = document.getElementById("top-strip");
+  if (!container) {
+    return;
+  }
+
   const summary = snapshot.summary || {};
-  setHtml(
-    "top-strip",
-    `
-      <div class="metric"><div class="metric-label">Active Stories</div><div class="metric-value">${text(summary.active_story_count)}</div></div>
-      <div class="metric"><div class="metric-label">Max Mission Impact</div><div class="metric-value">${text(summary.max_mission_impact)}</div></div>
-      <div class="metric"><div class="metric-label">HITL Pending</div><div class="metric-value">${text(summary.hitl_pending_count)}</div></div>
-      <div class="metric"><div class="metric-label">Decision Margin</div><div class="metric-value">${text(summary.decision_advantage)}</div></div>
-    `,
+  const metrics = [
+    ["Active Stories", summary.active_story_count],
+    ["Max Mission Impact", summary.max_mission_impact],
+    ["HITL Pending", summary.hitl_pending_count],
+    ["Decision Margin", summary.decision_advantage],
+  ];
+
+  clearNode(container);
+  metrics.forEach(([label, value]) => {
+    const card = createElement("div", "metric");
+    appendLabeledValue(card, label, value);
+    container.appendChild(card);
+  });
+}
+
+function normalizeSelectedStory(snapshot) {
+  const stories = Array.isArray(snapshot.stories) ? snapshot.stories : [];
+  const hasSelectedStory = stories.some(
+    (story) => story.story_id === state.selectedStoryId,
   );
+
+  if (!hasSelectedStory) {
+    state.selectedStoryId = text(snapshot.selected_story_id);
+  }
+
+  if (state.selectedStoryId === "UNKNOWN" && stories.length > 0) {
+    state.selectedStoryId = text(stories[0].story_id);
+  }
 }
 
 function selectStory(storyId) {
@@ -41,127 +85,248 @@ function selectStory(storyId) {
 }
 
 function renderStoryRail(snapshot) {
-  const stories = snapshot.stories || [];
-  if (!state.selectedStoryId && snapshot.selected_story_id) {
-    state.selectedStoryId = snapshot.selected_story_id;
-  }
-  if (stories.length === 0) {
-    setHtml("story-rail", '<div class="story-card">No active stories</div>');
+  const container = document.getElementById("story-rail");
+  if (!container) {
     return;
   }
-  setHtml(
-    "story-rail",
-    stories
-      .map((story) => {
-        const active = story.story_id === state.selectedStoryId ? " active" : "";
-        const pending = story.hitl_status === "PENDING" ? " pending" : "";
-        const alerts = (story.alerts || [])
-          .map(
-            (alert) =>
-              `<div class="alert-ref">${text(alert.alert_id)} · ${text(alert.scenario_id)} · ${text(alert.tactic)}</div>`,
-          )
-          .join("");
-        return `
-          <button class="story-card${active}" onclick="selectStory('${story.story_id}')">
-            <div class="story-title"><span>${text(story.story_id)}</span><span class="badge${pending}">${text(story.hitl_status)}</span></div>
-            <div class="story-meta">Campaign ${text(story.campaign_id)} ${text(story.matched)}/${text(story.total)}</div>
-            <div class="story-meta">Target ${text(story.target_asset)} · Impact ${text(story.mission_impact)}</div>
-            ${alerts}
-          </button>
-        `;
-      })
-      .join(""),
-  );
+
+  const stories = Array.isArray(snapshot.stories) ? snapshot.stories : [];
+  normalizeSelectedStory(snapshot);
+  clearNode(container);
+
+  if (stories.length === 0) {
+    container.appendChild(createFallbackCard("story-card", "No active stories"));
+    return;
+  }
+
+  stories.forEach((story) => {
+    const isActive = story.story_id === state.selectedStoryId;
+    const isPending = story.hitl_status === "PENDING";
+
+    const button = createElement("button", "story-card");
+    button.type = "button";
+    if (isActive) {
+      button.classList.add("active");
+    }
+    button.addEventListener("click", () => {
+      selectStory(text(story.story_id));
+    });
+
+    const title = createElement("div", "story-title");
+    const storyId = createElement("span", "", text(story.story_id));
+    const badge = createElement("span", "badge", text(story.hitl_status));
+    if (isPending) {
+      badge.classList.add("pending");
+    }
+    title.append(storyId, badge);
+
+    const campaign = createElement(
+      "div",
+      "story-meta",
+      `Campaign ${text(story.campaign_id)} ${text(story.matched)}/${text(
+        story.total,
+      )}`,
+    );
+    const target = createElement(
+      "div",
+      "story-meta",
+      `Target ${text(story.target_asset)} · Impact ${text(story.mission_impact)}`,
+    );
+
+    button.append(title, campaign, target);
+
+    const alerts = Array.isArray(story.alerts) ? story.alerts : [];
+    alerts.forEach((alert) => {
+      const alertRef = createElement(
+        "div",
+        "alert-ref",
+        `${text(alert.alert_id)} · ${text(alert.scenario_id)} · ${text(
+          alert.tactic,
+        )}`,
+      );
+      button.appendChild(alertRef);
+    });
+
+    container.appendChild(button);
+  });
 }
 
 function renderNavigator(snapshot) {
-  const cells = snapshot.navigator || [];
-  if (cells.length === 0) {
-    setHtml("navigator", '<div class="cell">No navigator data</div>');
+  const container = document.getElementById("navigator");
+  if (!container) {
     return;
   }
-  setHtml(
-    "navigator",
-    cells
-      .map((cell) => {
-        const classes = ["cell"];
-        if (cell.observed) classes.push("observed");
-        if (cell.current) classes.push("current");
-        if (cell.predicted) classes.push("predicted");
-        if (cell.gap) classes.push("gap");
-        return `
-          <div class="${classes.join(" ")}">
-            <div class="cell-title">${text(cell.tactic)}</div>
-            ${cell.observed_order ? `<div class="cell-order">${cell.observed_order}</div>` : ""}
-            <div class="story-meta">${cell.predicted ? "Predicted" : ""} ${cell.gap ? "Gap" : ""}</div>
-            <div class="story-meta">${text(cell.note)}</div>
-          </div>
-        `;
-      })
-      .join(""),
-  );
+
+  const cells = Array.isArray(snapshot.navigator) ? snapshot.navigator : [];
+  clearNode(container);
+
+  if (cells.length === 0) {
+    container.appendChild(createFallbackCard("cell", "No navigator data"));
+    return;
+  }
+
+  cells.forEach((cell) => {
+    const card = createElement("div", "cell");
+    if (cell.observed) {
+      card.classList.add("observed");
+    }
+    if (cell.current) {
+      card.classList.add("current");
+    }
+    if (cell.predicted) {
+      card.classList.add("predicted");
+    }
+    if (cell.gap) {
+      card.classList.add("gap");
+    }
+
+    const title = createElement("div", "cell-title", text(cell.tactic));
+    card.appendChild(title);
+
+    if (cell.observed_order) {
+      card.appendChild(
+        createElement("div", "cell-order", text(cell.observed_order)),
+      );
+    }
+
+    const stateText = [cell.predicted ? "Predicted" : "", cell.gap ? "Gap" : ""]
+      .filter(Boolean)
+      .join(" ");
+    card.appendChild(createElement("div", "story-meta", stateText || " "));
+    card.appendChild(createElement("div", "story-meta", text(cell.note)));
+    container.appendChild(card);
+  });
 }
 
 function renderBluf(snapshot) {
+  const container = document.getElementById("bluf-card");
+  if (!container) {
+    return;
+  }
+
   const bluf = snapshot.bluf || {};
-  setHtml(
-    "bluf-card",
-    `
-      <div class="bluf-block"><div class="bluf-label">Situation</div><div>${text(bluf.situation)}</div><div class="bluf-row">${text(bluf.confidence)}</div></div>
-      <div class="bluf-block"><div class="bluf-label">Mission Impact</div><div>${text(bluf.mission_impact)}</div></div>
-      <div class="bluf-block"><div class="bluf-label">Recommendation</div><div>${text(bluf.recommendation)}</div><div class="bluf-row">${text(bluf.hitl_badge)}</div></div>
-      <div class="bluf-block"><div class="bluf-label">Next Move</div><div>${text(bluf.next_move)}</div><div class="bluf-row">${(bluf.caveats || []).join(" / ")}</div></div>
-    `,
-  );
+  const sections = [
+    ["Situation", bluf.situation, [bluf.confidence]],
+    ["Mission Impact", bluf.mission_impact, []],
+    ["Recommendation", bluf.recommendation, [bluf.hitl_badge]],
+    ["Next Move", bluf.next_move, bluf.caveats || []],
+  ];
+
+  clearNode(container);
+  sections.forEach(([label, value, details]) => {
+    const block = createElement("div", "bluf-block");
+    block.appendChild(createElement("div", "bluf-label", label));
+    block.appendChild(createElement("div", "", text(value)));
+
+    details
+      .filter((detail) => detail !== undefined && detail !== null && detail !== "")
+      .forEach((detail) => {
+        block.appendChild(createElement("div", "bluf-row", text(detail)));
+      });
+
+    container.appendChild(block);
+  });
+}
+
+function topologyFromSnapshot(snapshot) {
+  const topology = snapshot.topology || {};
+  const nodes = Array.isArray(topology.nodes) ? topology.nodes : [];
+  return nodes.length > 0 ? topology : state.topology;
 }
 
 function renderTopology(snapshot) {
-  const topology = snapshot.topology || { nodes: [] };
-  const nodes = topology.nodes || [];
-  if (nodes.length === 0) {
-    setHtml("topology-map", '<div class="node">No topology data</div>');
+  const container = document.getElementById("topology-map");
+  if (!container) {
     return;
   }
-  setHtml(
-    "topology-map",
-    nodes
-      .map((node) => {
-        const classes = ["node", text(node.status)];
-        if (node.active) classes.push("active");
-        return `
-          <div class="${classes.join(" ")}">
-            <div class="node-title">${text(node.label)}</div>
-            <div class="node-meta">${text(node.plane)} · ${text(node.kind)}</div>
-            <div class="node-meta">${text(node.status)}</div>
-          </div>
-        `;
-      })
-      .join(""),
-  );
+
+  const topology = topologyFromSnapshot(snapshot);
+  const nodes = Array.isArray(topology.nodes) ? topology.nodes : [];
+  clearNode(container);
+
+  if (nodes.length === 0) {
+    container.appendChild(createFallbackCard("node", "No topology data"));
+    return;
+  }
+
+  nodes.forEach((node) => {
+    const card = createElement("div", "node");
+    card.classList.add(text(node.status));
+    if (node.active) {
+      card.classList.add("active");
+    }
+
+    const label = createElement(
+      "div",
+      "node-title",
+      text(node.label || node.id || node.name),
+    );
+    const plane = createElement(
+      "div",
+      "node-meta",
+      `${text(node.plane)} · ${text(node.kind)}`,
+    );
+    const status = createElement("div", "node-meta", text(node.status));
+    card.append(label, plane, status);
+    container.appendChild(card);
+  });
 }
 
 function renderControls() {
-  setHtml(
-    "replay-controls",
-    `
-      <button class="control" onclick="previousSnapshot()">◀</button>
-      <button class="control" onclick="nextSnapshot()">▶</button>
-      <button class="control" onclick="connectLive()">LIVE</button>
-      <span>Step ${state.index + 1} / ${state.snapshots.length || 0}</span>
-      <span class="status-line">${state.live ? "SSE connected" : "Replay mode"}</span>
-    `,
+  const container = document.getElementById("replay-controls");
+  if (!container) {
+    return;
+  }
+
+  clearNode(container);
+
+  const previousButton = createElement("button", "control", "◀");
+  previousButton.type = "button";
+  previousButton.addEventListener("click", previousSnapshot);
+
+  const nextButton = createElement("button", "control", "▶");
+  nextButton.type = "button";
+  nextButton.addEventListener("click", nextSnapshot);
+
+  const liveButton = createElement("button", "control", "LIVE");
+  liveButton.type = "button";
+  liveButton.addEventListener("click", connectLive);
+
+  const step = createElement(
+    "span",
+    "step-counter",
+    `Step ${state.index + 1} / ${state.snapshots.length || 0}`,
   );
+  const status = createElement(
+    "span",
+    "status-line",
+    state.live ? "SSE connected" : "Replay mode",
+  );
+
+  container.append(previousButton, nextButton, liveButton, step, status);
+}
+
+function renderEmptyState() {
+  const container = document.getElementById("top-strip");
+  if (!container) {
+    return;
+  }
+
+  clearNode(container);
+  const metric = createElement("div", "metric");
+  metric.appendChild(
+    createElement("div", "metric-value", "No replay snapshots loaded"),
+  );
+  container.appendChild(metric);
 }
 
 function renderSnapshot(snapshot) {
   if (!snapshot) {
-    setHtml(
-      "top-strip",
-      '<div class="metric"><div class="metric-value">No replay snapshots loaded</div></div>',
-    );
+    renderEmptyState();
     renderControls();
     return;
   }
+
   renderTopStrip(snapshot);
   renderStoryRail(snapshot);
   renderNavigator(snapshot);
@@ -180,32 +345,52 @@ function nextSnapshot() {
   renderSnapshot(currentSnapshot());
 }
 
+async function loadTopology() {
+  const response = await fetch('/api/topology');
+  state.topology = await response.json();
+}
+
 async function loadReplay() {
   const response = await fetch('/api/snapshots');
   const payload = await response.json();
-  state.snapshots = payload.snapshots || [];
+  state.snapshots = Array.isArray(payload.snapshots) ? payload.snapshots : [];
   state.index = 0;
   renderSnapshot(currentSnapshot());
 }
 
+function closeLiveConnection() {
+  if (state.eventSource) {
+    state.eventSource.close();
+    state.eventSource = null;
+  }
+}
+
 function connectLive() {
-  const events = new EventSource('/events');
+  if (state.eventSource) {
+    return;
+  }
+
+  state.eventSource = new EventSource('/events');
   state.live = true;
-  events.addEventListener("snapshot", (event) => {
+  renderControls();
+
+  state.eventSource.addEventListener("snapshot", (event) => {
     const snapshot = JSON.parse(event.data);
     state.snapshots.push(snapshot);
     state.index = state.snapshots.length - 1;
     renderSnapshot(snapshot);
   });
-  events.onerror = () => {
+
+  state.eventSource.onerror = () => {
+    closeLiveConnection();
     state.live = false;
     renderControls();
   };
 }
 
-window.selectStory = selectStory;
-window.previousSnapshot = previousSnapshot;
-window.nextSnapshot = nextSnapshot;
-window.connectLive = connectLive;
+async function initializeDashboard() {
+  await loadTopology();
+  await loadReplay();
+}
 
-loadReplay();
+initializeDashboard();
