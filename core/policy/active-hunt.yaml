@@ -1,0 +1,67 @@
+# Active Hunt Agent 정책 — template-only Sentinel KQL 능동 헌팅.
+# 1차 버전은 evidence-only: validation verdict/confidence 를 바꾸지 않는다.
+
+version: 0.1
+
+limits:
+  max_queries_per_alert: 5
+  row_limit: 20
+  query_timeout_seconds: 8
+  max_lookback_hours: 72
+
+windows:
+  forward_default_minutes: 30
+  backward_default_hours: 24
+  backward_force_hours: 72
+
+backward_policy:
+  force_tactics: [Exfiltration, Impact]
+  cpcon_thresholds:
+    5: CommandAndControl
+    4: CommandAndControl
+    3: LateralMovement
+    2: Discovery
+    1: InitialAccess
+  key_terrain_order_delta: -2
+  high_mission_risk_order_delta: -2
+  high_mission_risk_score: 8
+
+queries:
+  T1133_external_remote_service:
+    technique: T1133
+    tactic: InitialAccess
+    direction: both
+    table: UAVGcsAccess_CL
+    rationale: 외부 원격 서비스 접근 흔적 확인.
+    kql: |
+      UAVGcsAccess_CL
+      | where TimeGenerated between (datetime({start}) .. datetime({end}))
+      | where ClientIp !startswith "10."
+      | where ClientIp !startswith "172.16."
+      | where ClientIp !startswith "192.168."
+      | take {row_limit}
+
+  T1563_session_hijack:
+    technique: T1563
+    tactic: LateralMovement
+    direction: both
+    table: UAVGcsAccess_CL
+    rationale: 동일 세션 ID 의 다중 ClientIp 사용 흔적 확인.
+    kql: |
+      UAVGcsAccess_CL
+      | where TimeGenerated between (datetime({start}) .. datetime({end}))
+      | summarize ips = make_set(ClientIp), rows = count() by SessionId
+      | where array_length(ips) > 1
+      | take {row_limit}
+
+  T1041_exfil_over_c2:
+    technique: T1041
+    tactic: Exfiltration
+    direction: both
+    table: UAVGcsAccess_CL
+    rationale: C2 채널을 통한 대량 송신 흔적 확인.
+    kql: |
+      UAVGcsAccess_CL
+      | where TimeGenerated between (datetime({start}) .. datetime({end}))
+      | where BytesSent > 100 * 1024 * 1024
+      | take {row_limit}
