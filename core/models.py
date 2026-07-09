@@ -270,6 +270,39 @@ class EnvVerdict(StrEnum):
 # __getattr__ + TYPE_CHECKING(순환 임포트 회피, mypy 정합).
 
 
+class EvidenceEntry(BaseModel):
+    """ACH 원장 한 줄 — 매칭된 증거의 방향·가중치·변별력.
+
+    Attributes:
+        key: 증거 키(`core.hypothesis.EVIDENCE_KEYS` 폐쇄 집합).
+        value: 정규화 값(bool 계열 0.0/1.0, count/level/prob 은 원값).
+        direction: 가설 지지(consistent) / 반증(inconsistent).
+        weight: 카탈로그 선언 가중치(0.0 < w <= 1.0).
+        diagnostic: 변별력 — 활성 가설 전부에 같은 방향으로만 걸리면 False.
+    """
+
+    key: str
+    value: float
+    direction: Literal["consistent", "inconsistent"]
+    weight: float
+    diagnostic: bool = True
+
+
+class HypothesisAssessment(BaseModel):
+    """경쟁가설 하나의 ACH 평가 결과(비권위 참고정보).
+
+    ACH: 반증(inconsistency) 최소가 승자. rank 는 1부터, 매칭 증거가 전무하면
+    None(근거 없는 순위 금지 — 정직성 불변식).
+    """
+
+    hypothesis_id: str
+    name: str
+    consistency: float = 0.0
+    inconsistency: float = 0.0
+    rank: int | None = None
+    ledger: list[EvidenceEntry] = Field(default_factory=list)
+
+
 class InvestigationResult(BaseModel):
     """Investigation 산출물(유사사례 + 신호 상관).
 
@@ -314,6 +347,10 @@ class InvestigationResult(BaseModel):
     predictions: list[AttackPrediction] = Field(
         default_factory=list,
         description="spec C1: actor.kill_chain n-gram 기반 다음 기법 예측 후보.",
+    )
+    hypothesis_assessments: list[HypothesisAssessment] = Field(
+        default_factory=list,
+        description="ACH 경쟁가설 평가(비권위 참고정보 — confidence/라우팅 불변).",
     )
 
 

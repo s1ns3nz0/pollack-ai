@@ -18,6 +18,10 @@ class PolicyError(SOCPlatformError):
     """심각도 정책 로드/적용 오류."""
 
 
+class HypothesisCatalogError(SOCPlatformError):
+    """ACH 가설 카탈로그(hypothesis-catalog.yaml) 로드/스키마 오류."""
+
+
 class LLMError(SOCPlatformError):
     """LLM(요약/판정) 호출 오류."""
 
