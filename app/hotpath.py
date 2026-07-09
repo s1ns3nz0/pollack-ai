@@ -48,6 +48,26 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
+def _build_correlator(settings: Settings) -> AlertCorrelator:
+    """자산 의존 그래프(depends_on 엣지용)를 주입한 correlator 구성.
+
+    KeyTerrainMap 로드 실패 시 terrain=None(공유-IOC 엣지만)으로 degrade.
+    """
+    terrain: KeyTerrainMap | None = None
+    try:
+        terrain = KeyTerrainMap.from_yaml()
+    except SOCPlatformError as exc:
+        _logger.warning("correlation 의존그래프 로드 실패, IOC 엣지만: %s", exc)
+    return AlertCorrelator(
+        window_sec=settings.correlation_window_sec,
+        storm_count=settings.correlation_storm_count,
+        multi_axis_assets=settings.correlation_multi_axis_assets,
+        terrain=terrain,
+        cluster_min=settings.correlation_cluster_min,
+        max_alerts=settings.correlation_window_max_alerts,
+    )
+
+
 def _get_correlator(settings: Settings) -> AlertCorrelator | None:
     """지속 correlator 를 지연 구성(비활성이면 None). 최초 1회만.
 
@@ -59,11 +79,7 @@ def _get_correlator(settings: Settings) -> AlertCorrelator | None:
         with _corr_lock:
             if not _correlator_ready:  # 재확인(threaded 최초진입 경합 대비)
                 _correlator = (
-                    AlertCorrelator(
-                        window_sec=settings.correlation_window_sec,
-                        storm_count=settings.correlation_storm_count,
-                        multi_axis_assets=settings.correlation_multi_axis_assets,
-                    )
+                    _build_correlator(settings)
                     if settings.correlation_enabled
                     else None
                 )
