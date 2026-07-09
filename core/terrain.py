@@ -75,6 +75,20 @@ class KeyTerrainMap:
         """tier 가중치(미정의 → 0)."""
         return int(self._tier_weights.get(tier, 0))
 
+    def upstream_assets(self) -> frozenset[str]:
+        """upstream 자산 집합 = 다른 자산이 depends_on 하는(dependents 보유) 자산.
+
+        손상 전파원(예: C2_LINK 침해 → 의존 기체 영향)인 고가치 상위자산.
+        DynamicsTracker 레지스트리 upstream 판정에 주입해 임의 문자열 사칭을 차단한다.
+
+        Returns:
+            하나 이상의 dependent 를 가진 asset_id 집합.
+        """
+        upstream: set[str] = set()
+        for asset in self._assets.values():
+            upstream.update(asset.depends_on)
+        return frozenset(upstream)
+
     @classmethod
     def from_yaml(cls, path: str | Path | None = None) -> KeyTerrainMap:
         """asset-tiers.yaml 을 적재한다.

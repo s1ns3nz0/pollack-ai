@@ -96,11 +96,19 @@ class DynamicsTracker:
             self._upstream_seen.pop(a, None)
 
     def _enforce_cap(self) -> None:
-        """이력 개수가 상한을 넘으면 가장 오래된(last_seen) 항목부터 축출한다."""
+        """이력 개수가 상한을 넘으면 가장 오래된 항목부터 축출한다.
+
+        `_first_seen`/`_last_seen` 뿐 아니라 `_upstream_seen` 도 상한을 건다 — 레거시
+        substring 모드에서 위조 'GCS-*'/'C2-*' 스트림이 active 창 만료 전까지 upstream
+        dict 를 부풀리는 벡터 차단(Codex diff M).
+        """
         while len(self._first_seen) > self._max_entries:
             oldest = min(self._last_seen, key=lambda k: self._last_seen[k])
             self._first_seen.pop(oldest, None)
             self._last_seen.pop(oldest, None)
+        while len(self._upstream_seen) > self._max_entries:
+            oldest_up = min(self._upstream_seen, key=lambda a: self._upstream_seen[a])
+            self._upstream_seen.pop(oldest_up, None)
 
     def enrich(self, alert: Alert, now: datetime | None = None) -> Alert:
         """경보를 이력에 반영하고 dynamics 신호를 채운 복사본을 반환한다.

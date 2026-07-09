@@ -269,6 +269,28 @@ class Settings(BaseSettings):
         description="윈도우 내 서로 다른 자산 수가 이 값 이상이면 다축 동시침해.",
     )
 
+    # ── dynamics(체류시간·횡적상관) — 죽은 severity 룰 활성 ──────────────
+    dynamics_enabled: bool = Field(
+        default=True,
+        description="인제스트 dynamics enrich(dwelling/lateral 산정) 활성. 내부 로직·"
+        "egress 없음 → 기본 on. severity 의 dwelling/lateral 격상 룰을 실제 발동.",
+    )
+    dynamics_retention_min: int = Field(
+        default=180,
+        gt=0,
+        description="dynamics 이력 비활성(last_seen) eviction 창(분). 무관측 시 드롭.",
+    )
+    dynamics_upstream_active_min: int = Field(
+        default=60,
+        gt=0,
+        description="상위자산 침해를 '활성'으로 보는 창(분). lateral 상관 유효기간.",
+    )
+    dynamics_max_entries: int = Field(
+        default=4096,
+        gt=0,
+        description="dynamics 이력 dict cardinality 상한(위조 asset_id 폭증 방지).",
+    )
+
     # ── RAGAS 분석 품질 측정 (spec D1) ──────────────
     ragas_enabled: bool = Field(
         default=False, description="opt-in — 비동기 RAGAS 측정."

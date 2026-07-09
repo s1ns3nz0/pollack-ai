@@ -49,6 +49,7 @@ from core.coa import CoaMatrix, CoaPlanner
 from core.deception import DecoyDetector
 from core.degradation import DegradationAssessor, DegradationMatrix
 from core.diamond import DiamondAnalyzer
+from core.dynamics import DynamicsTracker
 from core.egress import IocEgressFilter
 from core.engage import EngageAdvancer, EngageMatrix
 from core.exceptions import SOCPlatformError
@@ -242,6 +243,7 @@ def build_soc_graph(
     ensemble_judges: list[ScoreJudge] | None = None,
     llm_judge_enabled: bool = False,
     hitl: bool = False,
+    dynamics: DynamicsTracker | None = None,
 ) -> CompiledStateGraph[SOCState]:
     """6-에이전트 SOC 파이프라인을 조립해 컴파일된 그래프를 반환한다.
 
@@ -480,6 +482,14 @@ def build_soc_graph(
         if posture_provider is not None:
             new_alert = await posture_provider.enrich(alert)
             if new_alert.posture != alert.posture:
+                changed = True
+            alert = new_alert
+        # dynamics: 이력 기반 dwelling/lateral 산정(posture 다음, severity compute 전).
+        # dwelling/lateral 은 단일 플래그로 안 잡히므로 모델 비교로 changed 판정 필수
+        # (Codex M — 아니면 triage 가 옛 alert 로 severity 계산해 룰이 계속 dormant).
+        if dynamics is not None:
+            new_alert = dynamics.enrich(alert)
+            if new_alert != alert:
                 changed = True
             alert = new_alert
         if matcher is not None:

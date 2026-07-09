@@ -130,6 +130,16 @@ class TestEvictionAndCap:
             )
         assert len(tracker._first_seen) <= 10
 
+    def test_upstream_seen_capped(self) -> None:
+        """레거시 위조 'GCS-*' 스트림 → _upstream_seen 도 상한 이내(Codex diff M)."""
+        tracker = DynamicsTracker(max_entries=10)
+        for i in range(50):
+            tracker.enrich(
+                _alert(asset_id=f"GCS-{i}", scenario_id="S1"),
+                _T0 + timedelta(seconds=i),
+            )
+        assert len(tracker._upstream_seen) <= 10
+
 
 class TestInjectableClock:
     """클록 주입 — now 미지정 시 내부 clock 사용."""
