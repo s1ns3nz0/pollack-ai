@@ -13,8 +13,19 @@ import json
 import operator
 from typing import Annotated, Literal, TypedDict
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
+from core.alert import _INTERNAL_ONLY_FIELDS as _INTERNAL_ONLY_FIELDS
+
+# 계약 모델(Alert)·공유 원시타입은 별 파일로 분리 — 하위호환 re-export.
+# 순환 없음: primitives·alert 는 core.models 를 import 하지 않는다(단방향).
+# `X as X` = 명시적 re-export(ruff F401 미제거 + mypy export 인정).
+from core.alert import Alert as Alert
+from core.alert import UntrustedAlertPayload as UntrustedAlertPayload
+from core.alert import has_forged_internal_fields as has_forged_internal_fields
+from core.primitives import SbomComponent as SbomComponent
+from core.primitives import Severity as Severity
+from core.primitives import Verdict as Verdict
 from tools.coverage import GroundSegmentReport
 
 
@@ -136,22 +147,6 @@ class VulnFinding(BaseModel):
     source: str = ""
 
 
-class SbomComponent(BaseModel):
-    """SBOM 컴포넌트 한 건(관측된 UAV 펌웨어/라이브러리/모델).
-
-    Attributes:
-        name: 컴포넌트 식별자.
-        version: 관측 버전.
-        hash: 관측 서명 해시(승인 해시와 대조).
-        cves: 컴포넌트가 선언한 CVE 목록(vuln_tool 로 악용여부 조회).
-    """
-
-    name: str
-    version: str = ""
-    hash: str = ""
-    cves: list[str] = Field(default_factory=list)
-
-
 class SbomFinding(BaseModel):
     """SBOM 검증 위험 한 건(공급망 무결성).
 
@@ -246,22 +241,6 @@ class ZtMapping(BaseModel):
     assessment_basis: Literal["self_attested_policy_yaml"] = "self_attested_policy_yaml"
 
 
-class Severity(StrEnum):
-    """심각도 등급(정책 엔진 산정값)."""
-
-    HIGH = "h"
-    MEDIUM = "m"
-    LOW = "l"
-    INFO = "i"
-
-
-class Verdict(StrEnum):
-    """오탐/정탐 판정."""
-
-    TRUE_POSITIVE = "true_positive"
-    FALSE_POSITIVE = "false_positive"
-
-
 class Provenance(StrEnum):
     """경험메모리(`exp/`) 레코드의 출처 신뢰 등급.
 
@@ -286,123 +265,9 @@ class EnvVerdict(StrEnum):
     INCONCLUSIVE = "inconclusive"  # 애매(짧은 윈도우/단발 트랜지언트) → 적립 보류
 
 
-class Alert(BaseModel):
-    """SOC 파이프라인 입력 경보(시나리오에서 파생).
-
-    `llm_suggested_severity` 는 적대적으로 주입될 수 있는 제안 등급이며 신뢰하지
-    않는다(Triage 가드레일용 — S5 RAG 포이즈닝 방어).
-    """
-
-    id: str
-    scenario_id: str
-    title: str
-    asset_id: str = ""
-    asset_tier: str = ""
-    mission_phase: str = ""
-    posture: str = "normal"
-    severity_baseline: Severity
-    mitre: dict[str, object] = Field(default_factory=dict)
-    signals: list[str] = Field(default_factory=list)
-    iocs: list[str] = Field(default_factory=list)  # 외부 TI 조회용 지표(해시/IP/도메인)
-    cves: list[str] = Field(default_factory=list)  # 취약점 컨텍스트 조회용 CVE 식별자
-    sbom_components: list[SbomComponent] = Field(
-        default_factory=list,
-        description="공급망 검증용 관측 SBOM 컴포넌트(펌웨어 변조 시나리오 등).",
-    )
-    expected_detection: dict[str, object] = Field(default_factory=dict)
-    defense_playbook: dict[str, object] = Field(default_factory=dict)
-    ground_truth: Verdict = Verdict.TRUE_POSITIVE
-    llm_suggested_severity: Severity | None = None
-    # dynamics 런타임 신호(탐지 파이프라인이 채움; 없으면 정적 산정과 동일)
-    dwelling_min: int = 0
-    lateral_correlation: bool = False
-    no_effect_sustained: bool = False
-    # 예측 폐루프: 이 alert 의 technique 이 해당 actor 의 pending 예측과 일치.
-    # PredictionMatcher(읽기 전용 대조)가 채움 — 정책 dynamics 격상 입력.
-    prediction_match: bool = False
-    # kill chain: 이 actor 가 누적으로 후반 단계(C2 이후)에 도달.
-    # KillChainProgressor(읽기 전용)가 채움 — 진행 중 캠페인 판단 → dynamics 격상.
-    kill_chain_advanced: bool = False
-    # deception: 이 alert 이 decoy 자산/canary 토큰을 건드림.
-    # DecoyDetector(읽기 전용)가 채움 — dynamics 격상 입력. TP 승격은 아님(untrusted).
-    decoy_hit: bool = False
-    # MBCRA: 이 alert 의 자산이 현 임무단계의 사이버 핵심지형(key terrain).
-    # KeyTerrainDetector(읽기 전용)가 채움 — dynamics 격상 입력(JP 3-12 KT-C).
-    key_terrain: bool = False
-    # 지리 컨텍스트(외부 GNSS/Airspace 도구 조회용; 없으면 asset-tiers.yaml fallback)
-    lat: float | None = None
-    lon: float | None = None
-    # 공격자 식별 — 신뢰 주입 경계(sim_bridge/운영진/신뢰 inbound webhook 만 채움).
-    # 외부 입력(Sentinel alert 본문, RAG, LLM)에서 들어온 값은 hotpath 진입 시 strip.
-    actor_id: str | None = None
-
-
-# 파이프라인 내부/게이트/신뢰생산자만 채우는 필드 — untrusted wire 는 물리적 제외.
-# 위조 시 격상(대부분) 또는 억제(no_effect_sustained·ground_truth) 벡터. 신규 enrich
-# 필드는 여기 추가하거나 UntrustedAlertPayload 에 추가 — drift 가드 테스트가 강제한다.
-_INTERNAL_ONLY_FIELDS: frozenset[str] = frozenset(
-    {
-        "actor_id",
-        "prediction_match",
-        "kill_chain_advanced",
-        "decoy_hit",
-        "key_terrain",
-        "dwelling_min",
-        "lateral_correlation",
-        "no_effect_sustained",
-        "ground_truth",  # default_judge 판정 우회(Critical)
-        "expected_detection",  # RuleUpdateAgent watchlist/PR 권한(High)
-        "posture",  # severity 권한·하향금지 lock — 방어측 조건(CPCON provider 담당)
-        "defense_playbook",  # response 행동·HITL 프롬프트 지시
-    }
-)
-
-
-class UntrustedAlertPayload(BaseModel):
-    """untrusted `/alert` HTTP 입력의 구조적 신뢰경계(whitelist wire 모델).
-
-    외부 생산자가 채울 수 있는 **위협 서술 필드만** 노출한다. 파이프라인 내부/게이트가
-    산출하는 `_INTERNAL_ONLY_FIELDS` 는 이 모델에 물리적으로 없어 위조가 불가능하다
-    (`extra="ignore"` 로 위조 키는 조용히 드롭 — 가용성 위해 forbid 대신). 신뢰 생산자
-    (sim_bridge/outcome_probe/correlation)는 `Alert` 를 직접 생성하므로 무영향.
-
-    두 신뢰 부류(Codex diff 반영):
-      - SOC-계산 필드(내부전용 12): 파이프라인/게이트 산출 → wire 제외(위조=격상/억제).
-      - 탐지소스 필드(wire 허용): severity_baseline/signals/mitre 는 탐지가 주는 값 —
-        소스만큼만 신뢰. baseline 은 severity 엔진 시작점일 뿐, 내부 modifier
-        (asset/key_terrain/dynamics)가 baseline 무관 격상하고 최종 판정은 baseline
-        아닌 환경검증(env_verdict)이 결정 → 위조 저-baseline 실공격도 억제 불가
-        (test_forged_low_baseline_still_escalates). 엔진 필수입력이라 내부화 불가.
-    """
-
-    model_config = ConfigDict(extra="ignore")
-
-    id: str
-    scenario_id: str
-    title: str
-    asset_id: str = ""
-    asset_tier: str = ""
-    mission_phase: str = ""
-    severity_baseline: Severity
-    mitre: dict[str, object] = Field(default_factory=dict)
-    signals: list[str] = Field(default_factory=list)
-    iocs: list[str] = Field(default_factory=list)
-    cves: list[str] = Field(default_factory=list)
-    sbom_components: list[SbomComponent] = Field(default_factory=list)
-    llm_suggested_severity: Severity | None = None
-    lat: float | None = None
-    lon: float | None = None
-
-    def to_alert(self) -> Alert:
-        """서술 필드만으로 내부 Alert 구성(내부전용 필드는 Alert 기본값 유지)."""
-        return Alert(**self.model_dump())
-
-
-def has_forged_internal_fields(payload: object) -> list[str]:
-    """payload(dict)에 내부전용 키가 실려있으면 그 목록 반환(위조 시도 telemetry용)."""
-    if not isinstance(payload, dict):
-        return []
-    return sorted(k for k in payload if k in _INTERNAL_ONLY_FIELDS)
+# Alert / UntrustedAlertPayload / _INTERNAL_ONLY_FIELDS / has_forged_internal_fields
+# 는 core/alert.py 로 분리(detection→analysis 계약). 하위호환 re-export = 파일 끝
+# __getattr__ + TYPE_CHECKING(순환 임포트 회피, mypy 정합).
 
 
 class InvestigationResult(BaseModel):
