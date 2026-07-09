@@ -121,11 +121,17 @@ def expected_component_types(settings: Settings) -> set[str]:
         settings: 플랫폼 설정.
 
     Returns:
-        기대 유형 집합(항상 chat_llm, ragas_enabled 면 ragas 포함).
+        기대 유형 집합. chat_llm 항상, 활성 서브시스템(ragas/graphrag/ragflow)별 가산.
     """
     expected = {"chat_llm"}
     if getattr(settings, "ragas_enabled", False):
         expected.add("ragas")
+    if getattr(settings, "graph_rag_enabled", False):
+        expected.add("graphrag")
+    if getattr(settings, "ragflow_base_url", ""):
+        # RAGFlow 검색기 활성 → 검색 백엔드 + 임베딩 모델 선언 기대.
+        expected.add("ragflow")
+        expected.add("embedding")
     return expected
 
 

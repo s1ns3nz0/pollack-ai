@@ -6,6 +6,10 @@ components:
     version: "qwen2.5:14b"
     digest: ""
     source: "http://192.168.64.1:11443"
+  "ragflow-retriever":
+    version: "0.15"
+    digest: ""
+    source: "http://127.0.0.1:9380"
   "ragflow-default-embedding":
     version: "bge-large-1.5"
     digest: ""
