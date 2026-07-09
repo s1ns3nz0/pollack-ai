@@ -21,7 +21,18 @@ from core.cacao import (
 )
 from core.exceptions import PlaybookError
 
-_TACTICS = {"Impact", "ImpairProcessControl", "InhibitResponseFunction"}
+_TACTICS = {
+    "InitialAccess",
+    "Execution",
+    "Persistence",
+    "LateralMovement",
+    "Collection",
+    "CommandAndControl",
+    "Exfiltration",
+    "ImpairProcessControl",
+    "InhibitResponseFunction",
+    "Impact",
+}
 
 
 def _matrices() -> tuple[dict[str, Any], dict[str, Any]]:
@@ -30,9 +41,17 @@ def _matrices() -> tuple[dict[str, Any], dict[str, Any]]:
 
 class TestCatalogLoad:
     def test_exemplars_load_and_validate(self) -> None:
-        """3 exemplar 로드 + validate 통과, 전술 키 일치."""
+        """10 전술 카탈로그 로드, 전술 키 일치."""
         pbs = load_playbooks()
         assert {p.tactic for p in pbs} == _TACTICS
+
+    def test_ten_playbooks_all_validate(self) -> None:
+        """10 플레이북 전수 validate_playbook 통과(스키마·no-exec·게이트·source_ref)."""
+        coa, rec = _matrices()
+        pbs = load_playbooks()
+        assert len(pbs) == 10
+        for pb in pbs:
+            validate_playbook(pb, coa, rec)
 
     def test_cacao_conformance(self) -> None:
         """CACAO 필수필드·start/end·workflow_start→start."""

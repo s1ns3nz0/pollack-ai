@@ -68,3 +68,27 @@ matrix:
     restore:
       - { action: "알람 설정·보고채널 무결성 복원 + 이중화 링크 페일오버", d3fend: "D3-RA" }
     verify: "알람·보고 재억제(reoccurred) 시 축출 실패 — 대역외 감시 + 수동 상태확인"
+
+  Execution:
+    evict:
+      - { action: "비인가 스크립트/프로세스 종료 + 명령 실행 세션 격리", d3fend: "D3-PT" }
+      - { action: "변조 컨트롤러 태스킹 롤백", d3fend: "D3-PA" }
+    restore:
+      - { action: "검증 이미지·정상 태스킹으로 GCS/FCC 복원", d3fend: "D3-SYSR" }
+    verify: "비인가 실행 재발(reoccurred) 시 축출 실패 — 실행 통제 강화 + 재이미징"
+
+  Collection:
+    evict:
+      - { action: "AiTM 세션 차단 + 수집 채널·페이로드 접근 격리", d3fend: "D3-NTF" }
+      - { action: "비인가 수집 프로세스 종료", d3fend: "D3-PT" }
+    restore:
+      - { action: "센서·영상 링크 암호화 재수립 + 무결성 복구", d3fend: "D3-MENCR" }
+    verify: "수집 채널 재확립(reoccurred) 시 축출 실패 — 링크 재키잉 + 세그먼트 격리"
+
+  Exfiltration:
+    evict:
+      - { action: "유출 C2/대체채널 차단 + 세션 종료", d3fend: "D3-OTF" }
+      - { action: "유출 스테이징 데이터 격리·삭제", d3fend: "D3-FR" }
+    restore:
+      - { action: "정상 데이터 흐름·egress 정책 복원", d3fend: "D3-RA" }
+    verify: "재유출(reoccurred) 시 축출 실패 — egress 전면 차단 + DLP 강화"

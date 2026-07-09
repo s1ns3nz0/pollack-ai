@@ -299,3 +299,696 @@ playbooks:
         on_completion: "end--0"
       end--0:
         type: end
+
+  # ── InitialAccess — T1190 Exploit Public App · T1195 Supply Chain · T0860 Wireless ──
+  - type: playbook
+    spec_version: cacao-2.0
+    id: "playbook--uav-ia-0001"
+    name: "UAV 초기침투 대응 — 취약점/공급망/무선"
+    description: "초기 접근(공개서비스 익스플로잇·공급망·무선 침투) 탐지 시 봉쇄→축출→복구→적응. 임무게이트 분기."
+    created: "2026-07-09T00:00:00Z"
+    modified: "2026-07-09T00:00:00Z"
+    created_by: "황준식"
+    playbook_types: ["mitigation", "remediation"]
+    playbook_activities: ["step-sequence"]
+    tactic: "InitialAccess"
+    workflow_start: "start--0"
+    agent_definitions:
+      agent--analyst:
+        type: individual
+        name: "uav-soc-analyst"
+    external_references:
+      - { source_name: "mitre-attack", external_id: "T1190", url: "https://attack.mitre.org/techniques/T1190", description: "Exploit Public-Facing Application" }
+      - { source_name: "mitre-attack", external_id: "T1195", url: "https://attack.mitre.org/techniques/T1195", description: "Supply Chain Compromise" }
+      - { source_name: "mitre-attack", external_id: "T0860", url: "https://attack.mitre.org/techniques/T0860", description: "Wireless Compromise" }
+      - { source_name: "nist-800-53", external_id: "IR-8", description: "Incident Response Plan" }
+    labels: { framework: "cacao-2.0" }
+    workflow:
+      start--0:
+        type: start
+        on_completion: "action--contain"
+      action--contain:
+        type: action
+        name: "봉쇄 — 침투 경로 거부"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "익스플로잇 대상 서비스 접근 차단·비인가 무선 세션 거부, 탈취 세션 무효화" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:InitialAccess:Deny" }
+        external_references:
+          - { source_name: "nist-800-61", external_id: "Containment", description: "800-61 lifecycle" }
+        on_completion: "if--mission-gate"
+      if--mission-gate:
+        type: if-condition
+        name: "임무영향 게이트"
+        condition: 'mission_risk.score >= 6 or mission_risk.factors["civil_geo"] >= 1'
+        labels: { mission_gate: true }
+        on_true: "action--contain-hitl"
+        on_false: "action--contain-auto"
+      action--contain-hitl:
+        type: action
+        name: "보수 봉쇄 — HITL 기만/격리"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "운용자 승인 후 기만 리다이렉트·세그먼트 격리(임무 중단 회피, 링크 즉단 금지)" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:InitialAccess:Deceive" }
+        on_completion: "action--eradicate"
+      action--contain-auto:
+        type: action
+        name: "자동 적격 봉쇄(저위험)"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "저-임무위험 — 침투 세션 자동 탐지·차단 적격(운용자 통지)" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:InitialAccess:Detect" }
+        on_completion: "action--eradicate"
+      action--eradicate:
+        type: action
+        name: "축출 — 유효계정 세션 무효화"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "탈취 유효계정 세션 무효화 + 자격증명 회전, 비인가 원격서비스 접속 축출" }
+        labels: { phase: eradicate, nist_ir: "IR-4", source_ref: "recovery:InitialAccess:evict:0" }
+        on_completion: "action--recover"
+      action--recover:
+        type: action
+        name: "복구 — 정상 인증 경로 복원"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "정상 인증 경로 복구 + MFA 재적용" }
+        labels: { phase: recover, nist_ir: "IR-4", source_ref: "recovery:InitialAccess:restore:0" }
+        external_references:
+          - { source_name: "nist-800-184", external_id: "Tactical-Recovery", url: "https://csrc.nist.gov/pubs/sp/800/184/final", description: "Event Recovery" }
+        on_completion: "action--recover-verify"
+      action--recover-verify:
+        type: action
+        name: "복구 검증 — 재접속 관측"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "outcome_probe 로 동일 계정 재접속(reoccurred) 관측 — 재발 시 자격증명 전면 폐기 + 격리 확대" }
+        labels: { phase: recover, verify: true, nist_ir: "IR-6", source_ref: "recovery:InitialAccess:verify" }
+        on_completion: "action--adapt"
+      action--adapt:
+        type: action
+        name: "적응 — 접근면 세그먼트화(회복탄력)"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "노출 서비스 최소화 + GCS/링크 네트워크 세그먼트화·제로트러스트 재적용(Segmentation)" }
+        labels: { phase: adapt, nist_ir: "IR-8", resiliency_technique: "Segmentation" }
+        external_references:
+          - { source_name: "nist-800-160v2", external_id: "Segmentation", url: "https://csrc.nist.gov/pubs/sp/800/160/v2/r1/final", description: "Cyber Resiliency" }
+        on_completion: "end--0"
+      end--0:
+        type: end
+
+  # ── Execution — T1059 Command/Script · T0821 Modify Control Logic · T1203 Exploit Client ──
+  - type: playbook
+    spec_version: cacao-2.0
+    id: "playbook--uav-exec-0001"
+    name: "UAV 실행 대응 — 명령/스크립트/제어로직"
+    description: "실행(비인가 명령·스크립트·제어로직 변조) 탐지 시 봉쇄→축출→복구→적응. 임무게이트 분기."
+    created: "2026-07-09T00:00:00Z"
+    modified: "2026-07-09T00:00:00Z"
+    created_by: "황준식"
+    playbook_types: ["mitigation", "remediation"]
+    playbook_activities: ["step-sequence"]
+    tactic: "Execution"
+    workflow_start: "start--0"
+    agent_definitions:
+      agent--analyst:
+        type: individual
+        name: "uav-soc-analyst"
+    external_references:
+      - { source_name: "mitre-attack", external_id: "T1059", url: "https://attack.mitre.org/techniques/T1059", description: "Command and Scripting Interpreter" }
+      - { source_name: "mitre-attack", external_id: "T0821", url: "https://attack.mitre.org/techniques/T0821", description: "Modify Controller Tasking" }
+      - { source_name: "mitre-attack", external_id: "T1203", url: "https://attack.mitre.org/techniques/T1203", description: "Exploitation for Client Execution" }
+      - { source_name: "nist-800-53", external_id: "IR-8", description: "Incident Response Plan" }
+    labels: { framework: "cacao-2.0" }
+    workflow:
+      start--0:
+        type: start
+        on_completion: "action--contain"
+      action--contain:
+        type: action
+        name: "봉쇄 — 비인가 실행 거부"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "비인가 스크립트/프로세스 실행 거부·태스킹 쓰기 차단, 실행 세션 격리" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:Execution:Deny" }
+        external_references:
+          - { source_name: "nist-800-61", external_id: "Containment", description: "800-61 lifecycle" }
+        on_completion: "if--mission-gate"
+      if--mission-gate:
+        type: if-condition
+        name: "임무영향 게이트"
+        condition: 'mission_risk.score >= 6 or mission_risk.factors["civil_geo"] >= 1'
+        labels: { mission_gate: true }
+        on_true: "action--contain-hitl"
+        on_false: "action--contain-auto"
+      action--contain-hitl:
+        type: action
+        name: "보수 봉쇄 — HITL 태스킹 검증"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "운용자 승인 후 태스킹 롤백·정상 제어로직 재적재(비행 중 자동 중단 금지, graceful-degrade)" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:Execution:Detect" }
+        on_completion: "action--eradicate"
+      action--contain-auto:
+        type: action
+        name: "자동 적격 봉쇄(저위험)"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "저-임무위험 — 비인가 실행 자동 탐지·차단 적격(운용자 통지)" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:Execution:Detect" }
+        on_completion: "action--eradicate"
+      action--eradicate:
+        type: action
+        name: "축출 — 비인가 프로세스 종료"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "비인가 스크립트/프로세스 종료 + 명령 실행 세션 격리, 변조 컨트롤러 태스킹 롤백" }
+        labels: { phase: eradicate, nist_ir: "IR-4", source_ref: "recovery:Execution:evict:0" }
+        on_completion: "action--recover"
+      action--recover:
+        type: action
+        name: "복구 — 검증 이미지/태스킹 복원"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "검증 이미지·정상 태스킹으로 GCS/FCC 복원" }
+        labels: { phase: recover, nist_ir: "IR-4", source_ref: "recovery:Execution:restore:0" }
+        external_references:
+          - { source_name: "nist-800-184", external_id: "Tactical-Recovery", url: "https://csrc.nist.gov/pubs/sp/800/184/final", description: "Event Recovery" }
+        on_completion: "action--recover-verify"
+      action--recover-verify:
+        type: action
+        name: "복구 검증 — 재실행 관측"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "outcome_probe 로 비인가 실행 재발(reoccurred) 관측 — 재발 시 실행 통제 강화 + 재이미징" }
+        labels: { phase: recover, verify: true, nist_ir: "IR-6", source_ref: "recovery:Execution:verify" }
+        on_completion: "action--adapt"
+      action--adapt:
+        type: action
+        name: "적응 — 실행 비영속화(회복탄력)"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "제어 태스킹 서명검증 강제 + 비영속 실행환경·읽기전용 루트 재구성(Non-Persistence)" }
+        labels: { phase: adapt, nist_ir: "IR-8", resiliency_technique: "NonPersistence" }
+        external_references:
+          - { source_name: "nist-800-160v2", external_id: "NonPersistence", url: "https://csrc.nist.gov/pubs/sp/800/160/v2/r1/final", description: "Cyber Resiliency" }
+        on_completion: "end--0"
+      end--0:
+        type: end
+
+  # ── Persistence — T1556 Modify Auth · T1542.001 System Firmware · T0857 System Firmware ──
+  - type: playbook
+    spec_version: cacao-2.0
+    id: "playbook--uav-persist-0001"
+    name: "UAV 지속성 대응 — 인증변조/펌웨어 임플란트"
+    description: "지속성(인증 변조·펌웨어 임플란트) 탐지 시 봉쇄→축출→복구→적응. 임무게이트 분기."
+    created: "2026-07-09T00:00:00Z"
+    modified: "2026-07-09T00:00:00Z"
+    created_by: "황준식"
+    playbook_types: ["mitigation", "remediation"]
+    playbook_activities: ["step-sequence"]
+    tactic: "Persistence"
+    workflow_start: "start--0"
+    agent_definitions:
+      agent--analyst:
+        type: individual
+        name: "uav-soc-analyst"
+    external_references:
+      - { source_name: "mitre-attack", external_id: "T1556", url: "https://attack.mitre.org/techniques/T1556", description: "Modify Authentication Process" }
+      - { source_name: "mitre-attack", external_id: "T1542.001", url: "https://attack.mitre.org/techniques/T1542/001", description: "System Firmware" }
+      - { source_name: "mitre-attack", external_id: "T0857", url: "https://attack.mitre.org/techniques/T0857", description: "System Firmware" }
+      - { source_name: "nist-800-53", external_id: "IR-8", description: "Incident Response Plan" }
+    labels: { framework: "cacao-2.0" }
+    workflow:
+      start--0:
+        type: start
+        on_completion: "action--contain"
+      action--contain:
+        type: action
+        name: "봉쇄 — 미서명 코드 거부"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "미서명 펌웨어/프로그램 로드 거부·변조 인증경로 차단, 시큐어부트 게이트 강제" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:Persistence:Deny" }
+        external_references:
+          - { source_name: "nist-800-61", external_id: "Containment", description: "800-61 lifecycle" }
+        on_completion: "if--mission-gate"
+      if--mission-gate:
+        type: if-condition
+        name: "임무영향 게이트"
+        condition: 'mission_risk.score >= 6 or mission_risk.is_key_terrain'
+        labels: { mission_gate: true }
+        on_true: "action--contain-hitl"
+        on_false: "action--contain-auto"
+      action--contain-hitl:
+        type: action
+        name: "보수 봉쇄 — HITL 재이미징 대기"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "운용자 승인 후 임무 종료/회수 시점 재이미징 계획(비행 중 강제 재부팅 금지)" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:Persistence:Detect" }
+        on_completion: "action--eradicate"
+      action--contain-auto:
+        type: action
+        name: "자동 적격 봉쇄(저위험)"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "저-임무위험 — 미서명 코드 자동 격리·차단 적격(운용자 통지)" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:Persistence:Detect" }
+        on_completion: "action--eradicate"
+      action--eradicate:
+        type: action
+        name: "축출 — 변조 펌웨어 재이미징"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "변조 펌웨어 축출 — 검증 이미지로 재이미징, 미서명 프로그램·임플란트 제거" }
+        labels: { phase: eradicate, nist_ir: "IR-4", source_ref: "recovery:Persistence:evict:0" }
+        on_completion: "action--recover"
+      action--recover:
+        type: action
+        name: "복구 — SBOM 검증 이미지 복원"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "SBOM 재검증 통과 이미지로 시스템 복원" }
+        labels: { phase: recover, nist_ir: "IR-4", source_ref: "recovery:Persistence:restore:0" }
+        external_references:
+          - { source_name: "nist-800-184", external_id: "Tactical-Recovery", url: "https://csrc.nist.gov/pubs/sp/800/184/final", description: "Event Recovery" }
+        on_completion: "action--recover-verify"
+      action--recover-verify:
+        type: action
+        name: "복구 검증 — 서명 불일치 재발 관측"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "outcome_probe 로 서명 불일치 재발(reoccurred) 관측 — 재발 시 공급망 소스 격리 + 재이미징 반복" }
+        labels: { phase: recover, verify: true, nist_ir: "IR-6", source_ref: "recovery:Persistence:verify" }
+        on_completion: "action--adapt"
+      action--adapt:
+        type: action
+        name: "적응 — 부팅 무결성 입증(회복탄력)"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "측정 부팅·원격 증명(remote attestation) 상시화 + 서명키 회전(SubstantiatedIntegrity)" }
+        labels: { phase: adapt, nist_ir: "IR-8", resiliency_technique: "SubstantiatedIntegrity" }
+        external_references:
+          - { source_name: "nist-800-160v2", external_id: "SubstantiatedIntegrity", url: "https://csrc.nist.gov/pubs/sp/800/160/v2/r1/final", description: "Cyber Resiliency" }
+        on_completion: "end--0"
+      end--0:
+        type: end
+
+  # ── LateralMovement — T0843 Program Download · T1210 Exploit Remote Svc · T1570 Lateral Transfer ──
+  - type: playbook
+    spec_version: cacao-2.0
+    id: "playbook--uav-lm-0001"
+    name: "UAV 횡적이동 대응 — 원격서비스/기체간 확산"
+    description: "횡적 이동(프로그램 다운로드·원격서비스 익스플로잇·기체간 전이) 탐지 시 봉쇄→축출→복구→적응. 임무게이트 분기."
+    created: "2026-07-09T00:00:00Z"
+    modified: "2026-07-09T00:00:00Z"
+    created_by: "황준식"
+    playbook_types: ["mitigation", "remediation"]
+    playbook_activities: ["step-sequence"]
+    tactic: "LateralMovement"
+    workflow_start: "start--0"
+    agent_definitions:
+      agent--analyst:
+        type: individual
+        name: "uav-soc-analyst"
+    external_references:
+      - { source_name: "mitre-attack", external_id: "T0843", url: "https://attack.mitre.org/techniques/T0843", description: "Program Download" }
+      - { source_name: "mitre-attack", external_id: "T1210", url: "https://attack.mitre.org/techniques/T1210", description: "Exploitation of Remote Services" }
+      - { source_name: "mitre-attack", external_id: "T1570", url: "https://attack.mitre.org/techniques/T1570", description: "Lateral Tool Transfer" }
+      - { source_name: "nist-800-53", external_id: "IR-8", description: "Incident Response Plan" }
+    labels: { framework: "cacao-2.0" }
+    workflow:
+      start--0:
+        type: start
+        on_completion: "action--contain"
+      action--contain:
+        type: action
+        name: "봉쇄 — 횡적 경로 거부"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "기체간·GCS간 비인가 전이 세션 거부·원격서비스 익스플로잇 차단, 세그먼트 경계 강제" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:LateralMovement:Deny" }
+        external_references:
+          - { source_name: "nist-800-61", external_id: "Containment", description: "800-61 lifecycle" }
+        on_completion: "if--mission-gate"
+      if--mission-gate:
+        type: if-condition
+        name: "임무영향 게이트"
+        condition: 'mission_risk.score >= 6 or mission_risk.is_key_terrain'
+        labels: { mission_gate: true }
+        on_true: "action--contain-hitl"
+        on_false: "action--contain-auto"
+      action--contain-hitl:
+        type: action
+        name: "보수 봉쇄 — HITL 기만/격리"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "운용자 승인 후 기만 세그먼트 유도·확산 격리(편대 임무 유지, 다수 기체 즉단 금지)" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:LateralMovement:Deceive" }
+        on_completion: "action--eradicate"
+      action--contain-auto:
+        type: action
+        name: "자동 적격 봉쇄(저위험)"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "저-임무위험 — 횡적 전이 자동 탐지·격리 적격(운용자 통지)" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:LateralMovement:Detect" }
+        on_completion: "action--eradicate"
+      action--eradicate:
+        type: action
+        name: "축출 — 확산 세션 격리"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "횡적확산 세션 격리·종료 + 자격증명 전면 회전, 침해 GCS 계정 접근 축출" }
+        labels: { phase: eradicate, nist_ir: "IR-4", source_ref: "recovery:LateralMovement:evict:0" }
+        on_completion: "action--recover"
+      action--recover:
+        type: action
+        name: "복구 — 백업 GCS 지휘권 이관"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "백업 GCS 로 지휘권 이관·복구" }
+        labels: { phase: recover, nist_ir: "IR-4", source_ref: "recovery:LateralMovement:restore:0" }
+        external_references:
+          - { source_name: "nist-800-184", external_id: "Tactical-Recovery", url: "https://csrc.nist.gov/pubs/sp/800/184/final", description: "Event Recovery" }
+        on_completion: "action--recover-verify"
+      action--recover-verify:
+        type: action
+        name: "복구 검증 — 재지정 재발 관측"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "outcome_probe 로 다수 기체 재지정 재발(reoccurred) 관측 — 재발 시 전 세션 강제 종료 + 재인증" }
+        labels: { phase: recover, verify: true, nist_ir: "IR-6", source_ref: "recovery:LateralMovement:verify" }
+        on_completion: "action--adapt"
+      action--adapt:
+        type: action
+        name: "적응 — 편대 세그먼트화(회복탄력)"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "기체간 통신 마이크로세그먼트화 + 상호 신뢰 최소화·east-west 필터(Segmentation)" }
+        labels: { phase: adapt, nist_ir: "IR-8", resiliency_technique: "Segmentation" }
+        external_references:
+          - { source_name: "nist-800-160v2", external_id: "Segmentation", url: "https://csrc.nist.gov/pubs/sp/800/160/v2/r1/final", description: "Cyber Resiliency" }
+        on_completion: "end--0"
+      end--0:
+        type: end
+
+  # ── Collection — T1557 AiTM · T1125 Video Capture · T1113 Screen Capture ──
+  - type: playbook
+    spec_version: cacao-2.0
+    id: "playbook--uav-coll-0001"
+    name: "UAV 수집 대응 — AiTM/영상·화면 캡처"
+    description: "수집(중간자·영상/화면 캡처) 탐지 시 봉쇄→축출→복구→적응. 임무게이트 분기."
+    created: "2026-07-09T00:00:00Z"
+    modified: "2026-07-09T00:00:00Z"
+    created_by: "황준식"
+    playbook_types: ["mitigation", "remediation"]
+    playbook_activities: ["step-sequence"]
+    tactic: "Collection"
+    workflow_start: "start--0"
+    agent_definitions:
+      agent--analyst:
+        type: individual
+        name: "uav-soc-analyst"
+    external_references:
+      - { source_name: "mitre-attack", external_id: "T1557", url: "https://attack.mitre.org/techniques/T1557", description: "Adversary-in-the-Middle" }
+      - { source_name: "mitre-attack", external_id: "T1125", url: "https://attack.mitre.org/techniques/T1125", description: "Video Capture" }
+      - { source_name: "mitre-attack", external_id: "T1113", url: "https://attack.mitre.org/techniques/T1113", description: "Screen Capture" }
+      - { source_name: "nist-800-53", external_id: "IR-8", description: "Incident Response Plan" }
+    labels: { framework: "cacao-2.0" }
+    workflow:
+      start--0:
+        type: start
+        on_completion: "action--contain"
+      action--contain:
+        type: action
+        name: "봉쇄 — 수집 채널 탐지"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "AiTM 세션·비인가 영상/화면 수집 탐지·무결성 감시 활성, 링크 인증서 검증" }
+        labels: { phase: contain, nist_ir: "IR-5", source_ref: "coa:Collection:Detect" }
+        external_references:
+          - { source_name: "nist-800-61", external_id: "Containment", description: "800-61 lifecycle" }
+        on_completion: "if--mission-gate"
+      if--mission-gate:
+        type: if-condition
+        name: "임무영향 게이트"
+        condition: 'mission_risk.score >= 6 or mission_risk.factors["civil_geo"] >= 1'
+        labels: { mission_gate: true }
+        on_true: "action--contain-hitl"
+        on_false: "action--contain-auto"
+      action--contain-hitl:
+        type: action
+        name: "보수 봉쇄 — HITL 링크 강등"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "운용자 승인 후 수집 채널 대역폭 강등·재키잉(영상링크 즉단 금지, ISR 임무 유지)" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:Collection:Degrade" }
+        on_completion: "action--eradicate"
+      action--contain-auto:
+        type: action
+        name: "자동 적격 봉쇄(저위험)"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "저-임무위험 — 수집 채널 자동 강등·격리 적격(운용자 통지)" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:Collection:Degrade" }
+        on_completion: "action--eradicate"
+      action--eradicate:
+        type: action
+        name: "축출 — AiTM 세션 차단"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "AiTM 세션 차단 + 수집 채널·페이로드 접근 격리, 비인가 수집 프로세스 종료" }
+        labels: { phase: eradicate, nist_ir: "IR-4", source_ref: "recovery:Collection:evict:0" }
+        on_completion: "action--recover"
+      action--recover:
+        type: action
+        name: "복구 — 링크 암호화 재수립"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "센서·영상 링크 암호화 재수립 + 무결성 복구" }
+        labels: { phase: recover, nist_ir: "IR-4", source_ref: "recovery:Collection:restore:0" }
+        external_references:
+          - { source_name: "nist-800-184", external_id: "Tactical-Recovery", url: "https://csrc.nist.gov/pubs/sp/800/184/final", description: "Event Recovery" }
+        on_completion: "action--recover-verify"
+      action--recover-verify:
+        type: action
+        name: "복구 검증 — 수집 재확립 관측"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "outcome_probe 로 수집 채널 재확립(reoccurred) 관측 — 재발 시 링크 재키잉 + 세그먼트 격리" }
+        labels: { phase: recover, verify: true, nist_ir: "IR-6", source_ref: "recovery:Collection:verify" }
+        on_completion: "action--adapt"
+      action--adapt:
+        type: action
+        name: "적응 — 링크 암호 다양화(회복탄력)"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "센서/영상 링크 암호 스위트 다양화 + 주파수 호핑·다중 경로(Diversity)" }
+        labels: { phase: adapt, nist_ir: "IR-8", resiliency_technique: "Diversity" }
+        external_references:
+          - { source_name: "nist-800-160v2", external_id: "Diversity", url: "https://csrc.nist.gov/pubs/sp/800/160/v2/r1/final", description: "Cyber Resiliency" }
+        on_completion: "end--0"
+      end--0:
+        type: end
+
+  # ── CommandAndControl — T1071 App Layer Proto · T1090 Proxy · T1573 Encrypted Channel ──
+  - type: playbook
+    spec_version: cacao-2.0
+    id: "playbook--uav-c2-0001"
+    name: "UAV 명령제어 대응 — 비인가 C2 채널"
+    description: "명령제어(응용계층 프로토콜·프록시·암호화 채널) 탐지 시 봉쇄→축출→복구→적응. 임무게이트 분기."
+    created: "2026-07-09T00:00:00Z"
+    modified: "2026-07-09T00:00:00Z"
+    created_by: "황준식"
+    playbook_types: ["mitigation", "remediation"]
+    playbook_activities: ["step-sequence"]
+    tactic: "CommandAndControl"
+    workflow_start: "start--0"
+    agent_definitions:
+      agent--analyst:
+        type: individual
+        name: "uav-soc-analyst"
+    external_references:
+      - { source_name: "mitre-attack", external_id: "T1071", url: "https://attack.mitre.org/techniques/T1071", description: "Application Layer Protocol" }
+      - { source_name: "mitre-attack", external_id: "T1090", url: "https://attack.mitre.org/techniques/T1090", description: "Proxy" }
+      - { source_name: "mitre-attack", external_id: "T1573", url: "https://attack.mitre.org/techniques/T1573", description: "Encrypted Channel" }
+      - { source_name: "nist-800-53", external_id: "IR-8", description: "Incident Response Plan" }
+    labels: { framework: "cacao-2.0" }
+    workflow:
+      start--0:
+        type: start
+        on_completion: "action--contain"
+      action--contain:
+        type: action
+        name: "봉쇄 — C2 채널 교란"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "비인가 C2 채널 교란·비콘 차단, 채널 화이트리스트 강제·프록시 경유 거부" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:CommandAndControl:Disrupt" }
+        external_references:
+          - { source_name: "nist-800-61", external_id: "Containment", description: "800-61 lifecycle" }
+        on_completion: "if--mission-gate"
+      if--mission-gate:
+        type: if-condition
+        name: "임무영향 게이트"
+        condition: 'mission_risk.score >= 6 or mission_risk.factors["civil_geo"] >= 1'
+        labels: { mission_gate: true }
+        on_true: "action--contain-hitl"
+        on_false: "action--contain-auto"
+      action--contain-hitl:
+        type: action
+        name: "보수 봉쇄 — HITL 링크 재확립"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "운용자 승인 후 신뢰 링크로 지휘통제 재확립 후 비인가 채널 거부(단일 링크 즉단 금지)" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:CommandAndControl:Deny" }
+        on_completion: "action--eradicate"
+      action--contain-auto:
+        type: action
+        name: "자동 적격 봉쇄(저위험)"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "저-임무위험 — 비인가 C2 자동 탐지·차단 적격(운용자 통지)" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:CommandAndControl:Detect" }
+        on_completion: "action--eradicate"
+      action--eradicate:
+        type: action
+        name: "축출 — C2 세션 강제 종료"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "C2 세션 강제 종료 + 미인가 연결 축출, 탈취 자격증명 회전 + 채널 화이트리스트 재적용" }
+        labels: { phase: eradicate, nist_ir: "IR-4", source_ref: "recovery:CommandAndControl:evict:0" }
+        on_completion: "action--recover"
+      action--recover:
+        type: action
+        name: "복구 — 대체 링크 지휘통제 복구"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "대체 링크로 지휘통제 복구 + 세션 재확립" }
+        labels: { phase: recover, nist_ir: "IR-4", source_ref: "recovery:CommandAndControl:restore:0" }
+        external_references:
+          - { source_name: "nist-800-184", external_id: "Tactical-Recovery", url: "https://csrc.nist.gov/pubs/sp/800/184/final", description: "Event Recovery" }
+        on_completion: "action--recover-verify"
+      action--recover-verify:
+        type: action
+        name: "복구 검증 — C2 재확립 관측"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "outcome_probe 로 미인가 C2 재확립(reoccurred) 관측 — 재발 시 링크 전면 리셋 + 키 롤오버" }
+        labels: { phase: recover, verify: true, nist_ir: "IR-6", source_ref: "recovery:CommandAndControl:verify" }
+        on_completion: "action--adapt"
+      action--adapt:
+        type: action
+        name: "적응 — C2 경로 다양화(회복탄력)"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "지휘통제 링크 다중화·이기종화 + 비콘 이상 탐지 상시화(Diversity)" }
+        labels: { phase: adapt, nist_ir: "IR-8", resiliency_technique: "Diversity" }
+        external_references:
+          - { source_name: "nist-800-160v2", external_id: "Diversity", url: "https://csrc.nist.gov/pubs/sp/800/160/v2/r1/final", description: "Cyber Resiliency" }
+        on_completion: "end--0"
+      end--0:
+        type: end
+
+  # ── Exfiltration — T1041 Exfil over C2 · T1020 Automated Exfil · T1048 Alt Protocol ──
+  - type: playbook
+    spec_version: cacao-2.0
+    id: "playbook--uav-exfil-0001"
+    name: "UAV 유출 대응 — C2/자동/대체프로토콜 유출"
+    description: "유출(C2 경유·자동 유출·대체 프로토콜) 탐지 시 봉쇄→축출→복구→적응. 임무게이트 분기."
+    created: "2026-07-09T00:00:00Z"
+    modified: "2026-07-09T00:00:00Z"
+    created_by: "황준식"
+    playbook_types: ["mitigation", "remediation"]
+    playbook_activities: ["step-sequence"]
+    tactic: "Exfiltration"
+    workflow_start: "start--0"
+    agent_definitions:
+      agent--analyst:
+        type: individual
+        name: "uav-soc-analyst"
+    external_references:
+      - { source_name: "mitre-attack", external_id: "T1041", url: "https://attack.mitre.org/techniques/T1041", description: "Exfiltration Over C2 Channel" }
+      - { source_name: "mitre-attack", external_id: "T1020", url: "https://attack.mitre.org/techniques/T1020", description: "Automated Exfiltration" }
+      - { source_name: "mitre-attack", external_id: "T1048", url: "https://attack.mitre.org/techniques/T1048", description: "Exfiltration Over Alternative Protocol" }
+      - { source_name: "nist-800-53", external_id: "IR-8", description: "Incident Response Plan" }
+    labels: { framework: "cacao-2.0" }
+    workflow:
+      start--0:
+        type: start
+        on_completion: "action--contain"
+      action--contain:
+        type: action
+        name: "봉쇄 — 유출 채널 거부"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "유출 C2/대체채널 egress 거부·비정상 대량 전송 차단, DLP 게이트 강제" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:Exfiltration:Deny" }
+        external_references:
+          - { source_name: "nist-800-61", external_id: "Containment", description: "800-61 lifecycle" }
+        on_completion: "if--mission-gate"
+      if--mission-gate:
+        type: if-condition
+        name: "임무영향 게이트"
+        condition: 'mission_risk.score >= 6 or mission_risk.factors["civil_geo"] >= 1'
+        labels: { mission_gate: true }
+        on_true: "action--contain-hitl"
+        on_false: "action--contain-auto"
+      action--contain-hitl:
+        type: action
+        name: "보수 봉쇄 — HITL egress 교란"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "운용자 승인 후 유출 흐름 교란·대역 강등(임무 telemetry 즉단 금지, 정상 egress 보존)" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:Exfiltration:Disrupt" }
+        on_completion: "action--eradicate"
+      action--contain-auto:
+        type: action
+        name: "자동 적격 봉쇄(저위험)"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "저-임무위험 — 유출 채널 자동 탐지·차단 적격(운용자 통지)" }
+        labels: { phase: contain, nist_ir: "IR-4", source_ref: "coa:Exfiltration:Detect" }
+        on_completion: "action--eradicate"
+      action--eradicate:
+        type: action
+        name: "축출 — 유출 채널 차단"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "유출 C2/대체채널 차단 + 세션 종료, 유출 스테이징 데이터 격리·삭제" }
+        labels: { phase: eradicate, nist_ir: "IR-4", source_ref: "recovery:Exfiltration:evict:0" }
+        on_completion: "action--recover"
+      action--recover:
+        type: action
+        name: "복구 — egress 정책 복원"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "정상 데이터 흐름·egress 정책 복원" }
+        labels: { phase: recover, nist_ir: "IR-4", source_ref: "recovery:Exfiltration:restore:0" }
+        external_references:
+          - { source_name: "nist-800-184", external_id: "Tactical-Recovery", url: "https://csrc.nist.gov/pubs/sp/800/184/final", description: "Event Recovery" }
+        on_completion: "action--recover-verify"
+      action--recover-verify:
+        type: action
+        name: "복구 검증 — 재유출 관측"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "outcome_probe 로 재유출(reoccurred) 관측 — 재발 시 egress 전면 차단 + DLP 강화" }
+        labels: { phase: recover, verify: true, nist_ir: "IR-6", source_ref: "recovery:Exfiltration:verify" }
+        on_completion: "action--adapt"
+      action--adapt:
+        type: action
+        name: "적응 — egress 기만·최소화(회복탄력)"
+        agent: "agent--analyst"
+        commands:
+          - { type: manual, command: "허니토큰·기만 데이터 배치 + egress 화이트리스트 최소화(Deception)" }
+        labels: { phase: adapt, nist_ir: "IR-8", resiliency_technique: "Deception" }
+        external_references:
+          - { source_name: "nist-800-160v2", external_id: "Deception", url: "https://csrc.nist.gov/pubs/sp/800/160/v2/r1/final", description: "Cyber Resiliency" }
+        on_completion: "end--0"
+      end--0:
+        type: end
