@@ -11,20 +11,26 @@ prompt_injection:
   atlas_id: "AML.T0051"
   patterns:
     - id: ignore_previous
+      confidence: medium
       atlas: "AML.T0051"
       regex: "(?i)\\b(ignore|disregard|forget)\\b[^.\\n]{0,30}\\b(previous|prior|above|earlier|all)\\b[^.\\n]{0,20}\\b(instruction|rule|context|prompt|direction)"
     - id: role_switch
+      confidence: medium
       atlas: "AML.T0051"
       regex: "(?i)(you\\s+are\\s+now\\s+(a|an|the|no\\s+longer)\\b|from\\s+now\\s+on,?\\s+you\\s+(are|must|will|should)\\b|ignore\\s+your\\s+(instruction|role|guideline|rule))"
     - id: score_manipulation
+      confidence: high
       atlas: "AML.T0051"
       regex: "(?i)\\b(score|verdict)\\s*=\\s*[01](\\.\\d+)?\\b"
     - id: system_exfil
+      confidence: medium
       atlas: "AML.T0051.000"
       regex: "(?i)(reveal|repeat|print|show|output|dump|leak)\\s+(your|the)\\s+(system\\s+)?(prompt|instruction|rule)s?\\b"
     - id: fence_breakout
+      confidence: high
       atlas: "AML.T0051"
       regex: "(?i)<<\\s*(end|untrusted)[:_ ]|end[_ ]of[_ ]untrusted"
     - id: follow_new_instructions
+      confidence: medium
       atlas: "AML.T0051"
       regex: "(?i)\\b(follow|obey|use|apply|adhere\\s+to)\\s+(these\\s+|the\\s+)?(new|updated|following|real|true)\\s+(instruction|rule|directive|command)s?\\b"
