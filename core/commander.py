@@ -14,7 +14,7 @@ Spec: docs/superpowers/specs/2026-07-08-incident-commander-design.md
 
 from __future__ import annotations
 
-from core.incident import is_case_overdue
+from core.incident import is_case_overdue, is_cisa_overdue, is_cisa_reportable
 from core.models import IncidentCase, IncidentDirective, IncidentState, Severity
 
 # 교리상수(CJCSM 6510 CAT × 에스컬레이션) — 정책 I/O 없음(graceful 표면 소멸).
@@ -89,7 +89,15 @@ class IncidentCommander:
 
         overdue = is_case_overdue(case, now_iso)
         if overdue:
-            rationale.append("상급 보고 시한 초과 — 즉시 보고")
+            rationale.append("상급 보고(CJCSM) 시한 초과 — 즉시 보고")
+
+        # CIRCIA 연방(CISA) 72h — 권위 중대 case 만(별 경로).
+        cisa_reportable = is_cisa_reportable(case)
+        cisa_overdue = is_cisa_overdue(case, now_iso)
+        if cisa_reportable:
+            rationale.append("CIRCIA 연방(CISA) 72h 보고 대상 — covered cyber incident")
+        if cisa_overdue:
+            rationale.append("CISA 연방 72h 시한 초과 — 즉시 연방 보고")
 
         return IncidentDirective(
             escalation=_RANK_LABEL[rank],
@@ -97,6 +105,8 @@ class IncidentCommander:
             assigned_tier=tier,
             recommended_action=action,
             report_overdue=overdue,
+            cisa_reportable=cisa_reportable,
+            cisa_report_overdue=cisa_overdue,
             provisional=case.provisional,
             rationale=rationale,
         )

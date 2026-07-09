@@ -47,6 +47,7 @@ class _Counters:
         self.bda_restore_total = 0
         self.prompt_injection_total = 0
         self.aibom_violation_total = 0
+        self.cisa_reportable_total = 0
 
     def record_alert(self, verdict: str) -> None:
         """경보 1건 처리 + 판정 집계."""
@@ -116,6 +117,11 @@ class _Counters:
         """AIBOM 거버넌스 위반 n건 누적(AI 공급망·출처). 정적 posture — 로드 시 1회."""
         with self._lock:
             self.aibom_violation_total += n
+
+    def record_cisa_reportable(self) -> None:
+        """CIRCIA 연방(CISA) 72h 보고 대상 권위 case 1건 누적."""
+        with self._lock:
+            self.cisa_reportable_total += 1
 
     def record_prediction(self, *, hit: bool) -> None:
         """예측 판정 1건 누적(예측 폐루프)."""
@@ -240,6 +246,12 @@ def render_text() -> str:
         out.append("# HELP soc_aibom_violation_total AIBOM 거버넌스 위반 수(AI 공급망)")
         out.append("# TYPE soc_aibom_violation_total counter")
         out.append(_line("soc_aibom_violation_total", c.aibom_violation_total))
+    if c.cisa_reportable_total:
+        out.append(
+            "# HELP soc_cisa_reportable_total CIRCIA 연방 72h 보고 대상 권위 case 수"
+        )
+        out.append("# TYPE soc_cisa_reportable_total counter")
+        out.append(_line("soc_cisa_reportable_total", c.cisa_reportable_total))
 
     # 예측 폐루프: hit/miss 카운터 + 적중률 게이지
     pred = c.prediction_stats()
