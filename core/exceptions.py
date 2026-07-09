@@ -48,3 +48,7 @@ class GraphRetrievalError(SOCPlatformError):
 
 class CoverageDataError(SOCPlatformError):
     """ATT&CK 커버리지 매트릭스 로드/검증 오류."""
+
+
+class PlaybookError(SOCPlatformError):
+    """CACAO 플레이북 카탈로그 로드/검증 오류(스키마·정합·no-exec 위반)."""

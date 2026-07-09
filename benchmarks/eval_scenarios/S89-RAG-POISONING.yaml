@@ -1,0 +1,36 @@
+# 골든 픽스처(issue #83) — RAG 포이즈닝(AI SOC 메타위협, Orient 단계 기만).
+# 출처: dah-sentinel-content AnalyticsRules/S89_RAG_Poisoning_Orient_Deception.json.
+# 구 S5-RAG-POISON(존재하지 않는 옛 번호, sentinel_rule도 잘못 참조돼 있었음)을 대체.
+# 주의: 이 룰 자체가 "계측 공백/최선근사" proxy 룰(원문 description 참고) — AI 추론
+# 전용 텔레메트리 부재로 UAVOpAudit_CL 관례값(EventType='rag_poison')으로 근사.
+fixture_id: FX-S89-RAG-POISONING
+scenario_id: S89-RAG-POISONING-ORIENT-DECEPTION
+title: RAG 포이즈닝 (AI SOC Orient 단계 기만)
+asset_id: AI_SOC
+target_asset:
+  id: AI_SOC
+  tier: T2-Standard
+mission_context:
+  phase: on-station
+severity_baseline: h
+telemetry:
+  signals:
+    - "UAVOpAudit_CL EventType='rag_poison' 관례 태깅 레코드"
+    - "Detail 필드 이상 콘텐츠 패턴"
+expected_detection:
+  sentinel_rule: S89_RAG_Poisoning_Orient_Deception.json
+mitre:
+  attack_ics: ["AML.T0051"]
+expected_tactic: Impact
+expected_techniques: ["T1565"]
+expected_cacao_playbook_id: "playbook--uav-impact-0001"
+expected_resilience_level: SUSTAINED
+expected_fallback_contains: "정책 엔진 단독"
+expected_report_evidence: "AI SOC 자동 판정"
+defense_playbook:
+  id: PB-AISOC-FALLBACK-01
+  actions:
+    - "AI SOC 판정 신뢰도 강등, LLM 제안 무시"
+    - "정책 엔진 단독 모드로 전환"
+    - "운용자 수동 검토 병행"
+  failover: "정책 엔진 단독(LLM 불신) + 수동 검토로 방어 지속"

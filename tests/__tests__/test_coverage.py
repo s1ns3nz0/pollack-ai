@@ -154,28 +154,32 @@ class TestRealData:
         m = CoverageMatrix.from_yaml(_DATA)
         assert len(m.tactics) == 15  # 15 전술 전부
 
-    def test_real_gap_count_around_30(self) -> None:
+    def test_real_gap_count_around_20(self) -> None:
+        # dah S1~S126 재정렬 이후 실배포 재동기화(2026-07) — 10개(T1125/T1113/T1005/
+        # T1074/T1011/T1567/T1590/T1596/T1014/T1485)가 covered 로 이동해 30 -> 20.
         rep = CoverageMatrix.from_yaml(_DATA).report()
-        assert 28 <= rep.uncovered <= 33  # 팀 표 ~31개 갭
+        assert 18 <= rep.uncovered <= 22
         assert rep.addressable_pct >= rep.coverage_pct
 
     def test_real_archetypes_present(self) -> None:
         grouped = CoverageMatrix.from_yaml(_DATA).gaps_by_archetype()
-        # 5 archetype 모두 갭을 가짐(A~E).
+        # D_uninstrumented_exfil 은 재동기화로 갭 0(완전 해소) — 나머지 4개 archetype 은
+        # 여전히 갭 보유.
         assert all(
             grouped.get(a)
             for a in (
                 "A_pre_compromise",
                 "B_passive_collection",
                 "C_encrypted_c2",
-                "D_uninstrumented_exfil",
                 "E_destruction_prevention",
             )
         )
+        assert grouped.get("D_uninstrumented_exfil") == []
 
     def test_staging_gap_has_adjacent_inference_anchor(self) -> None:
-        # T1074(Data Staged, ❌)는 인접 단계(C2, order+1)의 탐지가능 형제로 정황 추정.
+        # T1119(Automated Collection, ❌) — 인접 단계(C2)의 탐지가능 형제로 추정.
+        # T1074 는 재동기화로 covered 전환됨.
         m = CoverageMatrix.from_yaml(_DATA)
-        anchors = m.inference_anchors("T1074")
+        anchors = m.inference_anchors("T1119")
         assert anchors.tactic == "Collection"
         assert "T1071" in anchors.adjacent_covered  # CommandAndControl(✅) 형제

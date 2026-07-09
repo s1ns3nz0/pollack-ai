@@ -1,0 +1,37 @@
+# 골든 픽스처(issue #83) — BLOS SATCOM 자율명령 위조/지연(무결성 훼손).
+# 출처: dah-sentinel-content AnalyticsRules/S117_BLOS_Autonomy_Command_Forge.json.
+# 구 S3-SATCOM-MITM(존재하지 않는 옛 번호)를 대체 — SATCOM 무결성 위반 개념은
+# 새 체계에서 S117로 이동(S13/S48은 SATCOM 관련이나 tactic이 Impact 계열 아니라
+# CACAO 플레이북 3종에 안 걸림 — S117만 Impact 매칭 확인 후 선정).
+fixture_id: FX-S117-SATCOM-MITM
+scenario_id: S117-BLOS-AUTONOMY-COMMAND-FORGE
+title: BLOS SATCOM 자율명령 위조/지연 (링크 무결성 훼손)
+asset_id: SATCOM
+target_asset:
+  id: SATCOM
+  tier: T1-Critical
+mission_context:
+  phase: on-station
+severity_baseline: h
+telemetry:
+  signals:
+    - "UAVSatcomLink_CL IntegrityStatus 비정상"
+    - "BeaconJitterSec 과다"
+    - "SATCOM 무결성 위반 구간과 Command 발생시각 UAVId 기준 ±30초 상관"
+expected_detection:
+  sentinel_rule: S117_BLOS_Autonomy_Command_Forge.json
+mitre:
+  attack_ics: ["T0856"]
+expected_tactic: Impact
+expected_techniques: ["T1565"]
+expected_cacao_playbook_id: "playbook--uav-impact-0001"
+expected_resilience_level: SUSTAINED
+expected_fallback_contains: "LOS 직접링크"
+expected_report_evidence: "위성 데이터링크"
+defense_playbook:
+  id: PB-SATCOM-INTEG-01
+  actions:
+    - "SATCOM 링크 무결성 위반 구간 명령 격리·재검증"
+    - "LOS 직접링크/중계 대체망으로 전환"
+    - "링크 이중화 페일오버"
+  failover: "위성링크 신뢰도 강등, LOS 대체망 전환 후 임무 지속"

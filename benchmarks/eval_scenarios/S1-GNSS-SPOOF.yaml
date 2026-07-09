@@ -1,8 +1,13 @@
-# 오프라인 KPI 평가셋 — 재구성본 (원본: projects/dah2026/scenarios, 회사 PC)
-# 출처: sim_bridge/detector.py:30-61 (런타임 빌더), data/mitre_attack_graph.yaml,
-#       docs/hackathon/hwang-junsik-status.md 마스터 표. 원본과 diff 검증 필요.
-scenario_id: S1-GNSS-SPOOF
-title: GPS/GNSS 스푸핑
+# 오프라인 KPI 평가셋 + 골든 픽스처(issue #83) — 재구성본
+# expected_* 필드는 detection golden fixture → response runbook trace 검증용
+# (fixture -> tactic -> CACAO playbook 선택 -> asset_id -> mission_continuity).
+# 값 출처: dah-sentinel-content AnalyticsRules/S1_GNSS_Spoofing.json(tactics/techniques),
+# core/policy/cacao-playbooks.yaml(playbook--uav-impact-0001, tactic=Impact 매칭),
+# core/policy/degradation-matrix.yaml(GNSS=SUSTAINED).
+fixture_id: FX-S1-GNSS-SPOOF
+scenario_id: S1-GNSS-SPOOFING
+title: GPS/GNSS 스푸핑 (EKF Variance Anomaly)
+asset_id: GNSS
 target_asset:
   id: GNSS
   tier: T1-Critical
@@ -15,10 +20,15 @@ telemetry:
     - "C/N0 비정상 상승"
     - "위성수 급감"
 expected_detection:
-  sigma_rule: uav_gps_spoof_residual.yml
-  sentinel_rule: S1_GNSS_Spoofing
+  sentinel_rule: S1_GNSS_Spoofing.json
 mitre:
-  attack_ics: ["T0830-AiTM", "T0856-SpoofReportingMessage", "T0831", "T0815"]
+  attack_ics: ["T0835", "T0832", "T0831"]
+expected_tactic: Impact
+expected_techniques: ["T1565", "T1565.001", "T1565.002"]
+expected_cacao_playbook_id: "playbook--uav-impact-0001"
+expected_resilience_level: SUSTAINED
+expected_fallback_contains: "INS/관성항법"
+expected_report_evidence: "위성항법 정확도"
 defense_playbook:
   id: PB-NAV-RTB-01
   actions:

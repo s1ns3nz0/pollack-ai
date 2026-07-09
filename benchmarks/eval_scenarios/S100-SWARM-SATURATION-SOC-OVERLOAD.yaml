@@ -1,0 +1,25 @@
+# 골든 픽스처 — 구 S9-SWARM-SATURATION(옛 번호, 대응하는 실제 룰 없었음)를 대체.
+# 출처: dah-sentinel-content AnalyticsRules/S100_Swarm_Saturation_SOC_Overload.json.
+scenario_id: S100-SWARM-SATURATION-SOC-OVERLOAD
+title: 군집 유발 경보 포화 (SOC 대응 무력화)
+target_asset:
+  id: AI_SOC
+  tier: T0-AISOC
+mission_context:
+  phase: on-station
+severity_baseline: h
+telemetry:
+  signals:
+    - "UAVFleetState_CL ActiveUAVCount 급증(군집 동시 이상행동)"
+    - "SecurityAlert 경보량 급증(SOC 부하 신호)과 동일 5분 시간대역 동시 관측"
+expected_detection:
+  sentinel_rule: S100_Swarm_Saturation_SOC_Overload.json
+mitre:
+  attack_ics: ["T1499"]
+defense_playbook:
+  id: PB-SWARM-AGGREGATE-09
+  actions:
+    - "동류 경보 집약(클러스터 단위 처리)"
+    - "lateral correlation 기반 에스컬레이션"
+    - "저위험 게이트 완화로 처리량 확보"
+  failover: "SOC 포화 시 임무 크리티컬 자산 경보 우선 처리"

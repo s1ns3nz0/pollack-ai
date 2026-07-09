@@ -1,0 +1,25 @@
+# 골든 픽스처 — 구 S11-MOBILE-GCS(옛 번호, 대응하는 실제 룰 없었음)를 대체.
+# 출처: dah-sentinel-content AnalyticsRules/S42_GCS_QML_Plugin_Injection.json.
+scenario_id: S42-GCS-QML-PLUGIN-INJECTION
+title: GCS(QGroundControl류) QML/플러그인 인젝션
+target_asset:
+  id: GCS
+  tier: T1-Critical
+mission_context:
+  phase: ground-ops
+severity_baseline: h
+telemetry:
+  signals:
+    - "UAVCompanion_CL EventType='qml_inject' 이벤트"
+    - "InjectionSignatureDetected=true"
+expected_detection:
+  sentinel_rule: S42_GCS_QML_Plugin_Injection.json
+mitre:
+  attack_ics: ["T1059"]
+defense_playbook:
+  id: PB-MOBILEGCS-CONTAIN-11
+  actions:
+    - "MDM 격리(단말 임무권한 회수)"
+    - "앱 서명 검증 강제"
+    - "임무파일 접근권한 분리·회전"
+  failover: "전술 GCS 신뢰 회복 전 주 GCS 단독 운용"
