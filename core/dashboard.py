@@ -585,3 +585,26 @@ def build_dashboard_snapshot(
             trace=trace,
         ),
     )
+
+
+def write_dashboard_snapshot(
+    snapshot: DashboardSnapshot,
+    directory: str | Path,
+) -> Path:
+    """Write a dashboard snapshot JSON file for replay.
+
+    Args:
+        snapshot: Snapshot to write.
+        directory: Output directory.
+
+    Returns:
+        Path to the written JSON file.
+
+    Raises:
+        OSError: Directory or file write fails.
+    """
+    output_dir = Path(directory)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    path = output_dir / f"{snapshot.step:03d}-dashboard.snapshot.json"
+    path.write_text(snapshot.model_dump_json(indent=2), encoding="utf-8")
+    return path
