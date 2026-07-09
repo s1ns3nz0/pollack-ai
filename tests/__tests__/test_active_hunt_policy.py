@@ -6,7 +6,7 @@ import pytest
 
 from core.active_hunt import ActiveHuntPlanner, ActiveHuntPolicy
 from core.exceptions import PolicyError
-from core.models import Alert, AttackPrediction, MissionRisk
+from core.models import Alert, AttackPrediction, MissionRisk, Severity
 from tools.coverage import Archetype, CoverageMatrix, TacticCoverage
 
 
@@ -36,7 +36,7 @@ def _alert(tactic: str = "CommandAndControl") -> Alert:
         asset_id="UAV-1",
         asset_tier="T2-Important",
         mission_phase="ISR",
-        severity_baseline="m",
+        severity_baseline=Severity.MEDIUM,
         mitre={"techniques": ["T1071"], "tactics": [tactic]},
         signals=["지상국 미발신 명령 수신"],
         iocs=[],

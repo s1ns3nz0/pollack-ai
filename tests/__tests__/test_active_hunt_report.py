@@ -23,7 +23,7 @@ def _alert() -> Alert:
         asset_id="UAV-1",
         asset_tier="T2-Important",
         mission_phase="ISR",
-        severity_baseline="m",
+        severity_baseline=Severity.MEDIUM,
         mitre={"techniques": ["T1071"], "tactics": ["CommandAndControl"]},
         signals=["지상국 미발신 명령 수신"],
         iocs=[],
@@ -59,6 +59,7 @@ async def test_report_includes_active_hunt_findings() -> None:
     report = out["report"]
     assert report.active_hunt_findings == [finding]
     assert any("active hunt matched" in flag for flag in report.guardrail_flags)
+    assert report.commander_brief is not None
     assert any("active hunt" in fact for fact in report.commander_brief.key_facts)
 
 
@@ -88,6 +89,7 @@ async def test_unmatched_finding_no_guardrail_but_evidence_retained() -> None:
 
     report = out["report"]
     assert not any("active hunt matched" in flag for flag in report.guardrail_flags)
+    assert report.commander_brief is not None
     assert not any("active hunt" in fact for fact in report.commander_brief.key_facts)
     assert report.active_hunt_findings == [finding]
 
