@@ -86,14 +86,21 @@ class LlmJudge:
     def _guardrail_signal(self, state: SOCState) -> str | None:
         """untrusted 텍스트 스캔 → guardrail 신호(판정 비구동). metric 부수효과."""
         detected_atlas: list[str] = []
+        high_conf = False
         degraded = self._guard.degraded
         for text in _untrusted_texts(state):
             v = self._guard.scan(text)
             for a in v.atlas_ids:
                 if a not in detected_atlas:
                     detected_atlas.append(a)
+            if v.high_confidence:
+                high_conf = True
         if detected_atlas:
             metrics().record_prompt_injection()
+            if high_conf:
+                # 우리 시스템 직접 조작(active) — 진짜 SOC-겨냥 공격 구분(별 신호).
+                metrics().record_active_injection()
+                return f"active_injection_attempt(ATLAS {','.join(detected_atlas)})"
             return f"prompt_injection_suspected(ATLAS {','.join(detected_atlas)})"
         if degraded:
             metrics().record_prompt_injection()

@@ -46,6 +46,7 @@ class _Counters:
         # BDA: 교전피해평가 복구/재교전 권고 누적(OutcomeProbeAgent 가 갱신)
         self.bda_restore_total = 0
         self.prompt_injection_total = 0
+        self.active_injection_total = 0
         self.aibom_violation_total = 0
         self.cisa_reportable_total = 0
 
@@ -112,6 +113,11 @@ class _Counters:
         """LLM 프롬프트 인젝션 의심/가드 강등 1건 누적(ATLAS AML.T0051)."""
         with self._lock:
             self.prompt_injection_total += 1
+
+    def record_active_injection(self) -> None:
+        """high-confidence active 인젝션(우리 시스템 직접 조작) 1건 누적."""
+        with self._lock:
+            self.active_injection_total += 1
 
     def record_aibom_violation(self, n: int = 1) -> None:
         """AIBOM 거버넌스 위반 n건 누적(AI 공급망·출처). 정적 posture — 로드 시 1회."""
@@ -242,6 +248,10 @@ def render_text() -> str:
         )
         out.append("# TYPE soc_prompt_injection_total counter")
         out.append(_line("soc_prompt_injection_total", c.prompt_injection_total))
+    if c.active_injection_total:
+        out.append("# HELP soc_active_injection_total high-confidence active 인젝션 수")
+        out.append("# TYPE soc_active_injection_total counter")
+        out.append(_line("soc_active_injection_total", c.active_injection_total))
     if c.aibom_violation_total:
         out.append("# HELP soc_aibom_violation_total AIBOM 거버넌스 위반 수(AI 공급망)")
         out.append("# TYPE soc_aibom_violation_total counter")

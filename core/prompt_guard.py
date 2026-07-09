@@ -39,24 +39,34 @@ class GuardVerdict(BaseModel):
         detected: 인젝션 패턴 매칭 여부.
         matched_patterns: 매칭된 패턴 id 목록.
         atlas_ids: 매칭 패턴의 MITRE ATLAS technique id 목록(중복 제거).
+        high_confidence: 우리 시스템을 *직접 조작* 하는 active 패턴(score 강제/fence
+            breakout — 묘사로 설명 불가) 매칭 여부. 진짜 공격 vs 우연 문자열 구분.
         degraded: 정책 로드 실패로 fence-only(탐지 비활성) 모드인지(M6 관측).
     """
 
     detected: bool = False
     matched_patterns: list[str] = Field(default_factory=list)
     atlas_ids: list[str] = Field(default_factory=list)
+    high_confidence: bool = False
     degraded: bool = False
 
 
 class _Pattern:
     """컴파일된 탐지 패턴 한 건."""
 
-    __slots__ = ("pattern_id", "regex", "atlas")
+    __slots__ = ("pattern_id", "regex", "atlas", "confidence")
 
-    def __init__(self, pattern_id: str, regex: re.Pattern[str], atlas: str) -> None:
+    def __init__(
+        self,
+        pattern_id: str,
+        regex: re.Pattern[str],
+        atlas: str,
+        confidence: str = "medium",
+    ) -> None:
         self.pattern_id = pattern_id
         self.regex = regex
         self.atlas = atlas
+        self.confidence = confidence
 
 
 class PromptInjectionGuard:
@@ -84,15 +94,19 @@ class PromptInjectionGuard:
             return GuardVerdict(degraded=self._degraded)
         matched: list[str] = []
         atlas: list[str] = []
+        high_conf = False
         for p in self._patterns:
             if p.regex.search(text):
                 matched.append(p.pattern_id)
                 if p.atlas not in atlas:
                     atlas.append(p.atlas)
+                if p.confidence == "high":
+                    high_conf = True
         return GuardVerdict(
             detected=bool(matched),
             matched_patterns=matched,
             atlas_ids=atlas,
+            high_confidence=high_conf,
             degraded=self._degraded,
         )
 
@@ -153,8 +167,9 @@ class PromptInjectionGuard:
                 compiled = re.compile(expr)
             except re.error as exc:
                 raise PolicyError(f"패턴 정규식 컴파일 실패({pid}): {exc}") from exc
+            conf = "high" if str(item.get("confidence", "")) == "high" else "medium"
             patterns.append(
-                _Pattern(pid, compiled, str(item.get("atlas", default_atlas)))
+                _Pattern(pid, compiled, str(item.get("atlas", default_atlas)), conf)
             )
         return cls(patterns)
 
