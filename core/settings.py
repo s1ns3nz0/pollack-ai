@@ -224,6 +224,28 @@ class Settings(BaseSettings):
         description="OpenSky BBox 반경(deg). 0.1 ≒ ±11km.",
     )
 
+    # ── 다중경보 상관 (인제스트 스트림 — S9 군집 포화) ──────────────
+    correlation_enabled: bool = Field(
+        default=True,
+        description="인제스트 크로스-alert 상관(AlertCorrelator) 활성. 내부 로직·"
+        "egress 없음 → 기본 on. 발화 시 S9 집약 alert 를 파이프라인 재투입.",
+    )
+    correlation_window_sec: float = Field(
+        default=300.0,
+        gt=0.0,
+        description="상관 슬라이딩 윈도우(초). 이 안의 경보를 한 묶음으로 상관.",
+    )
+    correlation_storm_count: int = Field(
+        default=5,
+        gt=0,
+        description="윈도우 내 경보 수가 이 값 이상이면 경보 폭주(alert storm).",
+    )
+    correlation_multi_axis_assets: int = Field(
+        default=3,
+        gt=0,
+        description="윈도우 내 서로 다른 자산 수가 이 값 이상이면 다축 동시침해.",
+    )
+
     # ── RAGAS 분석 품질 측정 (spec D1) ──────────────
     ragas_enabled: bool = Field(
         default=False, description="opt-in — 비동기 RAGAS 측정."
