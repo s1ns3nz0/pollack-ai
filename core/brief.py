@@ -105,6 +105,11 @@ class CommanderBriefBuilder:
         if report.campaign_matches:
             cm = report.campaign_matches[0]
             facts.append(f"캠페인 {cm.chain_id}({cm.matched}/{cm.total})")
+        matched_hunts = [
+            finding for finding in report.active_hunt_findings if finding.matched
+        ]
+        if matched_hunts:
+            facts.append(f"active hunt matched {len(matched_hunts)}건")
         kw = report.kill_web_resilience
         if kw is not None:
             blind = (

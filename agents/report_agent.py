@@ -191,6 +191,7 @@ class ReportAgent(BaseSOCAgent):
         evidence_level = opt_str(meta.get("oscal_evidence")) or "summary"
 
         inv = state.get("investigation")
+        active_hunt_findings = state.get("active_hunt_findings", [])
         hunt_candidates: list[str] = []
         staged_defenses: list[StagedDefense] = []
         decoy_placements: list[DecoyPlacement] = []
@@ -263,6 +264,7 @@ class ReportAgent(BaseSOCAgent):
             hitl=opt_str(meta.get("hitl")),
             hunt_candidates=hunt_candidates,
             hunt_hypotheses=hunt_hypotheses,
+            active_hunt_findings=active_hunt_findings,
             staged_defenses=staged_defenses,
             decoy_placements=decoy_placements,
             coa_options=coa_options,
@@ -303,6 +305,12 @@ class ReportAgent(BaseSOCAgent):
             report.guardrail_flags = list(report.guardrail_flags) + [
                 f"지상 세그먼트 방어 사각 {gs.blind}면(UAV*_CL 밖) — "
                 f"계측 백로그 {len(gs.backlog)}건"
+            ]
+        matched_hunts = [finding for finding in active_hunt_findings if finding.matched]
+        if matched_hunts:
+            report.guardrail_flags = list(report.guardrail_flags) + [
+                "active hunt matched "
+                f"{len(matched_hunts)}건 — 예측/역추적 KQL 근거 존재"
             ]
 
         # spec A1: 인과 체인 매핑

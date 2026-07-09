@@ -1262,6 +1262,10 @@ class SOCReport(BaseModel):
         default_factory=list,
         description="Tier3 위협 헌팅 백로그 — 예측/campaign/gap 융합 우선순위 리드.",
     )
+    active_hunt_findings: list[ActiveHuntFinding] = Field(
+        default_factory=list,
+        description="ActiveHuntAgent Sentinel KQL 조회 결과(evidence-only).",
+    )
     staged_defenses: list[StagedDefense] = Field(
         default_factory=list,
         description="예측 폐루프: 예측 TTP 선제 스테이징 판정(staged/accelerate/gap).",
@@ -1382,6 +1386,10 @@ class OscalEvidence(BaseModel):
     investigation: InvestigationResult | None = None
     response: ResponseResult | None = None
     severity_rationale: list[str] | None = None
+    active_hunt_findings: list[ActiveHuntFinding] = Field(
+        default_factory=list,
+        description="Active hunt KQL 조회 evidence.",
+    )
     causal_chain: CausalChain | None = Field(
         default=None, description="spec A1: OSCAL evidence 임베드용."
     )
