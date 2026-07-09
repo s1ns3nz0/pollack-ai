@@ -53,19 +53,24 @@ _REQUIRED_FIELDS = (
 
 
 def _load_fixture(name: str) -> dict[str, object]:
-    return yaml.safe_load((_FIXTURES_DIR / name).read_text(encoding="utf-8"))
+    data = yaml.safe_load((_FIXTURES_DIR / name).read_text(encoding="utf-8"))
+    assert isinstance(data, dict)
+    return data
 
 
 def _alert_from_fixture(fx: dict[str, object]) -> Alert:
     telemetry = fx.get("telemetry", {})
+    playbook = fx.get("defense_playbook") or {}
     return Alert(
         id=str(fx["fixture_id"]),
         scenario_id=str(fx["scenario_id"]),
         title=str(fx["title"]),
         asset_id=str(fx["asset_id"]),
         severity_baseline=Severity(str(fx["severity_baseline"])),
-        signals=list(telemetry.get("signals", [])) if isinstance(telemetry, dict) else [],
-        defense_playbook=dict(fx.get("defense_playbook", {}) or {}),
+        signals=(
+            list(telemetry.get("signals", [])) if isinstance(telemetry, dict) else []
+        ),
+        defense_playbook=playbook if isinstance(playbook, dict) else {},
     )
 
 
@@ -130,7 +135,7 @@ class TestFixtureToCacaoPlaybookTrace:
             Settings(),
             SeverityEngine(),
             playbooks=catalog,
-            scenario_tactic={fx["scenario_id"]: fx["expected_tactic"]},
+            scenario_tactic={str(fx["scenario_id"]): str(fx["expected_tactic"])},
         )
         state: SOCState = {
             "alert": alert,
@@ -162,5 +167,5 @@ class TestFixtureToResilienceTrace:
 
         assert mc is not None
         assert mc.level == fx["expected_resilience_level"]
-        assert fx["expected_fallback_contains"] in mc.fallback
-        assert fx["expected_report_evidence"] in mc.capability_lost
+        assert str(fx["expected_fallback_contains"]) in mc.fallback
+        assert str(fx["expected_report_evidence"]) in mc.capability_lost
