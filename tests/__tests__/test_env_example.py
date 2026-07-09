@@ -30,6 +30,9 @@ def test_env_example_documents_operational_feature_flags() -> None:
         "AUTO_KQL_MAX_TECHNIQUES=",
         "ACTIVE_HUNT_ENABLED=",
         "ACTIVE_HUNT_POLICY_PATH=",
+        "DASHBOARD_HOST=",
+        "DASHBOARD_PORT=",
+        "DASHBOARD_PUBLIC_URL=",
     }
 
     missing = sorted(key for key in required if key not in body)

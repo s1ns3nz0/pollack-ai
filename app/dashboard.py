@@ -10,8 +10,10 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
+import uvicorn
 
 from core.dashboard import DashboardSnapshot, TopologyPolicy
+from core.settings import get_settings
 from utils.logging import get_logger
 
 _logger = get_logger("dashboard")
@@ -119,3 +121,32 @@ def create_app(snapshot_dir: str | Path | None = None) -> FastAPI:
 
 
 app = create_app()
+
+
+def main() -> None:
+    """Run the dashboard server using Settings-driven host/port.
+
+    `dashboard_public_url` 이 설정되면 외부(Azure 도메인) 접속을 위해 모든
+    인터페이스에 바인드하고, 비어 있으면 로컬 전용(127.0.0.1)으로만 연다.
+    """
+    settings = get_settings()
+    public_url = settings.dashboard_public_url.strip().rstrip("/")
+    host = settings.dashboard_host
+    if public_url and host == "127.0.0.1":
+        host = "0.0.0.0"  # noqa: S104 — 공개 도메인 opt-in 시에만 외부 바인드
+
+    _logger.info(
+        "dashboard listening: http://127.0.0.1:%d (host=%s)",
+        settings.dashboard_port,
+        host,
+    )
+    if public_url:
+        _logger.info("dashboard public url: %s", public_url)
+    else:
+        _logger.info("dashboard public url unset — local access only")
+
+    uvicorn.run(app, host=host, port=settings.dashboard_port)
+
+
+if __name__ == "__main__":
+    main()

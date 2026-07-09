@@ -446,6 +446,26 @@ class Settings(BaseSettings):
         description="Sentinel Log Analytics workspace id.",
     )
 
+    # ── 대시보드 서버 ──────────────────────────────
+    dashboard_host: str = Field(
+        default="127.0.0.1",
+        description=(
+            "대시보드 바인드 호스트. 기본은 로컬 전용. "
+            "dashboard_public_url 설정 시 0.0.0.0 으로 자동 승격된다."
+        ),
+    )
+    dashboard_port: int = Field(
+        default=8791,
+        description="대시보드 서버 포트.",
+    )
+    dashboard_public_url: str = Field(
+        default="",
+        description=(
+            "외부 공개 도메인(예: https://uav-soc.koreacentral.cloudapp"
+            ".azure.com). 비우면 로컬 주소로만 접속 가능."
+        ),
+    )
+
     @property
     def ragflow_retrieval_url(self) -> str:
         """RAGFlow 검색 엔드포인트 전체 URL."""
