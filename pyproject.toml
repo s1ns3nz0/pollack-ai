@@ -157,6 +157,7 @@ module = [
     "__tests__.test_monitoring_manifests",
     "__tests__.test_sentinel_tables",
     "__tests__.test_ioa_graph",
+    "__tests__.test_stix_export",
 ]
 disallow_any_generics = false
 warn_return_any = false
