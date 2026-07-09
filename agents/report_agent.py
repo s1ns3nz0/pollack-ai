@@ -31,6 +31,7 @@ from core.honeypot import HoneypotPlanner
 from core.hunt import HuntPlanner
 from core.incident import CaseManager
 from core.intent import IntentFilter
+from core.killweb import KillWebBuilder
 from core.lineage import LineageCollector
 from core.models import (
     ActorProfile,
@@ -176,6 +177,8 @@ class ReportAgent(BaseSOCAgent):
         self._ground_segment = _load_ground_segment()
         # 지휘관 의도도 정적 교리 — 로드 시 1회 캐시(fail-safe degrade 내장).
         self._intent_filter = IntentFilter.from_yaml()
+        # Kill Web 커버리지 breadth 도 정적 posture — 로드 시 1회 계산·캐시.
+        self._kill_web = KillWebBuilder.load().resilience()
 
     async def run(self, state: SOCState) -> SOCState:
         """리포트 + OSCAL 증거 구성."""
@@ -267,6 +270,7 @@ class ReportAgent(BaseSOCAgent):
             zt_mapping=self._zt_mapping,
             ground_segment=self._ground_segment,
             intent_assessment=intent_assessment,
+            kill_web_resilience=self._kill_web,
             recovery_plan=recovery_plan,
             mission_continuity=mission_continuity,
             stride_threats=stride_threats,
