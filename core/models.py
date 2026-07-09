@@ -1309,6 +1309,13 @@ class SOCReport(BaseModel):
         default=None,
         description="정보 산출물: 지휘관 결심용 BLUF 합성(결정론·자문, 스파인).",
     )
+    ioa_graph: dict[str, list[dict[str, object]]] | None = Field(
+        default=None,
+        description=(
+            "IoA(공격 행위 지표) 그래프 — actor TTP·kill_chain·예측·인과를 "
+            "Cytoscape elements(nodes/edges)로 직렬화(시각화용·읽기전용). 없으면 None."
+        ),
+    )
 
 
 class LineageSnapshot(BaseModel):
