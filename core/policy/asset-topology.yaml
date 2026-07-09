@@ -1,0 +1,162 @@
+# Static dashboard topology, derived from s1ns3nz0/uav-sim-env
+# local-k8s/helm/uav-sim/values.yaml as of 2026-07-10.
+# Helm values are the naming authority. uav-sim-env docs only inform labels.
+version: 0.1
+source:
+  repo: "s1ns3nz0/uav-sim-env"
+  file: "local-k8s/helm/uav-sim/values.yaml"
+  captured_at: "2026-07-10"
+
+nodes:
+  - id: av-muav
+    label: "KUS-FS MUAV 편대 / Air Vehicle"
+    plane: air
+    kind: air_vehicle
+    degradation_asset_ids: [GNSS, AUTOPILOT, PAYLOAD_EOIR]
+    metadata:
+      replicas: "3"
+      home: "39.2239,125.6700,35"
+  - id: datalink-los
+    label: "LOS Data Link / GDT"
+    plane: link
+    kind: data_link
+    degradation_asset_ids: [C2_LINK, TELEMETRY]
+    metadata:
+      status: "enabled in AKS values"
+  - id: datalink-satcom
+    label: "BLOS SATCOM Link"
+    plane: link
+    kind: data_link
+    degradation_asset_ids: [SATCOM, C2_LINK]
+  - id: gcs-qgc
+    label: "GCS/MCE QGroundControl"
+    plane: ground
+    kind: ground_control_station
+    degradation_asset_ids: [GCS]
+  - id: telemetry-tap
+    label: "SOC Telemetry Tap"
+    plane: soc
+    kind: sensor
+    degradation_asset_ids: [TELEMETRY, AI_SOC]
+  - id: ground-truth-tap
+    label: "Ground Truth Tap"
+    plane: soc
+    kind: sensor
+    degradation_asset_ids: [TELEMETRY]
+  - id: counter-uas
+    label: "Counter-UAS Site"
+    plane: ground
+    kind: defensive_system
+  - id: service-audit
+    label: "Kubernetes Service Audit"
+    plane: soc
+    kind: sensor
+    degradation_asset_ids: [AI_SOC]
+  - id: mps-stub
+    label: "Mission Planning System"
+    plane: ground
+    kind: mission_system
+  - id: pgse-stub
+    label: "PGSE Launch/Maintenance"
+    plane: ground
+    kind: support_equipment
+  - id: weapon-stub
+    label: "Weapon Control Interface"
+    plane: ground
+    kind: weapon_control
+  - id: ti-stub
+    label: "Threat Intelligence Interface"
+    plane: soc
+    kind: threat_intel
+    degradation_asset_ids: [AI_SOC]
+  - id: auth-stub
+    label: "Operator Authentication"
+    plane: ground
+    kind: identity
+  - id: cyber-posture-stub
+    label: "Cyber Posture Service"
+    plane: soc
+    kind: posture
+    degradation_asset_ids: [AI_SOC]
+  - id: sar-stub
+    label: "SAR Payload Service"
+    plane: ground
+    kind: payload
+    degradation_asset_ids: [PAYLOAD_EOIR]
+  - id: web-stub
+    label: "UAS Web Attack Surface"
+    plane: ground
+    kind: application
+  - id: rc-link-stub
+    label: "RC / WiFi Link Surface"
+    plane: link
+    kind: data_link
+    degradation_asset_ids: [C2_LINK]
+  - id: supply-chain-stub
+    label: "Supply Chain Interface"
+    plane: ground
+    kind: supply_chain
+  - id: file-audit-stub
+    label: "File Audit Sensor"
+    plane: soc
+    kind: sensor
+    degradation_asset_ids: [AI_SOC]
+  - id: companion-stub
+    label: "Companion / ROS Surface"
+    plane: ground
+    kind: companion_computer
+  - id: devops-stub
+    label: "DevOps / Build Pipeline"
+    plane: ground
+    kind: devops
+  - id: fleet-infra-stub
+    label: "Fleet API / Swarm Infra"
+    plane: ground
+    kind: fleet_infra
+  - id: c4i-stub
+    label: "C4I Handoff Interface"
+    plane: c4i
+    kind: c4i
+  - id: ai-soc
+    label: "AI SOC Decision Layer"
+    plane: soc
+    kind: soc
+    degradation_asset_ids: [AI_SOC]
+
+edges:
+  - { source: av-muav, target: datalink-los, kind: mavlink_los }
+  - { source: av-muav, target: datalink-satcom, kind: blos_satcom }
+  - { source: datalink-los, target: gcs-qgc, kind: command_telemetry }
+  - { source: datalink-los, target: telemetry-tap, kind: telemetry_mirror }
+  - { source: av-muav, target: ground-truth-tap, kind: direct_truth_tap }
+  - { source: telemetry-tap, target: ai-soc, kind: detection_stream }
+  - { source: ground-truth-tap, target: ai-soc, kind: detection_stream }
+  - { source: datalink-satcom, target: ai-soc, kind: link_observability }
+  - { source: gcs-qgc, target: mps-stub, kind: mission_workflow }
+  - { source: mps-stub, target: c4i-stub, kind: mission_handoff }
+  - { source: c4i-stub, target: weapon-stub, kind: fire_control_handoff }
+  - { source: pgse-stub, target: av-muav, kind: launch_maintenance }
+  - { source: weapon-stub, target: av-muav, kind: payload_command }
+  - { source: auth-stub, target: gcs-qgc, kind: operator_identity }
+  - { source: ti-stub, target: ai-soc, kind: enrichment }
+  - { source: cyber-posture-stub, target: ai-soc, kind: posture }
+  - { source: service-audit, target: ai-soc, kind: platform_audit }
+  - { source: counter-uas, target: ai-soc, kind: defensive_observation }
+  - { source: sar-stub, target: ai-soc, kind: payload_observation }
+  - { source: web-stub, target: ai-soc, kind: audit_stream }
+  - { source: rc-link-stub, target: ai-soc, kind: audit_stream }
+  - { source: supply-chain-stub, target: ai-soc, kind: audit_stream }
+  - { source: file-audit-stub, target: ai-soc, kind: audit_stream }
+  - { source: companion-stub, target: ai-soc, kind: audit_stream }
+  - { source: devops-stub, target: ai-soc, kind: audit_stream }
+  - { source: fleet-infra-stub, target: ai-soc, kind: audit_stream }
+
+degradation_map:
+  GNSS: av-muav
+  AUTOPILOT: av-muav
+  PAYLOAD_EOIR: av-muav
+  C2_LINK: datalink-los
+  SATCOM: datalink-satcom
+  GCS: gcs-qgc
+  TELEMETRY: telemetry-tap
+  AI_SOC: ai-soc
