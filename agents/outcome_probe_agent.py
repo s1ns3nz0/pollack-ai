@@ -74,6 +74,8 @@ class OutcomeProbeAgent(BaseWorkerAgent):
         self._pb_gate = pb_gate
         self._bda = bda or BdaAssessor()
         self._case_mgr = case_mgr or CaseManager(incident_store())
+        # CIRCIA metric distinct-case dedupe — 재관측 이중계상 방지(Codex M).
+        self._cisa_counted: set[str] = set()
 
     async def run(self) -> WorkerReport:
         try:
@@ -125,8 +127,13 @@ class OutcomeProbeAgent(BaseWorkerAgent):
             errors.append(f"case[{obs.alert_id}]: {exc}")
             return
         # CIRCIA — 권위 확증 후 중대 case 면 연방보고 posture 관측(report 는 provisional
-        # 이라 못 잡음, Codex M1). metric 으로 권위 posture 노출.
-        if case is not None and is_cisa_reportable(case):
+        # 이라 못 잡음, Codex M1). distinct case 1회만 계상(재관측 이중계상 방지).
+        if (
+            case is not None
+            and case.case_id not in self._cisa_counted
+            and is_cisa_reportable(case)
+        ):
+            self._cisa_counted.add(case.case_id)
             metrics().record_cisa_reportable()
 
     def _assess_bda(self, obs: Observation, decision: object, errors: list[str]) -> int:

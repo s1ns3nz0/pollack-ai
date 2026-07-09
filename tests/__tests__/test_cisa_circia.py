@@ -69,26 +69,41 @@ class TestDirective:
 
 
 class TestMetricWiring:
-    def test_outcome_probe_records_cisa(self) -> None:
-        """OutcomeProbe 가 권위 확증 후 cisa_reportable 이면 metric(M1 posture)."""
+    @staticmethod
+    def _obs(aid: str) -> object:
+        from core.outcome import Observation
+
+        return Observation.model_validate(
+            {
+                "alert_id": aid,
+                "scenario_id": "S2-C2",
+                "ts": "t",
+                "actor_id": "APT-X",
+                "mission_effect_observed": True,
+                "reoccurred": True,
+                "alert_signals": ["sig"],
+                "alert_mitre": {
+                    "tactics": ["CommandAndControl"],
+                    "techniques": ["T1071"],
+                },
+            }
+        )
+
+    async def test_agent_records_once_per_case(self) -> None:
+        """M1+M — OutcomeProbe 실경로가 권위 cisa case 를 distinct 1회만 계상."""
+        from agents.outcome_probe_agent import OutcomeProbeAgent
         from app.metrics import metrics
         from core.incident import CaseManager, InMemoryIncidentStore
-        from core.models import Alert, EnvVerdict, Severity
+        from core.outcome import InMemoryObservationSource, ProbeEngine
+        from core.settings import Settings
 
-        alert = Alert(
-            id="w1",
-            scenario_id="S2-C2",
-            title="t",
-            severity_baseline=Severity.HIGH,
-            signals=["sig"],
-            mitre={"tactics": ["CommandAndControl"], "techniques": ["T1071"]},
-            actor_id="APT-X",
-            kill_chain_advanced=True,
-        )
+        src = InMemoryObservationSource()
         mgr = CaseManager(InMemoryIncidentStore())
-        case = mgr.observe_outcome(alert, EnvVerdict.CONFIRMED_TP)
-        # 권위 CAT1(order11) → cisa_reportable
-        assert case is not None and is_cisa_reportable(case)
+        agent = OutcomeProbeAgent(Settings(), src, ProbeEngine(), case_mgr=mgr)
         before = metrics().cisa_reportable_total
-        metrics().record_cisa_reportable()
+        # 같은 actor(=같은 case) 2회 관측 → distinct 1회만 계상.
+        src.push(self._obs("w1"))  # type: ignore[arg-type]
+        await agent.run()
+        src.push(self._obs("w2"))  # type: ignore[arg-type]
+        await agent.run()
         assert metrics().cisa_reportable_total == before + 1
