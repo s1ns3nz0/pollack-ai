@@ -82,6 +82,19 @@ class StixExporter:
         self._producer = producer_name
         self._tlp_ref = _TLP_MARKINGS.get(tlp.lower(), _TLP_MARKINGS["amber"])
 
+    def _identity_sdo(self, created_at: str) -> dict[str, object]:
+        """생산자 identity SDO — from_diamond/campaign 공유(중복 drift 방지)."""
+        return {
+            "type": "identity",
+            "spec_version": "2.1",
+            "id": _sid("identity", self._producer),
+            "created": created_at,
+            "modified": created_at,
+            "name": self._producer,
+            "identity_class": "organization",
+            "object_marking_refs": [self._tlp_ref],
+        }
+
     def from_diamond(
         self, diamond: DiamondEvent, created_at: str
     ) -> dict[str, object] | None:
@@ -100,7 +113,8 @@ class StixExporter:
         if not actor and not techs and not iocs:
             return None
 
-        identity_id = _sid("identity", self._producer)
+        identity_sdo = self._identity_sdo(created_at)
+        identity_id = str(identity_sdo["id"])
         common: dict[str, object] = {
             "spec_version": "2.1",
             "created": created_at,
@@ -108,18 +122,7 @@ class StixExporter:
             "created_by_ref": identity_id,
             "object_marking_refs": [self._tlp_ref],
         }
-        objects: list[dict[str, object]] = [
-            {
-                "type": "identity",
-                "spec_version": "2.1",
-                "id": identity_id,
-                "created": created_at,
-                "modified": created_at,
-                "name": self._producer,
-                "identity_class": "organization",
-                "object_marking_refs": [self._tlp_ref],
-            }
-        ]
+        objects: list[dict[str, object]] = [identity_sdo]
 
         ta_id = ""
         if actor:
@@ -191,21 +194,14 @@ class StixExporter:
         chain_id = campaign.chain_id.strip()
         if not chain_id:
             return None
-        identity_id = _sid("identity", self._producer)
-        marks = [self._tlp_ref]
+        identity_sdo = self._identity_sdo(created_at)
+        identity_id = str(identity_sdo["id"])
         camp_id = _sid("campaign", chain_id)
-        objective = f"진행 {campaign.matched}/{campaign.total} 단계(체인 {chain_id})"
+        # OPSEC — 정확 진행도(matched/total)는 내부 커버리지 힌트라 생략(Codex Med).
+        # 활동 관측만 coarse 표기.
+        objective = f"campaign activity observed (chain {chain_id})"
         objects: list[dict[str, object]] = [
-            {
-                "type": "identity",
-                "spec_version": "2.1",
-                "id": identity_id,
-                "created": created_at,
-                "modified": created_at,
-                "name": self._producer,
-                "identity_class": "organization",
-                "object_marking_refs": marks,
-            },
+            identity_sdo,
             {
                 "type": "campaign",
                 "spec_version": "2.1",
@@ -213,7 +209,7 @@ class StixExporter:
                 "created": created_at,
                 "modified": created_at,
                 "created_by_ref": identity_id,
-                "object_marking_refs": marks,
+                "object_marking_refs": [self._tlp_ref],
                 "name": campaign.name or chain_id,
                 "objective": objective,
             },

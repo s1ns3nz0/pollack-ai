@@ -132,13 +132,15 @@ class TestCampaign:
         assert b is not None
         camp = _objs(b, "campaign")[0]
         assert camp["name"] == "GCS 탈취 흐름"
-        assert "2/4" in camp["objective"] and camp["spec_version"] == "2.1"
-        assert "object_marking_refs" in camp
+        assert camp["spec_version"] == "2.1" and "object_marking_refs" in camp
 
-    def test_next_expected_omitted(self) -> None:
-        """OPSEC — 내부 탐지 시나리오 id 미노출."""
+    def test_opsec_no_progress_or_scenario(self) -> None:
+        """OPSEC — 내부 시나리오 id + 정확 진행도(카운터) 미노출(Codex Med)."""
         b = StixExporter().from_campaign(self._cm(), _TS)
-        assert b is not None and "S12-GCS-HIJACK" not in str(b)
+        assert b is not None
+        blob = str(b)
+        assert "S12-GCS-HIJACK" not in blob  # 내부 시나리오 id
+        assert "2/4" not in blob and "2, 'total'" not in blob  # 정확 진행도
 
     def test_empty_chain_none(self) -> None:
         assert StixExporter().from_campaign(self._cm(chain_id=""), _TS) is None
