@@ -1,6 +1,6 @@
 """STIX 2.1 TI 생산 — DiamondEvent → 공유 bundle(OPSEC·TLP·결정론)."""
 
-from core.models import DiamondEvent
+from core.models import CampaignMatch, DiamondEvent
 from core.stix_export import StixExporter, _ioc_pattern
 
 _TS = "2026-07-09T00:00:00Z"
@@ -112,6 +112,41 @@ class TestIocClassify:
     def test_bundle_skips_bad_ioc(self) -> None:
         b = _bundle(infrastructure=["1.2.3.4", "garbage!!"])
         assert len(_objs(b, "indicator")) == 1  # bad IOC skip
+
+
+class TestCampaign:
+    def _cm(self, **kw: object) -> CampaignMatch:
+        base: dict[str, object] = {
+            "chain_id": "C3",
+            "name": "GCS 탈취 흐름",
+            "matched": 2,
+            "total": 4,
+            "next_expected": "S12-GCS-HIJACK",
+            "severity": "high",
+        }
+        base.update(kw)
+        return CampaignMatch.model_validate(base)
+
+    def test_campaign_sdo(self) -> None:
+        b = StixExporter().from_campaign(self._cm(), _TS)
+        assert b is not None
+        camp = _objs(b, "campaign")[0]
+        assert camp["name"] == "GCS 탈취 흐름"
+        assert "2/4" in camp["objective"] and camp["spec_version"] == "2.1"
+        assert "object_marking_refs" in camp
+
+    def test_next_expected_omitted(self) -> None:
+        """OPSEC — 내부 탐지 시나리오 id 미노출."""
+        b = StixExporter().from_campaign(self._cm(), _TS)
+        assert b is not None and "S12-GCS-HIJACK" not in str(b)
+
+    def test_empty_chain_none(self) -> None:
+        assert StixExporter().from_campaign(self._cm(chain_id=""), _TS) is None
+
+    def test_deterministic(self) -> None:
+        a = StixExporter().from_campaign(self._cm(), _TS)
+        b = StixExporter().from_campaign(self._cm(), _TS)
+        assert a is not None and b is not None and a["id"] == b["id"]
 
 
 class TestDeterminismAndEmpty:
