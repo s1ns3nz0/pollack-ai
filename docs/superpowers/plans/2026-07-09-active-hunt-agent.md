@@ -655,7 +655,7 @@ git commit -m "feat: active hunt 정책 플래너 추가"
 **Interfaces:**
 - Consumes: `core.settings.Settings`
 - Produces:
-  - `tools.sentinel_query_tool.SentinelQueryResult(rows: list[dict[str, str]], row_count: int)`
+  - `tools.sentinel_query_tool.SentinelQueryResult(rows: list[dict[str, str]], row_count: int, error: str = "")`
   - `tools.sentinel_query_tool.SentinelQueryClient.aquery(kql: str, timeout_seconds: float) -> SentinelQueryResult`
   - `tools.sentinel_query_tool.AzureMonitorSentinelQueryClient(settings: Settings)`
 
