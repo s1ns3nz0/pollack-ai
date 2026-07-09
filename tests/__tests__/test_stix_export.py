@@ -156,6 +156,11 @@ class TestCampaign:
         assert a is not None and b is not None and a["id"] == b["id"]
 
 
+def _env_objs(env: dict) -> list:
+    objs = env.get("objects", [])
+    return objs if isinstance(objs, list) else []
+
+
 class TestTaxiiEnvelope:
     def _bundles(self) -> list:
         ex = StixExporter()
@@ -172,13 +177,13 @@ class TestTaxiiEnvelope:
     def test_merges_objects(self) -> None:
         env = to_taxii_envelope(self._bundles())
         assert env["more"] is False and "objects" in env
-        types = {o["type"] for o in env["objects"]}
+        types = {o["type"] for o in _env_objs(env)}
         assert "threat-actor" in types and "campaign" in types
 
     def test_identity_deduped(self) -> None:
         """bundle 간 공유 producer identity id 중복제거."""
         env = to_taxii_envelope(self._bundles())
-        idents = [o for o in env["objects"] if o["type"] == "identity"]
+        idents = [o for o in _env_objs(env) if o["type"] == "identity"]
         assert len(idents) == 1
 
     def test_empty_omits_objects(self) -> None:
@@ -186,7 +191,7 @@ class TestTaxiiEnvelope:
         assert env == {"more": False}  # objects 키 없음
 
     def test_none_bundles_ignored(self) -> None:
-        env = to_taxii_envelope([None, *self._bundles()])
+        env = to_taxii_envelope([None, *self._bundles()])  # type: ignore[list-item]
         assert "objects" in env
 
     def test_pagination_fields(self) -> None:
