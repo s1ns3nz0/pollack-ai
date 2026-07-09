@@ -12,7 +12,7 @@ GraphRAG(Azure) 로 교체하더라도 Agent 계층은 동일한 `RetrievedChunk
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import httpx
 from langchain_core.tools import BaseTool
@@ -59,6 +59,7 @@ class RagflowRetrievalTool(BaseTool):
         settings: RAGFlow 접속/검색 설정. 미지정 시 환경변수에서 로드.
     """
 
+    backend: ClassVar[str] = "ragflow"
     name: str = "ragflow_retrieval"
     description: str = (
         "UAV/GPS/네트워크/OT 보안 지식베이스에서 질의와 관련된 사례·기법·대응 "

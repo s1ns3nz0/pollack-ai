@@ -143,7 +143,7 @@ async def main() -> None:
         for src in event.similar_cases[:5]:
             print(f"            · {src}")
         print(f"  LLM 분석  : {event.summary}")
-        print(f"  판정/대응 : {r.verdict} → {r.action_taken}")
+        print(f"  판정/대응 : {r.verdict} → {r.recommended_action}")
         print("  → 권고    : INS 페일오버 + 자동 RTB")
         print("─" * 66)
         if actuator is not None:

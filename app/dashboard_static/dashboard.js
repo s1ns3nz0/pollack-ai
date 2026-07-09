@@ -9,6 +9,7 @@ const state = {
   eventSource: null,
   topology: { nodes: [], edges: [] },
   topologyDraw: null,
+  focusFlashTimer: 0,
 };
 
 const TACTIC_LABELS = {
@@ -156,9 +157,15 @@ const ATTACK_MATRIX = [
 
 const SCENARIO_TECHNIQUES = {
   "S117-BLOS-SATCOM-MITM": "T1071",
+  "S117-BLOS-AUTONOMY-COMMAND-FORGE": "T1071",
   "S24-DATALINK-C2-TAKEOVER": "T1071",
   "S3-UNAUTHORIZED-WEAPON-CMD": "T0832",
   "S1-GNSS-SPOOFING": "T0835",
+  "S34-OPERATOR-BRUTEFORCE": "T1078",
+  "S37-CT-LEVEL-TAMPER": "T1036",
+  "S79-OFFHOURS-C4I-CMD": "T0821",
+  "S36-MISSION-SELFAPPROVAL": "T1204",
+  "S109-AOI-EXCURSION": "T0831",
 };
 
 const ASSET_LABELS = {
@@ -190,6 +197,26 @@ const DECISION_LABELS = {
   margin: "결심 여유 있음",
   contested: "결심 여유 제한",
   unknown: "판단 대기",
+};
+
+const CPCON_LABELS = {
+  5: "정상",
+  4: "관심",
+  3: "주의",
+  2: "경계",
+  1: "심각",
+};
+
+const SCENARIO_INFO = {
+  "S34-OPERATOR-BRUTEFORCE": "운용자 계정 브루트포스로 GCS 비인가 접근을 확보하는 수순",
+  "S37-CT-LEVEL-TAMPER": "사이버태세(CT) 레벨을 비인가 하향해 탐지 감도를 낮추고 후속 공격을 은폐하는 수순",
+  "S79-OFFHOURS-C4I-CMD": "야간/비운용 시간대에 비인가 C4I 임무 명령을 주입하는 수순",
+  "S3-UNAUTHORIZED-WEAPON-CMD": "무장 ARM/FIRE 2인통제를 우회해 비인가 교전을 시도하는 수순",
+  "S36-MISSION-SELFAPPROVAL": "임무계획 2인통제를 우회해 자기승인 임무를 주입하는 수순",
+  "S109-AOI-EXCURSION": "승인 작전구역(AOI) 밖으로 기체를 이탈시키는 수순",
+  "S117-BLOS-AUTONOMY-COMMAND-FORGE": "BLOS SATCOM 자율명령을 위조/지연시켜 기체 통제를 교란하는 수순",
+  "S24-DATALINK-C2-TAKEOVER": "데이터링크 C2 세션을 장악해 지상 통제권을 탈취하는 수순",
+  "S1-GNSS-SPOOFING": "GNSS 신호 기만으로 항법해를 오염시키는 수순",
 };
 
 const NODE_LABELS = {
@@ -474,7 +501,26 @@ function appendKillchain(container, tacticStates, tacticOrder) {
     track.appendChild(stage);
   });
 
-  container.appendChild(track);
+  const wrap = createElement("div", "killchain-wrap");
+  wrap.appendChild(track);
+
+  const legend = createElement("div", "kc-legend");
+  [
+    ["kc-key-observed", "숫자 원 = 관측된 공격 순서"],
+    ["kc-key-line", "실선 = 적이 도달한 진행 구간"],
+    ["kc-key-dashed", "황색 점선 = 예측 진행 경로"],
+    ["kc-key-gap", "적색 밑줄 = 방어 공백 전술"],
+  ].forEach(([keyClass, label]) => {
+    const item = createElement("span", "kc-legend-item");
+    item.append(
+      createElement("span", `kc-key ${keyClass}`),
+      createElement("span", "", label),
+    );
+    legend.appendChild(item);
+  });
+  wrap.appendChild(legend);
+
+  container.appendChild(wrap);
 }
 
 function predictedTechnique(snapshot, story) {
@@ -507,6 +553,22 @@ const DECISION_TONES = {
   margin: "tone-sustained",
   contested: "tone-gap",
 };
+
+function renderCpcon(snapshot) {
+  const badge = document.getElementById("cpcon-badge");
+  if (!badge) {
+    return;
+  }
+  const summary = snapshot ? snapshot.summary || {} : {};
+  const level = Number(summary.cpcon_level) || 0;
+  badge.className = "cpcon-badge";
+  if (level >= 1 && level <= 5) {
+    badge.textContent = `CPCON ${level} · ${CPCON_LABELS[level]}`;
+    badge.classList.add(`cpcon-${level}`);
+  } else {
+    badge.textContent = "CPCON —";
+  }
+}
 
 function renderTopStrip(snapshot) {
   const container = document.getElementById("top-strip");
@@ -637,10 +699,20 @@ function renderStoryRail(snapshot) {
     button.append(title, campaign, target, progress);
 
     storyAlerts(story).forEach((alert) => {
-      const alertRef = createElement(
-        "div",
-        "alert-ref",
-        `${text(alert.alert_id)} · ${localizedTactic(alert.tactic)} · ${localizedTechnique(alertTechnique(alert))}`,
+      const alertRef = createElement("div", "alert-ref");
+      const order = Number(alert.order) || 0;
+      if (order > 0) {
+        alertRef.appendChild(createElement("span", "alert-seq", String(order)));
+      }
+      alertRef.appendChild(
+        createElement("span", "alert-id", text(alert.alert_id)),
+      );
+      alertRef.appendChild(
+        createElement(
+          "span",
+          "alert-ref-meta",
+          `${localizedTactic(alert.tactic)} · ${localizedTechnique(alertTechnique(alert))}`,
+        ),
       );
       button.appendChild(alertRef);
     });
@@ -655,7 +727,7 @@ function appendLegend(parent) {
     ["legend-current", "진행 중/관측됨"],
     ["legend-predicted", "예상 다음 수순"],
     ["legend-gap", "방어 공백/미구현"],
-    ["legend-planned", "보강 예정"],
+    ["legend-planned", "헌팅 예정"],
   ].forEach(([className, label]) => {
     const item = createElement("div", "legend-item");
     item.append(createElement("span", `legend-dot ${className}`), createElement("span", "", label));
@@ -681,7 +753,7 @@ function techniqueStatus(tactic, technique, tacticCell, observedSet, predicted) 
   }
   if (tactic.planned.includes(technique)) {
     classes.push("is-planned");
-    labels.push("예정");
+    labels.push("헌팅 예정");
   }
   return { classes, labels };
 }
@@ -696,6 +768,7 @@ function appendTechnique(
   techniqueOrder,
 ) {
   const row = createElement("div", "technique-row");
+  row.dataset.technique = technique;
   const status = techniqueStatus(
     matrixColumn,
     technique,
@@ -807,6 +880,41 @@ function sentenceJoin(parts) {
   return parts.filter((part) => part && part !== "UNKNOWN").join(" ");
 }
 
+function highlightMatrixTechniques(techniques) {
+  const wanted = new Set(
+    techniques.filter((technique) => technique && technique !== "UNKNOWN"),
+  );
+  if (wanted.size === 0) {
+    return;
+  }
+
+  let firstTactic = "";
+  document.querySelectorAll(".technique-row").forEach((row) => {
+    row.classList.remove("focus-flash");
+    if (!wanted.has(row.dataset.technique)) {
+      return;
+    }
+    void row.offsetWidth;
+    row.classList.add("focus-flash");
+    if (!firstTactic) {
+      const column = row.closest(".tactic-column");
+      if (column) {
+        firstTactic = column.dataset.tactic || "";
+      }
+    }
+  });
+
+  if (firstTactic) {
+    scrollMatrixToTactic(firstTactic);
+  }
+  window.clearTimeout(state.focusFlashTimer);
+  state.focusFlashTimer = window.setTimeout(() => {
+    document
+      .querySelectorAll(".technique-row.focus-flash")
+      .forEach((row) => row.classList.remove("focus-flash"));
+  }, 2600);
+}
+
 function buildStaffAdvice(snapshot) {
   const story = selectedStory(snapshot) || {};
   const alerts = storyAlerts(story);
@@ -821,7 +929,34 @@ function buildStaffAdvice(snapshot) {
   const summary = snapshot.summary || {};
   const decisionMargin = DECISION_LABELS[text(summary.decision_advantage)] || text(summary.decision_advantage);
 
+  const impactTone =
+    { SUSTAINED: "tone-sustained", MINIMAL: "tone-predicted", ABORT: "tone-gap" }[
+      text(story.mission_impact)
+    ] || "tone-neutral";
+  const hitlTone =
+    { PENDING: "tone-predicted", REQUIRED: "tone-gap" }[text(story.hitl_status)] ||
+    "tone-sustained";
+  const decisionTone = DECISION_TONES[text(summary.decision_advantage)] || "tone-neutral";
+
+  const badges = {
+    situation: [
+      { label: text(story.actor || story.story_id), tone: "tone-current" },
+      { label: `표적 ${target}`, tone: "tone-neutral" },
+    ],
+    missionImpact: [
+      { label: impact, tone: impactTone },
+      { label: decisionMargin, tone: decisionTone },
+    ],
+    recommendation: [{ label: hitl, tone: hitlTone }],
+    nextMove: [
+      predicted && predicted !== "UNKNOWN"
+        ? { label: predicted, tone: "tone-predicted" }
+        : { label: "수순 미특정", tone: "tone-neutral" },
+    ],
+  };
+
   return {
+    badges,
     situation: sentenceJoin([
       `${text(story.actor || story.story_id)} 세력이 ${target}${objectParticle(target)} 표적으로 작전 중입니다.`,
       observed ? `현재 관측된 공격 흐름은 ${observed}입니다.` : "관측된 전술 흐름은 아직 부족합니다.",
@@ -847,6 +982,9 @@ function buildStaffAdvice(snapshot) {
       predicted && predicted !== "UNKNOWN"
         ? `다음 예상 수순은 ${predicted}입니다.`
         : "다음 수순은 아직 특정되지 않았습니다.",
+      SCENARIO_INFO[predicted]
+        ? `${SCENARIO_INFO[predicted]}입니다.`
+        : "",
       predicted.includes("WEAPON")
         ? "무장통제 연동부로 공격이 번질 경우 역공격 금지 원칙과 교전권한 확인이 필요합니다."
         : "다음 전술이 방어 공백과 겹치는지 전술/기법 매트릭스의 황색/적색 표시를 기준으로 선제 보강을 판단합니다.",
@@ -861,17 +999,70 @@ function renderBluf(snapshot) {
   }
 
   const advice = buildStaffAdvice(snapshot);
+  const story = selectedStory(snapshot);
+  const observed = storyAlerts(story)
+    .map((alert) => alertTechnique(alert))
+    .filter(Boolean);
+  const lastObserved = observed[observed.length - 1] || "";
+  const predicted = predictedTechnique(snapshot, story);
+
+  const decisionOptions =
+    story && Array.isArray(story.decision_options) ? story.decision_options : [];
+
   const sections = [
-    ["상황", advice.situation],
-    ["임무 영향", advice.missionImpact],
-    ["참모 권고", advice.recommendation],
-    ["다음 수순", advice.nextMove],
+    ["상황", advice.situation, advice.badges.situation, observed, []],
+    [
+      "임무 영향",
+      advice.missionImpact,
+      advice.badges.missionImpact,
+      [lastObserved],
+      [],
+    ],
+    [
+      "참모 권고",
+      advice.recommendation,
+      advice.badges.recommendation,
+      [lastObserved, predicted],
+      decisionOptions,
+    ],
+    ["다음 수순", advice.nextMove, advice.badges.nextMove, [predicted], []],
   ];
 
   clearNode(container);
-  sections.forEach(([label, value]) => {
-    const block = createElement("div", "bluf-block");
-    block.appendChild(createElement("div", "bluf-label", label));
+  sections.forEach(([label, value, badges, focusTechniques, options]) => {
+    const block = createElement("button", "bluf-block");
+    block.type = "button";
+    block.title = "클릭하면 매트릭스에서 관련 기법을 강조합니다";
+    block.addEventListener("click", () => {
+      highlightMatrixTechniques(focusTechniques);
+    });
+
+    const labelRow = createElement("div", "bluf-label");
+    labelRow.appendChild(createElement("span", "", label));
+    labelRow.appendChild(createElement("span", "bluf-link-hint", "◎ 매트릭스"));
+    block.appendChild(labelRow);
+
+    const badgeRow = createElement("div", "bluf-badges");
+    (badges || []).forEach((badge) => {
+      badgeRow.appendChild(
+        createElement("span", `bluf-badge ${badge.tone}`, badge.label),
+      );
+    });
+    block.appendChild(badgeRow);
+
+    if (options.length > 0) {
+      const optionsRow = createElement("div", "bluf-options");
+      optionsRow.appendChild(
+        createElement("span", "bluf-options-label", "결심 항목"),
+      );
+      options.forEach((option) => {
+        optionsRow.appendChild(
+          createElement("span", "bluf-option", text(option)),
+        );
+      });
+      block.appendChild(optionsRow);
+    }
+
     block.appendChild(createElement("div", "bluf-text", text(value)));
     container.appendChild(block);
   });
@@ -995,8 +1186,16 @@ function renderTopology(snapshot) {
   }
 
   const topology = topologyFromSnapshot(snapshot);
-  const nodes = Array.isArray(topology.nodes) ? topology.nodes : [];
-  const edges = Array.isArray(topology.edges) ? topology.edges : [];
+  const allNodes = Array.isArray(topology.nodes) ? topology.nodes : [];
+  const allEdges = Array.isArray(topology.edges) ? topology.edges : [];
+  // 참모 상황판은 작전 자산만 표시 — SOC 내부 센서/판단 계층은 제외.
+  const nodes = allNodes.filter((node) => text(node.plane) !== "soc");
+  const visibleNodeIds = new Set(nodes.map((node) => text(node.id)));
+  const edges = allEdges.filter(
+    (edge) =>
+      visibleNodeIds.has(text(edge.source)) &&
+      visibleNodeIds.has(text(edge.target)),
+  );
   clearNode(container);
   state.topologyDraw = null;
 
@@ -1005,10 +1204,26 @@ function renderTopology(snapshot) {
     return;
   }
 
+  const legend = createElement("div", "topo-legend");
+  [
+    ["topo-key-edge", "회색 실선 = 상시 연결/데이터 흐름"],
+    ["topo-key-active", "황색 점선 = 현재 공격이 지나는 경로"],
+    ["topo-key-node-active", "황색 카드 = 공격 관련 자산"],
+    ["topo-key-stub", "빗금 카드 = 시뮬레이션/미연동"],
+  ].forEach(([keyClass, label]) => {
+    const item = createElement("span", "topo-legend-item");
+    item.append(
+      createElement("span", `topo-key ${keyClass}`),
+      createElement("span", "", label),
+    );
+    legend.appendChild(item);
+  });
+  container.appendChild(legend);
+
   const activeNodeIds = new Set(nodes.filter((node) => node.active).map((node) => node.id));
   const nodeElements = new Map();
   const diagram = createElement("div", "topology-diagram");
-  const planes = ["ground", "link", "air", "soc", "c4i"];
+  const planes = ["ground", "link", "air", "c4i"];
   planes.forEach((plane) => {
     const lane = createElement("section", `topology-lane plane-${plane}`);
     lane.appendChild(createElement("div", "lane-title", PLANE_LABELS[plane] || plane));
@@ -1145,6 +1360,7 @@ function renderEmptyState() {
 function renderSnapshot(snapshot) {
   if (!snapshot) {
     renderEmptyState();
+    renderCpcon(null);
     const emptySnapshot = emptyReplaySnapshot();
     renderStoryRail(emptySnapshot);
     renderNavigator(emptySnapshot);
@@ -1157,6 +1373,7 @@ function renderSnapshot(snapshot) {
   if (snapshot.mode === "live" || snapshot.mode === "replay") {
     state.dataMode = snapshot.mode;
   }
+  renderCpcon(snapshot);
   renderTopStrip(snapshot);
   renderStoryRail(snapshot);
   renderNavigator(snapshot);

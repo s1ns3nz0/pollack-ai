@@ -41,7 +41,7 @@ def _bridge_event(alert: Alert) -> BridgeEvent:
             title=alert.title,
             severity=Severity.MEDIUM,
             verdict=Verdict.TRUE_POSITIVE,
-            action_taken="response",
+            recommended_action="response",
         ),
         severity_rationale=[],
         similar_cases=[],

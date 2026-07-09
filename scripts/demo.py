@@ -78,7 +78,7 @@ async def main() -> None:
     print("심각도   :", s["report"].severity, " ", " ".join(s["severity_rationale"]))
     print("RAG 근거 :", len(s["investigation"].similar_cases), "건")
     print("LLM 요약 :", s["investigation"].summary[:160], "...")
-    print("판정/대응:", s["report"].verdict, "→", s["report"].action_taken)
+    print("판정/대응:", s["report"].verdict, "→", s["report"].recommended_action)
     print("가드레일 :", s["guardrail_flags"])
 
     print("\n" + "=" * 64)

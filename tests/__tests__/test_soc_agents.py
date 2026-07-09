@@ -144,6 +144,24 @@ class TestInvestigationAgent:
         assert out["investigation"].ti_findings == []
 
     @pytest.mark.asyncio
+    async def test_kb_stub_backend_is_disclosed(self) -> None:
+        """오프라인 kb-stub 검색은 provenance 기록 + 가드레일로 노출된다."""
+        from tools.kb_stub_tool import KbStubRetriever
+
+        agent = InvestigationAgent(_settings(), KbStubRetriever())
+        out = await agent.run({"alert": _alert()})
+        assert out["investigation"].retrieval_backend == "kb-stub"
+        assert any("kb-stub" in f for f in out.get("guardrail_flags", []))
+
+    @pytest.mark.asyncio
+    async def test_non_stub_retriever_backend_recorded_without_flag(self) -> None:
+        """일반 리트리버는 backend 기록만 하고 스텁 가드레일은 안 띄운다."""
+        agent = InvestigationAgent(_settings(), _StubRetriever())
+        out = await agent.run({"alert": _alert()})
+        assert out["investigation"].retrieval_backend == "_StubRetriever"
+        assert not any("kb-stub" in f for f in out.get("guardrail_flags", []))
+
+    @pytest.mark.asyncio
     async def test_confidence_reflects_evidence(self) -> None:
         """신뢰 사례가 있으면 confidence 상승, 없으면 보수적으로 낮게."""
         with_ctx = await InvestigationAgent(_settings(), _StubRetriever()).run(
@@ -196,7 +214,7 @@ class TestSocGraph:
         ]
         report = result["report"]
         assert isinstance(report, SOCReport)
-        assert report.action_taken == "response"
+        assert report.recommended_action == "response"
         assert report.severity == Severity.HIGH
 
     @pytest.mark.asyncio
@@ -222,7 +240,7 @@ class TestSocGraph:
         alert = _alert(ground_truth=Verdict.FALSE_POSITIVE)
         result = cast(SOCState, await graph.ainvoke({"alert": alert}))
         assert "rule_update" in result["trace"]
-        assert result["report"].action_taken == "rule_update"
+        assert result["report"].recommended_action == "rule_update"
 
     @pytest.mark.asyncio
     async def test_s5_injection_does_not_downgrade(self) -> None:
@@ -261,7 +279,7 @@ class TestHitlInterrupt:
             await graph.ainvoke(Command(resume={"approved": True}), config=config),
         )
         assert final["approval"].approved
-        assert final["report"].action_taken == "response"
+        assert final["report"].recommended_action == "response"
 
     @pytest.mark.asyncio
     async def test_rejected_holds_auto_response(self) -> None:

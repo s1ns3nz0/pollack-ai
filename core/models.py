@@ -324,6 +324,13 @@ class InvestigationResult(BaseModel):
     similar_cases: list[RetrievedChunk] = Field(default_factory=list)
     summary: str = ""
     confidence: float = 0.0
+    retrieval_backend: str = Field(
+        default="",
+        description=(
+            "컨텍스트 검색 백엔드 provenance(예: ragflow, kb-stub). "
+            "오프라인 스텁 검색이 실 시맨틱 검색처럼 보이지 않게 기록."
+        ),
+    )
     ti_findings: list[ThreatIntelFinding] = Field(default_factory=list)
     experience_corroboration: int = Field(
         default=0,
@@ -1341,7 +1348,12 @@ class SOCReport(BaseModel):
     title: str
     severity: Severity
     verdict: Verdict
-    action_taken: str
+    recommended_action: str = Field(
+        description=(
+            "권고 대응 경로(response|rule_update). 권고 전용 — actuator 실행 "
+            "상태가 아님(플랫폼은 no-exec 불변식)."
+        ),
+    )
     mitre: dict[str, object] = Field(default_factory=dict)
     guardrail_flags: list[str] = Field(default_factory=list)
     hitl: str | None = None

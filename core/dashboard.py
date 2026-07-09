@@ -61,6 +61,7 @@ class DashboardSummary(BaseModel):
     max_mission_impact: str = "UNKNOWN"
     hitl_pending_count: int = 0
     decision_advantage: str = "unknown"
+    cpcon_level: int = 0
 
 
 class DashboardAlertRef(BaseModel):
@@ -87,6 +88,7 @@ class DashboardStory(BaseModel):
     target_asset: str = ""
     mission_impact: str = "UNKNOWN"
     hitl_status: str = "NOT_REQUIRED"
+    decision_options: list[str] = Field(default_factory=list)
     alerts: list[DashboardAlertRef] = Field(default_factory=list)
 
 
@@ -429,6 +431,11 @@ def _build_story(state: SOCState, report: SOCReport | None) -> DashboardStory:
     approval = state["approval"] if "approval" in state else None
     response = state["response"] if "response" in state else None
     hitl_status = _hitl_status(approval, report, response)
+    decision_options = (
+        list(response.actions)
+        if response is not None and hitl_status in {"PENDING", "REQUIRED"}
+        else []
+    )
     actor = alert.actor_id or "UNKNOWN-ACTOR"
     tactic = _tactic_from_report(report) or str(alert.mitre.get("tactic", ""))
     technique = str(alert.mitre.get("technique", ""))
@@ -443,6 +450,7 @@ def _build_story(state: SOCState, report: SOCReport | None) -> DashboardStory:
         target_asset=alert.asset_id,
         mission_impact=continuity.level if continuity else "UNKNOWN",
         hitl_status=hitl_status,
+        decision_options=decision_options,
         alerts=[
             DashboardAlertRef(
                 alert_id=alert.id,
@@ -514,7 +522,7 @@ def _build_bluf(
     if steps:
         recommendation = " / ".join(steps)
     elif report is not None:
-        recommendation = report.action_taken
+        recommendation = report.recommended_action
     else:
         recommendation = ""
     next_move = story.next_expected or "UNKNOWN"
@@ -573,6 +581,7 @@ def build_dashboard_snapshot(
     step: int = 0,
     mode: DashboardMode = "replay",
     topology: TopologyPolicy | None = None,
+    cpcon_level: int = 0,
 ) -> DashboardSnapshot:
     """Build a dashboard snapshot from one SOC state.
 
@@ -581,6 +590,8 @@ def build_dashboard_snapshot(
         step: Replay/live sequence number.
         mode: Snapshot source mode.
         topology: Optional preloaded topology policy.
+        cpcon_level: Global cyber posture level (1-5, 0 when unknown);
+            callers pass settings.cyber_posture_level.
 
     Returns:
         Dashboard snapshot view model.
@@ -611,6 +622,7 @@ def build_dashboard_snapshot(
             max_mission_impact=story.mission_impact,
             hitl_pending_count=1 if story.hitl_status == "PENDING" else 0,
             decision_advantage=decision,
+            cpcon_level=cpcon_level,
         ),
         stories=[story],
         selected_story_id=story.story_id,

@@ -22,7 +22,9 @@ def _report(verdict: Verdict) -> SOCReport:
         title="GPS 스푸핑",
         severity=Severity.HIGH,
         verdict=verdict,
-        action_taken="response" if verdict == Verdict.TRUE_POSITIVE else "rule_update",
+        recommended_action=(
+            "response" if verdict == Verdict.TRUE_POSITIVE else "rule_update"
+        ),
     )
 
 

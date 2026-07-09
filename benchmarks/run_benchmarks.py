@@ -123,7 +123,7 @@ async def main() -> None:
             graph = build_soc_graph(retriever=None)
             s = await graph.ainvoke({"alert": _alert_from_scenario(path, gt)})
             route_total += 1
-            route_ok += int(s["report"].action_taken == expected)
+            route_ok += int(s["report"].recommended_action == expected)
 
     # --- 2) S5 저항성 (적대 'i' 주입 시 정책 등급 유지) ---
     resist_ok = 0

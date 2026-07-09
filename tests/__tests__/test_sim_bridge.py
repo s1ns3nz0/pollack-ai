@@ -268,7 +268,7 @@ class TestSimBridge:
         ev = events[0]
         assert ev.report.severity == Severity.HIGH
         assert ev.report.verdict == Verdict.TRUE_POSITIVE
-        assert ev.report.action_taken == "response"
+        assert ev.report.recommended_action == "response"
         assert ev.alert.scenario_id == "UAV-GPS-SPOOF-001"
 
     @pytest.mark.asyncio

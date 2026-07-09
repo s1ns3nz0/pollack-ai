@@ -43,6 +43,8 @@ class KbStubRetriever:
     무근거 컨텍스트 주입 방지. 정렬은 (점수 내림, 출처 오름) 으로 결정론 보장.
     """
 
+    backend = "kb-stub"
+
     def __init__(self, kb_dir: Path | None = None) -> None:
         """kb 문서를 스캔해 인덱스를 구성한다.
 

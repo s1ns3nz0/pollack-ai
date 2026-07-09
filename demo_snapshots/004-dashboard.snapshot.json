@@ -1,14 +1,14 @@
 {
   "schema_version": "dashboard.snapshot.v1",
-  "step": 2,
+  "step": 4,
   "mode": "replay",
-  "generated_at": "2026-07-10T04:13:00+09:00",
+  "generated_at": "2026-07-10T04:21:00+09:00",
   "summary": {
-    "active_story_count": 1,
-    "max_mission_impact": "MINIMAL",
-    "hitl_pending_count": 0,
+    "active_story_count": 2,
+    "max_mission_impact": "ABORT",
+    "hitl_pending_count": 1,
     "decision_advantage": "contested",
-    "cpcon_level": 3
+    "cpcon_level": 1
   },
   "stories": [
     {
@@ -16,13 +16,18 @@
       "actor": "OP-077",
       "campaign_id": "C1",
       "campaign_name": "GCS 침해 → CT 하향 → 야간 C4I → 무장 명령 (캠페인 C1)",
-      "matched": 2,
+      "matched": 4,
       "total": 4,
-      "next_expected": "S79-OFFHOURS-C4I-CMD",
+      "next_expected": "",
       "target_asset": "GCS",
-      "mission_impact": "MINIMAL",
-      "hitl_status": "NOT_REQUIRED",
-      "decision_options": [],
+      "mission_impact": "ABORT",
+      "hitl_status": "PENDING",
+      "decision_options": [
+        "무장 인터페이스 격리",
+        "RTB(기지 복귀)",
+        "자율비행 전환(링크 차단)",
+        "교전 승인 거부"
+      ],
       "alerts": [
         {
           "alert_id": "ALERT-GCS-0341",
@@ -38,6 +43,52 @@
           "title": "사이버태세(CT) 레벨 비인가 하향 변경",
           "tactic": "StealthEvasion",
           "technique": "T1036",
+          "order": 2
+        },
+        {
+          "alert_id": "ALERT-C4I-0362",
+          "scenario_id": "S79-OFFHOURS-C4I-CMD",
+          "title": "야간 시간대 비인가 C4I 임무 명령 주입",
+          "tactic": "Execution",
+          "technique": "T0821",
+          "order": 3
+        },
+        {
+          "alert_id": "ALERT-WPN-0004",
+          "scenario_id": "S3-UNAUTHORIZED-WEAPON-CMD",
+          "title": "무장 ARM/FIRE 2인통제 우회 명령",
+          "tactic": "Impact",
+          "technique": "T0832",
+          "order": 4
+        }
+      ]
+    },
+    {
+      "story_id": "MUAV-AKS-001",
+      "actor": "MUAV-AKS-001",
+      "campaign_id": "C3",
+      "campaign_name": "임무 자기승인 → AOI 이탈 → SATCOM 유출 (캠페인 C3)",
+      "matched": 2,
+      "total": 3,
+      "next_expected": "S117-BLOS-AUTONOMY-COMMAND-FORGE",
+      "target_asset": "AUTOPILOT",
+      "mission_impact": "MINIMAL",
+      "hitl_status": "NOT_REQUIRED",
+      "alerts": [
+        {
+          "alert_id": "ALERT-MPS-0410",
+          "scenario_id": "S36-MISSION-SELFAPPROVAL",
+          "title": "임무계획 2인통제 우회 자기승인",
+          "tactic": "Execution",
+          "technique": "T1204",
+          "order": 1
+        },
+        {
+          "alert_id": "ALERT-NAV-0433",
+          "scenario_id": "S109-AOI-EXCURSION",
+          "title": "승인 작전구역(AOI) 이탈 비행",
+          "tactic": "Impact",
+          "technique": "T0831",
           "order": 2
         }
       ]
@@ -78,11 +129,11 @@
     {
       "tactic": "Execution",
       "order": 4,
-      "observed": false,
+      "observed": true,
       "current": false,
-      "predicted": true,
+      "predicted": false,
       "gap": false,
-      "observed_order": null,
+      "observed_order": 3,
       "note": ""
     },
     {
@@ -109,7 +160,7 @@
       "tactic": "StealthEvasion",
       "order": 7,
       "observed": true,
-      "current": true,
+      "current": false,
       "predicted": false,
       "gap": false,
       "observed_order": 2,
@@ -188,11 +239,11 @@
     {
       "tactic": "Impact",
       "order": 15,
-      "observed": false,
-      "current": false,
+      "observed": true,
+      "current": true,
       "predicted": false,
       "gap": false,
-      "observed_order": null,
+      "observed_order": 4,
       "note": ""
     }
   ],
@@ -203,16 +254,43 @@
         "label": "GCS/MCE QGroundControl",
         "plane": "ground",
         "kind": "ground_control_station",
+        "status": "ABORT",
+        "active": true,
+        "metadata": {}
+      },
+      {
+        "id": "weapon-stub",
+        "label": "Weapon Control Interface",
+        "plane": "ground",
+        "kind": "weapon_control",
+        "status": "STUB",
+        "active": true,
+        "metadata": {}
+      },
+      {
+        "id": "av-muav",
+        "label": "KUS-FS MUAV 편대 / Air Vehicle",
+        "plane": "air",
+        "kind": "air_vehicle",
         "status": "MINIMAL",
         "active": true,
         "metadata": {}
       },
       {
-        "id": "cyber-posture-stub",
-        "label": "Cyber Posture Service",
+        "id": "ai-soc",
+        "label": "AI SOC Decision Layer",
         "plane": "soc",
-        "kind": "posture",
-        "status": "STUB",
+        "kind": "soc",
+        "status": "SUSTAINED",
+        "active": true,
+        "metadata": {}
+      },
+      {
+        "id": "datalink-satcom",
+        "label": "BLOS SATCOM Link",
+        "plane": "link",
+        "kind": "data_link",
+        "status": "MINIMAL",
         "active": true,
         "metadata": {}
       }
@@ -220,21 +298,21 @@
     "edges": []
   },
   "bluf": {
-    "situation": "OP-077이 사이버태세(CT) 레벨을 비인가 하향했습니다.",
-    "mission_impact": "탐지 감도 저하로 제한적 임무 지속 상태입니다.",
-    "recommendation": "CT 레벨 원복 및 변경 이력 감사.",
-    "next_move": "다음 예상 수순은 S79 야간 C4I 명령 주입입니다.",
+    "situation": "OP-077이 무장 ARM/FIRE 2인통제 우회를 시도했습니다. 캠페인 C1 완결.",
+    "mission_impact": "임무 중지 검토 단계. 무장통제 신뢰도 상실.",
+    "recommendation": "무장 인터페이스 격리, RTB 준비, 지휘관 결심 대기.",
+    "next_move": "MUAV-AKS-001 story의 SATCOM 유출 수순을 병행 감시합니다.",
     "confidence": "medium",
-    "hitl_badge": "NOT_REQUIRED",
+    "hitl_badge": "PENDING",
     "caveats": [
       "replay demo dataset"
     ]
   },
   "source": {
-    "alert_id": "ALERT-CT-0355",
-    "scenario_id": "S37-CT-LEVEL-TAMPER",
+    "alert_id": "ALERT-WPN-0004",
+    "scenario_id": "S3-UNAUTHORIZED-WEAPON-CMD",
     "trace": [
-      "UAVOpAudit_CL"
+      "UAVWeapon_CL"
     ]
   }
 }

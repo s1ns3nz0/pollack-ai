@@ -245,7 +245,11 @@ class InvestigationAgent(BaseSOCAgent):
 
         chunks: list[RetrievedChunk] = []
         rag_degraded = False
+        retrieval_backend = ""
         if self._retriever is not None:
+            retrieval_backend = getattr(
+                self._retriever, "backend", type(self._retriever).__name__
+            )
             try:
                 chunks = await self._retriever.aretrieve(query, k=5)
             except SOCPlatformError as exc:
@@ -385,6 +389,7 @@ class InvestigationAgent(BaseSOCAgent):
             similar_cases=trusted,
             summary=summary,
             confidence=confidence,
+            retrieval_backend=retrieval_backend,
             ti_findings=ti_findings,
             experience_corroboration=exp_corroboration,
             suppression_corroboration=suppression,
@@ -414,6 +419,10 @@ class InvestigationAgent(BaseSOCAgent):
             _aio.create_task(self._evaluate_ragas(alert, summary, trusted))
         if rag_degraded:
             flags.insert(0, "RAG 검색 불가 — 빈 컨텍스트로 강등(대응 계속)")
+        if retrieval_backend == "kb-stub":
+            flags.append(
+                "컨텍스트 검색: kb-stub(오프라인 결정론) — 실 시맨틱 검색 아님"
+            )
         if dropped:
             flags.append(f"미신뢰 컨텍스트 {dropped}건 격리")
         # 인젝션 텔레메트리 — 요약 LLM 이 있을 때만(LlmJudge 미배선 구성서도 누락 방지).

@@ -256,7 +256,7 @@ class ReportAgent(BaseSOCAgent):
             title=alert.title,
             severity=severity,
             verdict=verdict,
-            action_taken=(
+            recommended_action=(
                 "response" if verdict == Verdict.TRUE_POSITIVE else "rule_update"
             ),
             mitre=alert.mitre,
@@ -361,7 +361,7 @@ class ReportAgent(BaseSOCAgent):
             "intent_assessment": report.intent_assessment is not None,
             "incident_directive": report.incident_directive is not None,
             "recovery_plan": report.recovery_plan is not None,
-            "recommended_action": bool(report.action_taken),
+            "recommended_action": bool(report.recommended_action),
         }
         report.decision_advantage = DecisionAdvantageAssessor().assess(
             soc_latency_ms,

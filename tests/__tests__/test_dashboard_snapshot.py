@@ -51,7 +51,7 @@ def _state(
         title=alert.title,
         severity=Severity.HIGH,
         verdict=Verdict.TRUE_POSITIVE,
-        action_taken="HITL 승인 대기",
+        recommended_action="HITL 승인 대기",
         hitl=report_hitl,
         mitre={"tactic": "CommandAndControl", "technique": "T1071"},
         mission_continuity=continuity,

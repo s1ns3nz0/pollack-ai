@@ -1,14 +1,14 @@
 {
   "schema_version": "dashboard.snapshot.v1",
-  "step": 2,
+  "step": 3,
   "mode": "replay",
-  "generated_at": "2026-07-10T04:13:00+09:00",
+  "generated_at": "2026-07-10T04:17:00+09:00",
   "summary": {
-    "active_story_count": 1,
+    "active_story_count": 2,
     "max_mission_impact": "MINIMAL",
-    "hitl_pending_count": 0,
+    "hitl_pending_count": 1,
     "decision_advantage": "contested",
-    "cpcon_level": 3
+    "cpcon_level": 2
   },
   "stories": [
     {
@@ -16,13 +16,17 @@
       "actor": "OP-077",
       "campaign_id": "C1",
       "campaign_name": "GCS 침해 → CT 하향 → 야간 C4I → 무장 명령 (캠페인 C1)",
-      "matched": 2,
+      "matched": 3,
       "total": 4,
-      "next_expected": "S79-OFFHOURS-C4I-CMD",
+      "next_expected": "S3-UNAUTHORIZED-WEAPON-CMD",
       "target_asset": "GCS",
       "mission_impact": "MINIMAL",
-      "hitl_status": "NOT_REQUIRED",
-      "decision_options": [],
+      "hitl_status": "PENDING",
+      "decision_options": [
+        "C4I 인계 차단",
+        "운용자 세션 강제 종료",
+        "임무 지속(감시 강화)"
+      ],
       "alerts": [
         {
           "alert_id": "ALERT-GCS-0341",
@@ -39,6 +43,36 @@
           "tactic": "StealthEvasion",
           "technique": "T1036",
           "order": 2
+        },
+        {
+          "alert_id": "ALERT-C4I-0362",
+          "scenario_id": "S79-OFFHOURS-C4I-CMD",
+          "title": "야간 시간대 비인가 C4I 임무 명령 주입",
+          "tactic": "Execution",
+          "technique": "T0821",
+          "order": 3
+        }
+      ]
+    },
+    {
+      "story_id": "MUAV-AKS-001",
+      "actor": "MUAV-AKS-001",
+      "campaign_id": "C3",
+      "campaign_name": "임무 자기승인 → AOI 이탈 → SATCOM 유출 (캠페인 C3)",
+      "matched": 1,
+      "total": 3,
+      "next_expected": "S109-AOI-EXCURSION",
+      "target_asset": "AUTOPILOT",
+      "mission_impact": "SUSTAINED",
+      "hitl_status": "NOT_REQUIRED",
+      "alerts": [
+        {
+          "alert_id": "ALERT-MPS-0410",
+          "scenario_id": "S36-MISSION-SELFAPPROVAL",
+          "title": "임무계획 2인통제 우회 자기승인",
+          "tactic": "Execution",
+          "technique": "T1204",
+          "order": 1
         }
       ]
     }
@@ -78,11 +112,11 @@
     {
       "tactic": "Execution",
       "order": 4,
-      "observed": false,
-      "current": false,
-      "predicted": true,
+      "observed": true,
+      "current": true,
+      "predicted": false,
       "gap": false,
-      "observed_order": null,
+      "observed_order": 3,
       "note": ""
     },
     {
@@ -109,7 +143,7 @@
       "tactic": "StealthEvasion",
       "order": 7,
       "observed": true,
-      "current": true,
+      "current": false,
       "predicted": false,
       "gap": false,
       "observed_order": 2,
@@ -190,7 +224,7 @@
       "order": 15,
       "observed": false,
       "current": false,
-      "predicted": false,
+      "predicted": true,
       "gap": false,
       "observed_order": null,
       "note": ""
@@ -208,10 +242,28 @@
         "metadata": {}
       },
       {
-        "id": "cyber-posture-stub",
-        "label": "Cyber Posture Service",
+        "id": "c4i-stub",
+        "label": "C4I Handoff Interface",
+        "plane": "c4i",
+        "kind": "c4i",
+        "status": "STUB",
+        "active": true,
+        "metadata": {}
+      },
+      {
+        "id": "ai-soc",
+        "label": "AI SOC Decision Layer",
         "plane": "soc",
-        "kind": "posture",
+        "kind": "soc",
+        "status": "SUSTAINED",
+        "active": true,
+        "metadata": {}
+      },
+      {
+        "id": "mps-stub",
+        "label": "Mission Planning System",
+        "plane": "ground",
+        "kind": "mission_system",
         "status": "STUB",
         "active": true,
         "metadata": {}
@@ -220,21 +272,21 @@
     "edges": []
   },
   "bluf": {
-    "situation": "OP-077이 사이버태세(CT) 레벨을 비인가 하향했습니다.",
-    "mission_impact": "탐지 감도 저하로 제한적 임무 지속 상태입니다.",
-    "recommendation": "CT 레벨 원복 및 변경 이력 감사.",
-    "next_move": "다음 예상 수순은 S79 야간 C4I 명령 주입입니다.",
+    "situation": "OP-077이 야간 시간대 비인가 C4I 임무 명령을 주입했습니다.",
+    "mission_impact": "무장 명령으로 전개 시 임무 중지 검토가 필요합니다.",
+    "recommendation": "C4I 인계 차단 및 지휘관 결심 요청.",
+    "next_move": "다음 예상 수순은 S3 무장 명령입니다. 교전권한 확인 필요.",
     "confidence": "medium",
-    "hitl_badge": "NOT_REQUIRED",
+    "hitl_badge": "PENDING",
     "caveats": [
       "replay demo dataset"
     ]
   },
   "source": {
-    "alert_id": "ALERT-CT-0355",
-    "scenario_id": "S37-CT-LEVEL-TAMPER",
+    "alert_id": "ALERT-C4I-0362",
+    "scenario_id": "S79-OFFHOURS-C4I-CMD",
     "trace": [
-      "UAVOpAudit_CL"
+      "UAVC4I_CL"
     ]
   }
 }

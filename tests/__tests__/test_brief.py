@@ -34,7 +34,7 @@ def _report(**kw: object) -> SOCReport:
         "title": "t",
         "severity": Severity.HIGH,
         "verdict": Verdict.TRUE_POSITIVE,
-        "action_taken": "response",
+        "recommended_action": "response",
     }
     base.update(kw)
     return SOCReport.model_validate(base)

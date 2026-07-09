@@ -65,7 +65,7 @@ async def main() -> None:
         print(f"  심각도    : {r.severity}  ({' '.join(event.severity_rationale)})")
         print(f"  RAG 근거  : {len(event.similar_cases)}건  {event.similar_cases[0].replace('kb/','') if event.similar_cases else ''}")
         print(f"  LLM 분석  : {event.summary[:150]}...")
-        print(f"  판정/대응 : {r.verdict} → {r.action_taken}  (플레이북 {r.scenario_id})")
+        print(f"  판정/대응 : {r.verdict} → {r.recommended_action}  (플레이북 {r.scenario_id})")
         if event.guardrail_flags:
             print(f"  가드레일  : {event.guardrail_flags}")
         print(f"  → 권고    : INS 페일오버 + 자동 RTB (드론 복귀)")
