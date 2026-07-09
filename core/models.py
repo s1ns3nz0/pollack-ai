@@ -1414,3 +1414,4 @@ class SOCState(TypedDict, total=False):
     guardrail_flags: Annotated[list[str], operator.add]
     node_timings: Annotated[list[dict[str, object]], operator.add]
     mission_risk: MissionRisk  # triage 산출 METT-TC 임무위험(approval/report 소비)
+    active_hunt_findings: list[ActiveHuntFinding]
