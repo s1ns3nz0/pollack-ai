@@ -30,6 +30,7 @@ from core.exceptions import SOCPlatformError
 from core.honeypot import HoneypotPlanner
 from core.hunt import HuntPlanner
 from core.incident import CaseManager
+from core.intent import IntentFilter
 from core.lineage import LineageCollector
 from core.models import (
     ActorProfile,
@@ -172,6 +173,8 @@ class ReportAgent(BaseSOCAgent):
             metrics().record_ztmm_unverified(len(_unverified))
         # 지상 세그먼트 사각도 정적 posture — 로드 시 1회 계량·캐시.
         self._ground_segment = _load_ground_segment()
+        # 지휘관 의도도 정적 교리 — 로드 시 1회 캐시(fail-safe degrade 내장).
+        self._intent_filter = IntentFilter.from_yaml()
 
     async def run(self, state: SOCState) -> SOCState:
         """리포트 + OSCAL 증거 구성."""
@@ -233,6 +236,10 @@ class ReportAgent(BaseSOCAgent):
             if incident_case is not None
             else None
         )
+        # 임무형 지휘: 의도 기반 우선순위·결심필요 판정(자문·표현, 정책 캐시).
+        intent_assessment = self._intent_filter.assess(alert, incident_case)
+        if intent_assessment.decision_class == "commander_decision":
+            metrics().record_commander_decision()
 
         report = SOCReport(
             alert_id=alert.id,
@@ -258,6 +265,7 @@ class ReportAgent(BaseSOCAgent):
             aibom_findings=self._aibom_findings,
             zt_mapping=self._zt_mapping,
             ground_segment=self._ground_segment,
+            intent_assessment=intent_assessment,
             recovery_plan=recovery_plan,
             mission_continuity=mission_continuity,
             stride_threats=stride_threats,

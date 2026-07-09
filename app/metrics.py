@@ -56,6 +56,8 @@ class _Counters:
         self.aibom_violation_total = 0
         self.cisa_reportable_total = 0
         self.ztmm_unverified_total = 0
+        # 임무형 지휘: 지휘관 결심 상승 판정 누적(IntentFilter commander_decision)
+        self.commander_decision_total = 0
 
     def record_alert(self, verdict: str) -> None:
         """경보 1건 처리 + 판정 집계."""
@@ -170,6 +172,11 @@ class _Counters:
         """
         with self._lock:
             self.ztmm_unverified_total += n
+
+    def record_commander_decision(self) -> None:
+        """지휘관 결심 상승 판정 1건 누적(임무형 지휘)."""
+        with self._lock:
+            self.commander_decision_total += 1
 
     def record_reopen(self) -> None:
         """재심 억제 무효화 1건 누적."""
@@ -316,6 +323,10 @@ def render_text() -> str:
         out.append("# HELP soc_ztmm_unverified_total ZTMM 근거 미검증 성숙도 주장 수")
         out.append("# TYPE soc_ztmm_unverified_total counter")
         out.append(_line("soc_ztmm_unverified_total", c.ztmm_unverified_total))
+    if c.commander_decision_total:
+        out.append("# HELP soc_commander_decision_total 지휘관 결심 상승 판정 수")
+        out.append("# TYPE soc_commander_decision_total counter")
+        out.append(_line("soc_commander_decision_total", c.commander_decision_total))
     if c.cisa_reportable_total:
         out.append(
             "# HELP soc_cisa_reportable_total CIRCIA 연방 72h 보고 대상 권위 case 수"
