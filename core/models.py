@@ -779,6 +779,36 @@ class StagedDefense(BaseModel):
     note: str = ""
 
 
+class KillWebResilience(BaseModel):
+    """Mosaic/Kill Web — 단계별 커버리지 breadth(자문·정직 프록시).
+
+    **주의: covered 기법 수 ≠ 독립 센서/로그원.** 두 covered 기법이 같은 로그원에
+    의존할 수 있어 진짜 탐지경로 중복(SPOF-free)을 증명하지 않는다. breadth 로만
+    정직히 표현 — single_technique 를 SPOF 로 단정 안 함. verdict/severity/CAT 불변.
+
+    Attributes:
+        multi_technique_stages: covered 기법 ≥2 단계(breadth 넓음).
+        single_technique_stages: covered 기법 정확히 1(좁음 — 센서 독립성 미증명).
+        uncovered_stages: 현재 covered 0(기법 존재하나 미탐. planned 은 활성 아님).
+        empty_stages: 기법 0 단계(분모 제외).
+        blind_surface_count: 지상 세그먼트 구조적 사각(센서 평면 부재).
+        coverage_breadth_ratio: multi / 범위내 비어있지않은 단계.
+        degraded: 정책 로드 실패 여부.
+        degraded_reason: 실패 사유(관측).
+        rationale: 근거·정직성 주석.
+    """
+
+    multi_technique_stages: list[str] = Field(default_factory=list)
+    single_technique_stages: list[str] = Field(default_factory=list)
+    uncovered_stages: list[str] = Field(default_factory=list)
+    empty_stages: list[str] = Field(default_factory=list)
+    blind_surface_count: int = 0
+    coverage_breadth_ratio: float = 0.0
+    degraded: bool = False
+    degraded_reason: str = ""
+    rationale: list[str] = Field(default_factory=list)
+
+
 class DecisionAdvantage(BaseModel):
     """OODA 결심 여유 — SOC 브리핑 지연 vs 관측 적 진행 cadence(자문·정직 프록시).
 
@@ -1376,6 +1406,10 @@ class SOCReport(BaseModel):
     decision_advantage: DecisionAdvantage | None = Field(
         default=None,
         description="OODA 결심 여유: 브리핑 지연 vs 적 진행 cadence(자문·정직 프록시).",
+    )
+    kill_web_resilience: KillWebResilience | None = Field(
+        default=None,
+        description="Mosaic/Kill Web: 단계별 커버리지 breadth(정적 posture·자문).",
     )
 
 

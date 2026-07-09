@@ -369,6 +369,7 @@ def render_text() -> str:
 
     out.extend(_coverage_metrics())
     out.extend(_ground_metrics())
+    out.extend(_killweb_metrics())
     out.extend(_bas_metrics())
     out.extend(_cato_metrics())
     return "\n".join(out) + "\n"
@@ -459,6 +460,33 @@ def _ground_metrics() -> list[str]:
     out.append("# TYPE soc_ground_policy_unavailable gauge")
     out.append(_line("soc_ground_policy_unavailable", 0))
     return out
+
+
+def _killweb_metrics() -> list[str]:
+    """Kill Web 커버리지 breadth 게이지 — 정적 posture(스크레이프 시점).
+
+    single_technique 는 SPOF 아님(정직) — breadth 지표. 조회 실패는 빈 목록.
+    """
+    try:
+        from core.killweb import KillWebBuilder
+
+        r = KillWebBuilder.load().resilience()
+    except Exception:  # noqa: BLE001 - 조회 실패가 스크레이프를 깨지 않게
+        return []
+    return [
+        "# HELP soc_killweb_coverage_breadth_ratio 단계 커버리지 breadth(multi/범위내)",
+        "# TYPE soc_killweb_coverage_breadth_ratio gauge",
+        _line("soc_killweb_coverage_breadth_ratio", r.coverage_breadth_ratio),
+        "# HELP soc_killweb_single_technique_stage_count 단일 커버기법 단계(SPOF 아님)",
+        "# TYPE soc_killweb_single_technique_stage_count gauge",
+        _line(
+            "soc_killweb_single_technique_stage_count",
+            len(r.single_technique_stages),
+        ),
+        "# HELP soc_killweb_uncovered_stage_count 미탐 단계 수",
+        "# TYPE soc_killweb_uncovered_stage_count gauge",
+        _line("soc_killweb_uncovered_stage_count", len(r.uncovered_stages)),
+    ]
 
 
 def _coverage_metrics() -> list[str]:
