@@ -61,6 +61,7 @@ from core.incident import CaseManager, incident_store
 from core.killchain import KillChainProgressor
 from core.lineage import LineageCollector
 from core.llm import LLMClient
+from core.malware import MalwareAnalysisClient
 from core.models import SOCState
 from core.posture import PostureLadder, PostureProvider
 from core.predictor import PredictionMatcher, SequencePredictor
@@ -219,6 +220,14 @@ def _default_vuln(settings: Settings) -> VulnContext | None:
     inner = CompositeVuln([CisaKevTool(settings), NvdTool(settings)])
     return BoundedVuln(inner, settings.enrichment_deadline_seconds)
 
+def _default_malware(settings: Settings) -> MalwareAnalysisClient | None:
+    """Malware analysis MCP router 를 구성한다(default-deny, client 는 후속 주입)."""
+    if not settings.malware_analysis_enabled:
+        return None
+    from tools.malware_mcp_tool import MalwareMCPRouter
+
+    return MalwareMCPRouter(settings=settings)
+
 
 def build_soc_graph(
     *,
@@ -230,6 +239,7 @@ def build_soc_graph(
     experience: MemoryReadGate | None = None,
     sandbox: SandboxDetonator | None = None,
     vuln: VulnContext | None = None,
+    malware: MalwareAnalysisClient | None = None,
     rule_publisher: RulePublisher | None = None,
     gnss_jam: GnssJamProvider | None = None,
     airspace: AirspaceProvider | None = None,
@@ -257,6 +267,7 @@ def build_soc_graph(
         experience: 경험메모리 읽기 게이트(미지정 시 exp 데이터셋 있으면 자동 배선).
         sandbox: 샌드박스 디토네이터(미지정 시 해시 IOC 분석 생략).
         vuln: 취약점 컨텍스트(미지정 시 CVE 보강 생략).
+        malware: Malware analysis MCP client(미지정 시 설정에 따라 default router).
         rule_publisher: Watch List PR 발행기(미지정 시 RuleUpdate 는 proposed 만 산출).
         judge: Validation 판정기(기본은 결정론적 — 판정권을 LLM 에 주지 않음).
         hitl: True 면 고위험 정탐에 운용자 승인 대기(interrupt) 노드 삽입 +
@@ -291,6 +302,8 @@ def build_soc_graph(
         if not isinstance(vuln, BoundedVuln):
             vuln = BoundedVuln(vuln, settings.enrichment_deadline_seconds)
 
+    if malware is None:
+        malware = _default_malware(settings)
     # spec C1: predictor 미주입 시 인메모리 SequencePredictor 자동 배선.
     if predictor is None:
         predictor = SequencePredictor(
@@ -377,6 +390,7 @@ def build_soc_graph(
         ragas=ragas,  # type: ignore[arg-type]
         predictor=predictor,  # type: ignore[arg-type]
         egress=IocEgressFilter(),  # untrusted wire IOC egress 정제(내부누설·쿼터번)
+        malware=malware,
     )
     # spec B1: ensemble_judges 명시 주입 우선. 없고 llm_judge_enabled 일 때만 자동 배선.
     if ensemble_judges is None and llm_judge_enabled:

@@ -21,6 +21,7 @@ from core.egress import IocEgressFilter
 from core.exceptions import LLMError, SOCPlatformError
 from core.experience import MemoryReadGate, RecallPurpose
 from core.llm import LLMClient
+from core.malware import ArtifactRef, MalwareAnalysisClient, MalwareAnalysisReport
 from core.models import (
     ActorProfile,
     AirspaceFinding,
@@ -206,6 +207,7 @@ class InvestigationAgent(BaseSOCAgent):
         predictor: SequencePredictorProto | None = None,
         guard: PromptInjectionGuard | None = None,
         egress: IocEgressFilter | None = None,
+        malware: MalwareAnalysisClient | None = None,
     ) -> None:
         super().__init__(settings)
         self._retriever = retriever
@@ -218,6 +220,7 @@ class InvestigationAgent(BaseSOCAgent):
         self._vuln = vuln
         # IOC egress 필터 — 외부 조회 전 사설/내부/불정 IOC 드롭 + cap(내부누설·쿼터번).
         self._egress = egress
+        self._malware = malware
         self._gnss_jam = gnss_jam
         self._airspace = airspace
         self._actor_read = actor_read
@@ -295,6 +298,12 @@ class InvestigationAgent(BaseSOCAgent):
         if any(v.known_exploited for v in vuln_findings):
             confidence = round(min(1.0, confidence + 0.2), 3)  # KEV 능동악용 = 강근거
 
+        malware_reports = await self._bounded(
+            self._analyze_malware(alert.artifacts), [], "malware"
+        )
+        if any(r.verdict == TiVerdict.MALICIOUS for r in malware_reports):
+            confidence = round(min(1.0, confidence + 0.2), 3)
+
         # 경험메모리(exp/) 자문: 과거 정탐 회상으로 탐지 강화(안전 방향).
         # 신종(룰부재 X·근거부족) TP 를 1회 학습 후 잡게 하는 자가발전 레버.
         exp_corroboration = await self._recall_experience(alert.scenario_id)
@@ -349,7 +358,7 @@ class InvestigationAgent(BaseSOCAgent):
 
         self._logger.info(
             "investigation: alert=%s hits=%d trusted=%d degraded=%s ti=%d sb=%d "
-            "vuln=%d exp=%d sup=%d jam=%d air=%d conf=%.2f",
+            "vuln=%d malware=%d exp=%d sup=%d jam=%d air=%d conf=%.2f",
             alert.id,
             len(chunks),
             len(trusted),
@@ -357,6 +366,7 @@ class InvestigationAgent(BaseSOCAgent):
             len(ti_findings),
             len(sandbox_reports),
             len(vuln_findings),
+            len(malware_reports),
             exp_corroboration,
             suppression,
             len(gnss_jam_findings),
@@ -376,6 +386,7 @@ class InvestigationAgent(BaseSOCAgent):
                 suppression_corroboration=suppression,
                 sandbox_reports=sandbox_reports,
                 vuln_findings=vuln_findings,
+                malware_reports=[r.model_dump(mode="json") for r in malware_reports],
                 gnss_jam_findings=gnss_jam_findings,
                 airspace_findings=airspace_findings,
                 predictions=predictions,
@@ -624,6 +635,35 @@ class InvestigationAgent(BaseSOCAgent):
                 "investigation 취약점 보강 실패, 무시하고 계속: %s", exc
             )
             return []
+
+    async def _analyze_malware(
+        self, artifacts: list[str]
+    ) -> list[MalwareAnalysisReport]:
+        """경보 artifact 를 malware-analysis client 로 보강한다(default-deny).
+
+        Args:
+            artifacts: 분석 대상 artifact reference 목록(경로/object id/hash 등).
+
+        Returns:
+            검증된 malware analysis reports. 비활성/미주입/장애 시 빈 목록.
+        """
+        if (
+            self._malware is None
+            or not self._settings.malware_analysis_enabled
+            or not artifacts
+        ):
+            return []
+        reports: list[MalwareAnalysisReport] = []
+        for artifact in artifacts:
+            try:
+                reports.append(
+                    await self._malware.aanalyze(ArtifactRef(value=artifact))
+                )
+            except SOCPlatformError as exc:
+                self._logger.warning(
+                    "investigation malware 분석 실패, 무시하고 계속: %s", exc
+                )
+        return reports
 
     async def _lookup_ti(self, iocs: list[str]) -> list[ThreatIntelFinding]:
         """경보 IOC 를 외부 TI 로 조회. 미주입/IOC 없음/장애 시 빈 결과(대응 계속)."""
