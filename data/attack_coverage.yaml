@@ -95,15 +95,15 @@ tactics:
     # (+C12/C29 캠페인). dah S1~S126 재정렬 이후 실배포 확인(2026-07) — attack_coverage.yaml
     # 갱신 누락돼 있던 것 재동기화. T1119/T1560: 신규 저작 S127/S128(2026-07, az 실측 검증).
     # T0882: 신규 저작 S129 — 원래 Impact 전술 아래 잘못 분류돼 있었음(MITRE 공식은 Collection).
-    covered: [T1185, T1125, T1113, T1005, T1074, T1119, T1560, T0882]
+    # T0845: 신규 저작 S130 — Sentinel이 ICS ID를 techniques[]에서 거부해 T1105(Ingress Tool
+    # Transfer, Enterprise) proxy로 구현(description에 ICS T0845 참고 명시). T1056: S131 직접 매핑.
+    covered: [T1185, T1125, T1113, T1005, T1074, T1119, T1560, T0882, T0845, T1056]
     planned: []
     uncovered:
-      - { id: T0845, name: "Program Upload", archetype: B_passive_collection }
       - { id: T0801, name: "Monitor Process State", archetype: B_passive_collection }
       - { id: T0887, name: "Wireless Sniffing (collection)", archetype: B_passive_collection }
       - { id: T0868, name: "Detect Operating Mode", archetype: B_passive_collection }
       - { id: T0861, name: "Point & Tag Identification", archetype: B_passive_collection }
-      - { id: T1056, name: "Input Capture", archetype: B_passive_collection }
 
   - name: CommandAndControl
     order: 11
