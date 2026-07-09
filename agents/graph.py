@@ -308,6 +308,8 @@ def build_soc_graph(
     if malware is None:
         malware = _default_malware(settings)
 
+    if malware is None:
+        malware = _default_malware(settings)
     # spec C1: predictor 미주입 시 인메모리 SequencePredictor 자동 배선.
     if predictor is None:
         predictor = SequencePredictor(
