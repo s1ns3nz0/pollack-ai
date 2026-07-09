@@ -77,3 +77,69 @@ class TestLateralCorrelation:
         tracker.enrich(_alert(asset_id="C2-LINK", scenario_id="S2"), _T0)
         stale = tracker.enrich(_alert(asset_id="GNSS"), _T0 + timedelta(minutes=61))
         assert stale.lateral_correlation is False
+
+
+class TestRegistryUpstream:
+    """레지스트리 기반 upstream 판정(substring 사칭 차단)."""
+
+    def test_registered_upstream_triggers_lateral(self) -> None:
+        """등록 upstream(C2_LINK) 침해 활성 중 하류 경보 → lateral."""
+        tracker = DynamicsTracker(upstream_assets=frozenset({"C2_LINK"}))
+        tracker.enrich(_alert(asset_id="C2_LINK", scenario_id="S2"), _T0)
+        dep = tracker.enrich(
+            _alert(asset_id="GNSS", severity_baseline=Severity.LOW),
+            _T0 + timedelta(minutes=5),
+        )
+        assert dep.lateral_correlation is True
+
+    def test_forged_unregistered_upstream_no_lateral(self) -> None:
+        """레지스트리 모드: 'GCS-fake'(미등록)는 substring 이어도 upstream 아님."""
+        tracker = DynamicsTracker(upstream_assets=frozenset({"C2_LINK"}))
+        tracker.enrich(_alert(asset_id="GCS-fake", scenario_id="S6"), _T0)
+        dep = tracker.enrich(_alert(asset_id="GNSS"), _T0 + timedelta(minutes=5))
+        assert dep.lateral_correlation is False
+
+
+class TestEvictionAndCap:
+    """비활성 eviction(활성 dwell 보존) + cardinality 상한."""
+
+    def test_active_incident_dwell_preserved(self) -> None:
+        """retention 내 재관측 지속 → 활성 → first_seen 보존 → dwell 유지."""
+        tracker = DynamicsTracker(retention_min=60)
+        alert = _alert()
+        tracker.enrich(alert, _T0)
+        tracker.enrich(alert, _T0 + timedelta(minutes=40))  # 활성 재관측
+        later = tracker.enrich(alert, _T0 + timedelta(minutes=70))  # gap 30 < 60
+        assert later.dwelling_min == 70  # 리셋 안 됨
+
+    def test_inactive_entry_evicted(self) -> None:
+        """retention 초과 무활동 → eviction → 재등장 dwell 0."""
+        tracker = DynamicsTracker(retention_min=60)
+        alert = _alert()
+        tracker.enrich(alert, _T0)
+        later = tracker.enrich(alert, _T0 + timedelta(minutes=90))  # gap 90 > 60
+        assert later.dwelling_min == 0
+
+    def test_max_entries_cap_bounds_history(self) -> None:
+        """위조 asset_id 스트림 → 이력 dict 상한 이내로 bounded."""
+        tracker = DynamicsTracker(max_entries=10)
+        for i in range(50):
+            tracker.enrich(
+                _alert(asset_id=f"forge-{i}", scenario_id="S1"),
+                _T0 + timedelta(seconds=i),
+            )
+        assert len(tracker._first_seen) <= 10
+
+
+class TestInjectableClock:
+    """클록 주입 — now 미지정 시 내부 clock 사용."""
+
+    def test_clock_drives_dwell(self) -> None:
+        """clock 주입 + enrich(now 생략) → clock 시각으로 dwell 산정."""
+        cur = [_T0]
+        tracker = DynamicsTracker(clock=lambda: cur[0])
+        first = tracker.enrich(_alert())
+        assert first.dwelling_min == 0
+        cur[0] = _T0 + timedelta(minutes=31)
+        later = tracker.enrich(_alert())
+        assert later.dwelling_min == 31
