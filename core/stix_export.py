@@ -20,7 +20,7 @@ import ipaddress
 import re
 from uuid import NAMESPACE_DNS, uuid5
 
-from core.models import DiamondEvent
+from core.models import CampaignMatch, DiamondEvent
 
 # 플랫폼 소유 namespace — SDO/SRO 결정론 id 용(OASIS ns 는 SCO 전용이라 미사용).
 _PLATFORM_NS = uuid5(NAMESPACE_DNS, "pollack-ai.uav-soc")
@@ -170,6 +170,57 @@ class StixExporter:
         return {
             "type": "bundle",
             "id": _sid("bundle", f"{actor}|{','.join(techs)}|{','.join(iocs)}"),
+            "objects": objects,
+        }
+
+    def from_campaign(
+        self, campaign: CampaignMatch, created_at: str
+    ) -> dict[str, object] | None:
+        """CampaignMatch 를 STIX 2.1 campaign SDO bundle 로 생산한다(OPSEC 안전).
+
+        진행도(matched/total)는 objective 에 요약. **next_expected(내부 시나리오 id)
+        생략** — 내부 탐지체계 노출 방지(OPSEC). chain_id 는 위협 라벨(공유 무해).
+
+        Args:
+            campaign: 진행 중 캠페인 매칭.
+            created_at: STIX timestamp(created/modified).
+
+        Returns:
+            campaign SDO 담은 bundle. chain_id 없으면 None.
+        """
+        chain_id = campaign.chain_id.strip()
+        if not chain_id:
+            return None
+        identity_id = _sid("identity", self._producer)
+        marks = [self._tlp_ref]
+        camp_id = _sid("campaign", chain_id)
+        objective = f"진행 {campaign.matched}/{campaign.total} 단계(체인 {chain_id})"
+        objects: list[dict[str, object]] = [
+            {
+                "type": "identity",
+                "spec_version": "2.1",
+                "id": identity_id,
+                "created": created_at,
+                "modified": created_at,
+                "name": self._producer,
+                "identity_class": "organization",
+                "object_marking_refs": marks,
+            },
+            {
+                "type": "campaign",
+                "spec_version": "2.1",
+                "id": camp_id,
+                "created": created_at,
+                "modified": created_at,
+                "created_by_ref": identity_id,
+                "object_marking_refs": marks,
+                "name": campaign.name or chain_id,
+                "objective": objective,
+            },
+        ]
+        return {
+            "type": "bundle",
+            "id": _sid("bundle", f"campaign:{chain_id}"),
             "objects": objects,
         }
 
