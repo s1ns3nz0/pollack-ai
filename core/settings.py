@@ -296,6 +296,15 @@ class Settings(BaseSettings):
         ),
     )
 
+    # ── Auto KQL Rule Suggester (spec A-2) ──────────────
+    auto_kql_enabled: bool = Field(
+        default=False,
+        description="opt-in — LLM 이 미커버 technique 에 KQL draft PR 생성.",
+    )
+    auto_kql_max_techniques: int = Field(
+        default=5, ge=1, description="사이클당 KQL draft 처리 상한 (spam 방지)."
+    )
+
     @property
     def ragflow_retrieval_url(self) -> str:
         """RAGFlow 검색 엔드포인트 전체 URL."""

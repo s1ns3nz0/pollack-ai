@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import TYPE_CHECKING
+from typing import Protocol
 
 from agents.outcome_probe_agent import OutcomeProbeAgent
 from agents.threat_landscape_agent import ThreatLandscapeAgent
@@ -25,12 +25,16 @@ from core.models import LandscapeDiff, WorkerReport
 from core.settings import Settings, get_settings
 from utils.logging import get_logger
 
-if TYPE_CHECKING:
-    # A-2 (agents.auto_kql_rule_agent) 는 별도 PR — main 머지 전이면 런타임 import
-    # 없이 타입만 참조. 실제 사용은 호출자가 인스턴스 주입 시에만.
-    from agents.auto_kql_rule_agent import AutoKqlRuleAgent
-
 _logger = get_logger("learning")
+
+
+class _AutoKqlWorker(Protocol):
+    """AutoKql 워커 구조 인터페이스 — run_cycle 은 구현이 아닌 이 형태에 의존.
+
+    실제 AutoKqlRuleAgent 와 테스트 스텁이 구조적으로 모두 만족한다(DI).
+    """
+
+    async def run_for(self, added: list[str]) -> WorkerReport: ...
 
 
 def _extract_added_techniques(diffs: list[LandscapeDiff]) -> list[str]:
@@ -74,7 +78,7 @@ async def _run_threat_landscape(agent: ThreatLandscapeAgent) -> WorkerReport | N
     return report
 
 
-async def _run_auto_kql(agent: AutoKqlRuleAgent, added: list[str]) -> None:
+async def _run_auto_kql(agent: _AutoKqlWorker, added: list[str]) -> None:
     if not added:
         _logger.debug("auto_kql: 신규 technique 없음 — skip")
         return
@@ -94,7 +98,7 @@ async def _run_auto_kql(agent: AutoKqlRuleAgent, added: list[str]) -> None:
 async def run_cycle(
     threat_landscape: ThreatLandscapeAgent | None = None,
     outcome_probe: OutcomeProbeAgent | None = None,
-    auto_kql: AutoKqlRuleAgent | None = None,
+    auto_kql: _AutoKqlWorker | None = None,
     last_landscape_refresh: list[float] | None = None,
     settings: Settings | None = None,
 ) -> None:
@@ -178,7 +182,7 @@ def _build_threat_landscape(settings: Settings) -> ThreatLandscapeAgent | None:
     )
 
 
-def _build_auto_kql(settings: Settings) -> AutoKqlRuleAgent | None:
+def _build_auto_kql(settings: Settings) -> _AutoKqlWorker | None:
     """`auto_kql_enabled` 이고 LLM 가용 시 워커 배선.
 
     `auto_kql_enabled` 설정 자체가 없으면(A-2 PR 미머지 상태) 자동 비활성.
@@ -198,7 +202,11 @@ def _build_auto_kql(settings: Settings) -> AutoKqlRuleAgent | None:
         _logger.warning("auto_kql: LLM 배선 실패 — 워커 비활성: %s", exc)
         return None
     publisher = _build_publisher(settings)
-    return _Agent(settings, llm=llm, publisher=publisher)
+    if publisher is None:
+        # publisher 없으면 발행 산출물이 없어 LLM 만 소모 — 워커 비활성(Codex).
+        _logger.warning("auto_kql: publisher 없음(GITHUB_TOKEN?) — 워커 비활성")
+        return None
+    return _Agent(settings, llm=llm, publisher=publisher)  # type: ignore[arg-type]
 
 
 async def main(interval_seconds: float | None = None) -> None:
