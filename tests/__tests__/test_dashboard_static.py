@@ -45,6 +45,19 @@ def test_dashboard_js_handles_replay_and_sse() -> None:
     assert "onclick=" not in js
 
 
+def test_dashboard_js_closes_sse_on_done_and_dedupes_snapshots() -> None:
+    """JavaScript handles terminal SSE completion and duplicate snapshots."""
+    js = (_STATIC / "dashboard.js").read_text(encoding="utf-8")
+
+    assert 'addEventListener("done"' in js or "addEventListener('done'" in js
+    assert "state.eventSource.close()" in js
+    assert "seenSnapshotKeys" in js or "snapshotKeys" in js
+    assert "schema_version" in js
+    assert "source.alert_id" in js or "alert_id" in js
+    assert "source.scenario_id" in js or "scenario_id" in js
+    assert "generated_at" in js
+
+
 def test_dashboard_js_keeps_topology_and_reconnects_in_empty_or_error_states() -> None:
     """JavaScript preserves topology on empty replay and avoids closing SSE on error."""
     js = (_STATIC / "dashboard.js").read_text(encoding="utf-8")

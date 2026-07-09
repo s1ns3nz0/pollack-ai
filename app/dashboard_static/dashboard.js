@@ -1,5 +1,6 @@
 const state = {
   snapshots: [],
+  seenSnapshotKeys: new Set(),
   index: 0,
   selectedStoryId: "",
   live: false,
@@ -16,6 +17,38 @@ function text(value) {
 
 function currentSnapshot() {
   return state.snapshots[state.index] || null;
+}
+
+function snapshotDedupKey(snapshot) {
+  const source = snapshot.source || {};
+  const alertId = text(source.alert_id);
+  const scenarioId = text(source.scenario_id);
+  const generatedAt = text(snapshot.generated_at);
+  return [
+    text(snapshot.schema_version),
+    text(snapshot.step),
+    alertId,
+    scenarioId,
+    generatedAt,
+  ].join("::");
+}
+
+function appendSnapshotIfNew(snapshot) {
+  const key = snapshotDedupKey(snapshot);
+  if (state.seenSnapshotKeys.has(key)) {
+    return false;
+  }
+  state.seenSnapshotKeys.add(key);
+  state.snapshots.push(snapshot);
+  return true;
+}
+
+function resetSnapshots(snapshots) {
+  state.snapshots = [];
+  state.seenSnapshotKeys = new Set();
+  snapshots.forEach((snapshot) => {
+    appendSnapshotIfNew(snapshot);
+  });
 }
 
 function clearNode(node) {
@@ -301,6 +334,8 @@ function renderControls() {
   let statusText = "Replay mode";
   if (state.connectionState === "connected") {
     statusText = "SSE connected";
+  } else if (state.connectionState === "completed") {
+    statusText = "Replay complete";
   } else if (state.connectionState === "reconnecting") {
     statusText = "SSE reconnecting";
   }
@@ -391,19 +426,19 @@ async function loadTopology() {
 async function loadReplay() {
   const response = await fetch('/api/snapshots');
   const payload = await response.json();
-  state.snapshots = Array.isArray(payload.snapshots) ? payload.snapshots : [];
+  resetSnapshots(Array.isArray(payload.snapshots) ? payload.snapshots : []);
   state.index = 0;
   state.connectionState = "replay";
   renderSnapshot(currentSnapshot());
 }
 
-function closeLiveConnection() {
+function closeLiveConnection(nextConnectionState = "replay") {
   if (state.eventSource) {
     state.eventSource.close();
     state.eventSource = null;
   }
   state.live = false;
-  state.connectionState = "replay";
+  state.connectionState = nextConnectionState;
 }
 
 function connectLive() {
@@ -423,9 +458,16 @@ function connectLive() {
 
   state.eventSource.addEventListener("snapshot", (event) => {
     const snapshot = JSON.parse(event.data);
-    state.snapshots.push(snapshot);
+    if (!appendSnapshotIfNew(snapshot)) {
+      return;
+    }
     state.index = state.snapshots.length - 1;
     renderSnapshot(snapshot);
+  });
+
+  state.eventSource.addEventListener("done", () => {
+    closeLiveConnection("completed");
+    renderControls();
   });
 
   state.eventSource.onerror = () => {

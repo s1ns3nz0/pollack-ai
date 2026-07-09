@@ -52,6 +52,7 @@ def _sse_events(snapshot_dir: Path) -> Iterator[str]:
     for snapshot in load_snapshots(snapshot_dir):
         data = snapshot.model_dump_json()
         yield f"event: snapshot\ndata: {data}\n\n"
+    yield 'event: done\ndata: {"status":"complete"}\n\n'
 
 
 def create_app(snapshot_dir: str | Path | None = None) -> FastAPI:

@@ -90,3 +90,4 @@ def test_events_stream_uses_snapshot_wire_format(tmp_path: Path) -> None:
     assert response.status_code == 200
     assert "event: snapshot" in body
     assert "dashboard.snapshot.v1" in body
+    assert 'event: done\ndata: {"status":"complete"}' in body
