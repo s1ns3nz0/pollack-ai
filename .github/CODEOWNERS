@@ -1,0 +1,36 @@
+# CODEOWNERS — detection ↔ analysis 레인 분리(충돌 최소화).
+# analysis = @s1ns3nz0, detection = @mara89ma.
+#
+# 핵심: 실 센티넬 룰·워치리스트는 **별 레포** s1ns3nz0/dah-sentinel-content 에서 개발.
+#   → 두 레인은 대부분 **다른 레포**라 충돌면 거의 0. 이 레포(pollack-ai)에서 겹치는
+#   유일한 표면 = **계약(contract) 파일**(scenario 카탈로그·Alert 스키마·커버리지·
+#   워치리스트 스키마). 계약만 양측 리뷰로 조율하면 됨.
+#
+# 규칙: GitHub CODEOWNERS 는 **마지막 매칭 패턴이 승리** → 넓은 규칙 먼저, 계약 나중.
+# 계약 스키마·변경 절차: docs/CONTRACT-detection-analysis.md
+
+# ── 기본 / Analysis 레인(분석 에이전트·엔진·오케스트레이션) — s1ns3nz0 ──
+*                                       @s1ns3nz0
+/agents/                                @s1ns3nz0
+/core/                                  @s1ns3nz0
+/app/                                   @s1ns3nz0
+/tools/                                 @s1ns3nz0
+# KQL 생성/발행 브리지는 analysis 소유(동료 레포로 draft PR 을 *산출*만 함).
+# — auto_kql_rule_agent·rule_update_agent·predictive_kql·kql_validator·rule_publisher
+
+# ── Detection 레인 산출물(이 레포의 seed/참조 사본) — 동료 ──
+# 실 룰은 dah-sentinel-content. 여기 sentinel/ 는 seed·데모·스키마 참조본.
+/sentinel/                              @mara89ma
+/deploy/sentinel-tables/                @mara89ma
+/docs/sentinel-watchlist-schemas.md     @mara89ma
+
+# ── 계약(CONTRACT) — detection·analysis 양측 리뷰 필수(마지막=최우선) ──
+# detection→analysis 인터페이스. 변경 시 양측 승인 + docs/CONTRACT 갱신.
+/core/policy/bas-scenarios.yaml         @s1ns3nz0 @mara89ma
+/data/attack_coverage.yaml              @s1ns3nz0 @mara89ma
+/data/ground_segment_coverage.yaml      @s1ns3nz0 @mara89ma
+/benchmarks/eval_scenarios/             @s1ns3nz0 @mara89ma
+/docs/CONTRACT-detection-analysis.md    @s1ns3nz0 @mara89ma
+# core/models.py 의 Alert·WatchlistUpdate·RulePullRequest 는 계약이나 파일이 거대
+# (SOCReport 등 analysis 모델도 공존) → 전체 양측리뷰는 과함. Alert/Watchlist 변경 시
+# 수동으로 동료 리뷰 요청(파일 단위 CODEOWNERS 는 클래스 단위 불가). 계약문서에 명시.
