@@ -557,6 +557,7 @@ scenarios:
     detection_rule: S65_Exfil_SATCOM_Web.json
     tactic: Exfiltration
     stride: [I]
+    campaign: [C34]
 
   - id: S66-OPINFO-EXFIL
     name: "Operational Information Theft (EO/IR, SAR, Target Coordinates)"
@@ -1088,6 +1089,7 @@ scenarios:
     detection_rule: S127_Automated_Collection.json
     tactic: Collection
     stride: [T, I]
+    campaign: [C34]
 
   - id: S128-ARCHIVE-COLLECTED-DATA
     name: "Archive Collected Data (Compression Tool / Archive File)"
@@ -1096,12 +1098,29 @@ scenarios:
     detection_rule: S128_Archive_Collected_Data.json
     tactic: Collection
     stride: [T, I]
+    campaign: [C34]
 
   - id: S129-THEFT-OF-OPERATIONAL-INFORMATION
     name: "Theft of Operational Information (Bulk Mission Data Read)"
     status: deployed
-    signals: ["[Goal] 임무데이터(/data/missions/*)에 대한 대용량 읽기를 탐지해 운영정보 절취 시도를 잡는다", "[Categorization] Collection / T0882(Theft of Operational Information, MITRE ATT&CK for ICS)", "참고: data/attack_coverage.yaml 은 이 기법을 Impact 전술로 분류해뒀으나, MITRE 공식 분류는 Collection — 이 룰은 공식 분류를 따름(불일치는 별도 확인 필요)"]
+    signals: ["[Goal] 임무데이터(/data/missions/*)에 대한 대용량 읽기를 탐지해 운영정보 절취 시도를 잡는다", "[Categorization] Collection / T1005(Data from Local System, Enterprise ATT&CK — Sentinel techniques 필드는 Enterprise ID만 허용)", "MITRE ICS: T0882(Theft of Operational Information) 개념적으로 대응 — ICS 전용 ID는 techniques[]에 못 넣어(2026-07 실측: \"No valid tactic corresponding to the technique T0882\" 배포 실패 확인) description 참고용으로만 기재"]
     detection_rule: S129_Theft_Of_Operational_Information.json
     tactic: Collection
     stride: [T, I]
+
+  - id: S130-PROGRAM-UPLOAD
+    name: "Unauthorized Program Upload to Companion Computer (Proxy - Instrumentation Gap)"
+    status: deployed
+    signals: ["[계측 공백/최선근사] 컴패니언 컴퓨터 대상 비인가 프로그램/펌웨어 업로드(MITRE ICS T0845) 탐지", "실배포 워크스페이스에는 프로그램 업로드 전용 텔레메트리가 존재하지 않음(genuine instrumentation gap)", "본 룰은 UAVCompanion_CL을 범용 컴패니언 감사 테이블로 활용해 EventType='program_upload'(본 룰이 정의한 관례값, 기존 qml_inject=S42/ros_master_access=S45/ros_topic_inject=S46/mavros_cmd_inject=S47/gcs_update_mitm=S43/gcs_config_tamper=S44/ntp_spoof=S50/geofence_tamper=S77와 충돌 없음)로 태깅된 레코드 중 Authorized=false 또는 InjectionSignatureDetected=true인 경우를 근사 신호로 탐지한다"]
+    detection_rule: S130_Program_Upload.json
+    tactic: CommandAndControl
+    stride: [S, T, E]
+
+  - id: S131-INPUT-CAPTURE-VNC-SESSION
+    name: "Input Capture via Anomalous VNC/NoVNC Session Volume"
+    status: deployed
+    signals: ["[Goal] GCS 원격 VNC(noVNC) 세션에서 비정상적으로 큰 수신 바이트(화면·입력 스트림 캡처 의심)를 탐지한다", "[Categorization] Collection / T1056(Input Capture)", "ATT&CK Enterprise 매핑"]
+    detection_rule: S131_Input_Capture_VNC_Session.json
+    tactic: Collection
+    stride: [I]
 

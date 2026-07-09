@@ -176,9 +176,9 @@ class TestRealData:
         assert grouped.get("D_uninstrumented_exfil") == []
 
     def test_staging_gap_has_adjacent_inference_anchor(self) -> None:
-        # T1056(Input Capture, ❌) — 인접 단계(C2)의 탐지가능 형제로 추정.
-        # T1074/T1119 는 재동기화·신규저작으로 covered 전환됨.
+        # T0801(Monitor Process State, ❌) — 인접 단계(C2)의 탐지가능 형제로 추정.
+        # T1074/T1119/T0845/T1056 은 재동기화·신규저작으로 covered 전환됨.
         m = CoverageMatrix.from_yaml(_DATA)
-        anchors = m.inference_anchors("T1056")
+        anchors = m.inference_anchors("T0801")
         assert anchors.tactic == "Collection"
         assert "T1071" in anchors.adjacent_covered  # CommandAndControl(✅) 형제
