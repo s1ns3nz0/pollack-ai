@@ -12,7 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 import re
 
-from core.exceptions import HypothesisCatalogError
+from core.exceptions import HypothesisCatalogError, PolicyError
+from core.models import Alert, InvestigationResult, TiVerdict
 from core.severity import POLICY_DIR, load_yaml
 
 NULL_HYPOTHESIS_ID = "HYP-BENIGN-ENV"
@@ -128,9 +129,13 @@ def load_hypothesis_catalog(path: Path | None = None) -> tuple[HypothesisDef, ..
 
     Raises:
         HypothesisCatalogError: 목록 형식·id 패턴/중복·조건식·가중치·귀무가설
-            부재 등 스키마 위반.
+            부재 등 스키마 위반, 또는 YAML top-level 이 매핑이 아닌 경우(단일
+            예외 계약 — `core.severity.load_yaml` 의 `PolicyError` 를 흡수).
     """
-    data = load_yaml(path or POLICY_DIR / "hypothesis-catalog.yaml")
+    try:
+        data = load_yaml(path or POLICY_DIR / "hypothesis-catalog.yaml")
+    except PolicyError as exc:
+        raise HypothesisCatalogError(f"카탈로그 YAML 형식 오류: {exc}") from exc
     raw = data.get("hypotheses")
     if not isinstance(raw, list) or not raw:
         raise HypothesisCatalogError("hypotheses 목록이 비었거나 형식 오류")
@@ -162,3 +167,50 @@ def load_hypothesis_catalog(path: Path | None = None) -> tuple[HypothesisDef, ..
             f"귀무가설 {NULL_HYPOTHESIS_ID} 부재 — 경쟁 구도 없는 ACH 금지"
         )
     return tuple(defs)
+
+
+def extract_evidence(
+    result: InvestigationResult,
+    alert: Alert,
+    actor_ttp_overlap: bool = False,
+) -> dict[str, float]:
+    """조사 산출물 + 경보 플래그를 증거값으로 정규화.
+
+    bool 계열은 0.0/1.0, count/level/probability 는 원값(스코어링에서
+    `min(1.0, 강도)` 로 캡). `airspace_hostile` 은 기존 confidence 보강 조건
+    (hostile + 10km 이내)과 동일 기준 — 증거 정의의 이중 표준 방지.
+
+    Args:
+        result: investigation 11단계 산출물.
+        alert: 경보(pre-investigation enrichment 플래그 포함).
+        actor_ttp_overlap: run() 의 actor 상위 TTP 교집합 여부(결과 미보존 신호).
+
+    Returns:
+        `EVIDENCE_KEYS` 전 키를 포함한 증거값 딕셔너리.
+    """
+    return {
+        "ti_malicious_count": float(
+            sum(1 for f in result.ti_findings if f.verdict is TiVerdict.MALICIOUS)
+        ),
+        "sandbox_malicious": float(
+            any(r.verdict is TiVerdict.MALICIOUS for r in result.sandbox_reports)
+        ),
+        "kev_present": float(any(v.known_exploited for v in result.vuln_findings)),
+        "gnss_jam_level": float(
+            max((f.level for f in result.gnss_jam_findings), default=0)
+        ),
+        "airspace_hostile": float(
+            any(f.hostile and f.distance_km <= 10.0 for f in result.airspace_findings)
+        ),
+        "actor_ttp_overlap": float(actor_ttp_overlap),
+        "prediction_match": float(alert.prediction_match),
+        "experience_corroboration": float(result.experience_corroboration),
+        "suppression_corroboration": float(result.suppression_corroboration),
+        "trusted_chunk_coverage": float(len(result.similar_cases)),
+        "decoy_hit": float(alert.decoy_hit),
+        "key_terrain": float(alert.key_terrain),
+        "kill_chain_advanced": float(alert.kill_chain_advanced),
+        "prediction_probability": max(
+            (p.probability for p in result.predictions), default=0.0
+        ),
+    }

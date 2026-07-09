@@ -8,9 +8,22 @@ from core.exceptions import HypothesisCatalogError, SOCPlatformError
 from core.hypothesis import (
     EVIDENCE_KEYS,
     NULL_HYPOTHESIS_ID,
+    extract_evidence,
     load_hypothesis_catalog,
 )
-from core.models import EvidenceEntry, HypothesisAssessment, InvestigationResult
+from core.models import (
+    Alert,
+    AttackPrediction,
+    EvidenceEntry,
+    GnssJamFinding,
+    HypothesisAssessment,
+    InvestigationResult,
+    RetrievedChunk,
+    Severity,
+    ThreatIntelFinding,
+    TiVerdict,
+    VulnFinding,
+)
 
 _VALID_YAML = """
 hypotheses:
@@ -120,3 +133,68 @@ class TestCatalogLoad:
         for d in defs:
             for r in d.rules:
                 assert r.key in EVIDENCE_KEYS
+
+    def test_non_mapping_toplevel_normalized(self, tmp_path: Path) -> None:
+        """top-level 비매핑(YAML 리스트) → PolicyError 아닌 HypothesisCatalogError."""
+        with pytest.raises(HypothesisCatalogError):
+            load_hypothesis_catalog(_write(tmp_path, "- just\n- a list\n"))
+
+
+def _alert(**kwargs: object) -> Alert:
+    base: dict[str, object] = {
+        "id": "a1",
+        "scenario_id": "S1-GNSS-001",
+        "title": "X",
+        "severity_baseline": Severity.MEDIUM,
+        "signals": ["GPS_GLITCH_FLAG"],
+        "expected_detection": {"sigma_rule": "r1"},
+        "asset_id": "GNSS",
+    }
+    base.update(kwargs)
+    return Alert.model_validate(base)
+
+
+class TestExtractEvidence:
+    """조사 산출물 → ACH 증거 정규화 테스트."""
+
+    def test_empty_result_all_zero(self) -> None:
+        ev = extract_evidence(InvestigationResult(), _alert())
+        assert set(ev) == set(EVIDENCE_KEYS)
+        assert all(v == 0.0 for v in ev.values())
+
+    def test_signals_normalized(self) -> None:
+        result = InvestigationResult(
+            ti_findings=[
+                ThreatIntelFinding(indicator="1.2.3.4", verdict=TiVerdict.MALICIOUS),
+                ThreatIntelFinding(indicator="5.6.7.8", verdict=TiVerdict.CLEAN),
+            ],
+            vuln_findings=[
+                VulnFinding(cve="CVE-2024-1", known_exploited=True),
+            ],
+            gnss_jam_findings=[
+                GnssJamFinding(cell="1,2", level=3, as_of="2026-07-09"),
+            ],
+            suppression_corroboration=2,
+            similar_cases=[RetrievedChunk(text="t", source="kb/x", score=0.9)],
+            predictions=[
+                AttackPrediction(
+                    next_technique="T1",
+                    probability=0.75,
+                    support_count=3,
+                    basis_actor_id="ac1",
+                )
+            ],
+        )
+        alert = _alert(decoy_hit=True, kill_chain_advanced=True)
+        ev = extract_evidence(result, alert, actor_ttp_overlap=True)
+        assert ev["ti_malicious_count"] == 1.0  # CLEAN 은 미집계
+        assert ev["kev_present"] == 1.0
+        assert ev["gnss_jam_level"] == 3.0
+        assert ev["suppression_corroboration"] == 2.0
+        assert ev["trusted_chunk_coverage"] == 1.0
+        assert ev["prediction_probability"] == 0.75
+        assert ev["actor_ttp_overlap"] == 1.0
+        assert ev["decoy_hit"] == 1.0
+        assert ev["kill_chain_advanced"] == 1.0
+        assert ev["sandbox_malicious"] == 0.0
+        assert ev["airspace_hostile"] == 0.0
