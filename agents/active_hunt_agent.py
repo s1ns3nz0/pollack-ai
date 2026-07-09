@@ -51,6 +51,9 @@ class ActiveHuntAgent(BaseSOCAgent):
         Raises:
             None.
         """
+        if not self._settings.active_hunt_enabled:
+            return {"active_hunt_findings": [], "trace": ["active_hunt"]}
+
         alert = state["alert"]
         investigation: InvestigationResult | None = state.get("investigation")
         mission_risk: MissionRisk | None = state.get("mission_risk")

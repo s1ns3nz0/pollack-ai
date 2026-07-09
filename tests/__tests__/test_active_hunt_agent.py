@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from agents.active_hunt_agent import ActiveHuntAgent
-from core.active_hunt import ActiveHuntPlanner, ActiveHuntPolicy
+from core.active_hunt import ActiveHuntPlan, ActiveHuntPlanner, ActiveHuntPolicy
 from core.models import (
     Alert,
     AttackPrediction,
@@ -13,7 +15,26 @@ from core.models import (
 )
 from core.settings import Settings
 from tools.coverage import Archetype, CoverageMatrix, TacticCoverage
-from tools.sentinel_query_tool import SentinelQueryResult
+from tools.sentinel_query_tool import SentinelQueryClient, SentinelQueryResult
+
+
+class _DisabledPlanner:
+    def __init__(self) -> None:
+        self.called = False
+
+    def plan(self, *args: object, **kwargs: object) -> ActiveHuntPlan:
+        self.called = True
+        raise AssertionError("planner.plan should not be called when disabled")
+
+
+class _DisabledClient:
+    def __init__(self) -> None:
+        self.called = False
+
+    async def aquery(self, kql: str, timeout_seconds: float) -> SentinelQueryResult:
+        del kql, timeout_seconds
+        self.called = True
+        raise AssertionError("client.aquery should not be called when disabled")
 
 
 class _FakeClient:
@@ -73,6 +94,24 @@ def _state(
         "investigation": inv,
         "mission_risk": MissionRisk(asset_id="UAV-1", score=0, factors={}),
     }
+
+
+async def test_agent_noops_when_active_hunt_disabled() -> None:
+    planner = _DisabledPlanner()
+    client = _DisabledClient()
+    agent = ActiveHuntAgent(
+        Settings(active_hunt_enabled=False),
+        cast(ActiveHuntPlanner, planner),
+        cast(SentinelQueryClient, client),
+        cpcon_level=5,
+    )
+
+    out = await agent.run(_state())  # type: ignore[arg-type]
+
+    assert planner.called is False
+    assert client.called is False
+    assert out["active_hunt_findings"] == []
+    assert out["trace"] == ["active_hunt"]
 
 
 async def test_agent_returns_matched_finding_and_unavailable_findings() -> None:
