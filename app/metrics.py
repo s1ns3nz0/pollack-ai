@@ -58,6 +58,8 @@ class _Counters:
         self.ztmm_unverified_total = 0
         # 임무형 지휘: 지휘관 결심 상승 판정 누적(IntentFilter commander_decision)
         self.commander_decision_total = 0
+        # OODA 결심 여유: verdict(margin|contested|unknown)별 판정 누적
+        self.decision_margin_total: dict[str, int] = {}
 
     def record_alert(self, verdict: str) -> None:
         """경보 1건 처리 + 판정 집계."""
@@ -177,6 +179,13 @@ class _Counters:
         """지휘관 결심 상승 판정 1건 누적(임무형 지휘)."""
         with self._lock:
             self.commander_decision_total += 1
+
+    def record_decision_margin(self, verdict: str) -> None:
+        """OODA 결심 여유 판정 1건 누적(verdict 별)."""
+        with self._lock:
+            self.decision_margin_total[verdict] = (
+                self.decision_margin_total.get(verdict, 0) + 1
+            )
 
     def record_reopen(self) -> None:
         """재심 억제 무효화 1건 누적."""
@@ -327,6 +336,13 @@ def render_text() -> str:
         out.append("# HELP soc_commander_decision_total 지휘관 결심 상승 판정 수")
         out.append("# TYPE soc_commander_decision_total counter")
         out.append(_line("soc_commander_decision_total", c.commander_decision_total))
+    if c.decision_margin_total:
+        out.append("# HELP soc_decision_margin_total OODA 결심 여유 판정 수(verdict별)")
+        out.append("# TYPE soc_decision_margin_total counter")
+        for verdict, n in sorted(c.decision_margin_total.items()):
+            out.append(
+                _line("soc_decision_margin_total", n, f'{{verdict="{verdict}"}}')
+            )
     if c.cisa_reportable_total:
         out.append(
             "# HELP soc_cisa_reportable_total CIRCIA 연방 72h 보고 대상 권위 case 수"

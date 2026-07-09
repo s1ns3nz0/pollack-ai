@@ -51,6 +51,7 @@ from core.models import (
     StrideThreat,
     Verdict,
 )
+from core.ooda import DecisionAdvantageAssessor, ooda_alignment
 from core.recovery import RecoveryPlanner
 from core.sbom import SBOMVerifier, VulnLookup
 from core.settings import Settings
@@ -311,6 +312,34 @@ class ReportAgent(BaseSOCAgent):
             report.guardrail_flags = list(report.guardrail_flags) + [
                 f"actor[{profile.actor_id}] PB 효과 top-3: {top_str}"
             ]
+
+        # OODA 결심 여유: 브리핑 지연 vs 관측 적 진행 cadence(자문·정직 프록시).
+        # profile 은 ActorReadGate 검증본 — cadence 는 신뢰 kill_chain 에서만(Codex).
+        soc_latency_ms = 0.0
+        for _t in state.get("node_timings", []):
+            _e = _t.get("elapsed_ms")
+            if isinstance(_e, (int, float)):
+                soc_latency_ms += float(_e)
+        present = {
+            "signals": bool(alert.signals),
+            "telemetry": True,
+            "mitre": bool(alert.mitre),
+            "diamond": report.diamond is not None,
+            "actor_profile": profile is not None,
+            "campaign_matches": bool(report.campaign_matches),
+            "causal_summary": report.causal_summary is not None,
+            "coa_options": bool(report.coa_options),
+            "intent_assessment": report.intent_assessment is not None,
+            "incident_directive": report.incident_directive is not None,
+            "recovery_plan": report.recovery_plan is not None,
+            "recommended_action": bool(report.action_taken),
+        }
+        report.decision_advantage = DecisionAdvantageAssessor().assess(
+            soc_latency_ms,
+            profile.kill_chain if profile is not None else [],
+            ooda=ooda_alignment(present),
+        )
+        metrics().record_decision_margin(report.decision_advantage.verdict)
 
         evidence = oscal.build_evidence(state, evidence_level)
         if report.causal_summary is not None:
