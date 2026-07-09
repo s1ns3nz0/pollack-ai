@@ -88,6 +88,21 @@ class Settings(BaseSettings):
         description="LLM 요청 타임아웃(초).",
     )
 
+    # ── 외부 enrich 마스터 게이트 (방산 OPSEC — default-deny) ──────────────
+    external_enrichment_enabled: bool = Field(
+        default=False,
+        description=(
+            "외부 TI/샌드박스/vuln enrich 마스터 스위치. 기본 False(default-deny) — "
+            "외부 조회는 수사의도를 외부에 누설하므로 명시 opt-in 필요. per-source 는 "
+            "여전히 API 키로 게이트(둘 다 참이어야 outbound)."
+        ),
+    )
+    ioc_egress_max_per_alert: int = Field(
+        default=32,
+        gt=0,
+        description="외부 호출 전 alert당 IOC 상한(untrusted wire IOC 쿼터번 방지).",
+    )
+
     # ── 외부 위협 인텔(TI) — 멀티소스 어댑터 ──────────────
     virustotal_api_key: SecretStr = Field(
         default=SecretStr(""),
