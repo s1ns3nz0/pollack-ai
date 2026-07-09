@@ -55,7 +55,7 @@
   - `core.models.ActiveHuntFinding`
   - `core.active_hunt.ActiveHuntPolicy.from_yaml(path: str | Path | None = None) -> ActiveHuntPolicy`
   - `core.active_hunt.ActiveHuntPolicy.should_backward_hunt(alert: Alert, mission_risk: MissionRisk | None, current_order: int, cpcon_level: int, coverage: CoverageMatrix) -> bool`
-  - `core.active_hunt.ActiveHuntPlanner.plan(alert: Alert, predictions: Sequence[AttackPrediction], mission_risk: MissionRisk | None, cpcon_level: int) -> list[HuntQuery]`
+  - `core.active_hunt.ActiveHuntPlanner.plan(alert: Alert, predictions: Sequence[AttackPrediction], mission_risk: MissionRisk | None, cpcon_level: int) -> ActiveHuntPlan`
 
 - [ ] **Step 1: Write failing tests for policy thresholds and template-only planning**
 
@@ -145,8 +145,8 @@ def test_force_tactic_always_runs_backward_hunt() -> None:
 def test_forward_planner_uses_registered_template_only() -> None:
     policy = ActiveHuntPolicy.from_yaml()
     planner = ActiveHuntPlanner(policy, _coverage())
-    queries = planner.plan(
-        _alert(),
+    plan = planner.plan(
+        _alert("InitialAccess"),
         [
             AttackPrediction(
                 next_technique="T1133",
@@ -158,6 +158,7 @@ def test_forward_planner_uses_registered_template_only() -> None:
         None,
         cpcon_level=5,
     )
+    queries = plan.queries
     assert [q.technique for q in queries] == ["T1133"]
     assert queries[0].direction == "forward"
     assert "UAVGcsAccess_CL" in queries[0].kql
@@ -168,12 +169,20 @@ def test_forward_planner_uses_registered_template_only() -> None:
 def test_missing_template_becomes_unavailable_finding() -> None:
     policy = ActiveHuntPolicy.from_yaml()
     planner = ActiveHuntPlanner(policy, _coverage())
-    finding = planner.unavailable_finding(
-        direction="forward",
-        technique="T9999",
-        tactic="",
-        rationale="예측 technique template 없음",
+    plan = planner.plan(
+        _alert("InitialAccess"),
+        [
+            AttackPrediction(
+                next_technique="T9999",
+                probability=0.9,
+                support_count=3,
+                basis_actor_id="actor-1",
+            )
+        ],
+        None,
+        cpcon_level=5,
     )
+    finding = plan.unavailable_findings[0]
     assert finding.direction == "forward"
     assert finding.technique == "T9999"
     assert finding.query_id == "query_unavailable"
@@ -379,6 +388,14 @@ class HuntQuery:
     rationale: str
 
 
+@dataclass(frozen=True)
+class ActiveHuntPlan:
+    """Query candidates plus non-executable findings."""
+
+    queries: list[HuntQuery]
+    unavailable_findings: list[ActiveHuntFinding]
+
+
 class ActiveHuntPolicy(BaseModel):
     """Active hunt 정책 루트."""
 
@@ -455,22 +472,33 @@ class ActiveHuntPlanner:
         predictions: Sequence[AttackPrediction],
         mission_risk: MissionRisk | None,
         cpcon_level: int,
-    ) -> list[HuntQuery]:
+    ) -> ActiveHuntPlan:
         """forward/backward query 후보를 생성한다."""
         queries: list[HuntQuery] = []
+        unavailable: list[ActiveHuntFinding] = []
         alert_time = _alert_time(alert)
         for pred in predictions:
-            queries.extend(
-                self._queries_for(
-                    direction="forward",
-                    technique=pred.next_technique,
-                    tactic=self._coverage.tactic_of(pred.next_technique) or "",
-                    start=alert_time,
-                    end=alert_time
-                    + timedelta(minutes=self._policy.windows.forward_default_minutes),
-                    rationale=f"예측 다음 technique(p={pred.probability:.2f})",
-                )
+            tactic = self._coverage.tactic_of(pred.next_technique) or ""
+            planned = self._queries_for(
+                direction="forward",
+                technique=pred.next_technique,
+                tactic=tactic,
+                start=alert_time,
+                end=alert_time
+                + timedelta(minutes=self._policy.windows.forward_default_minutes),
+                rationale=f"예측 다음 technique(p={pred.probability:.2f})",
             )
+            if planned:
+                queries.extend(planned)
+            else:
+                unavailable.append(
+                    self.unavailable_finding(
+                        direction="forward",
+                        technique=pred.next_technique,
+                        tactic=tactic,
+                        rationale="예측 technique template 없음",
+                    )
+                )
         current_order = self._current_order(alert)
         if self._policy.should_backward_hunt(
             alert, mission_risk, current_order, cpcon_level, self._coverage
@@ -490,7 +518,10 @@ class ActiveHuntPlanner:
                             rationale=f"후반 단계 alert 역추적({tactic.name})",
                         )
                     )
-        return queries[: self._policy.limits.max_queries_per_alert]
+        return ActiveHuntPlan(
+            queries=queries[: self._policy.limits.max_queries_per_alert],
+            unavailable_findings=unavailable,
+        )
 
     def unavailable_finding(
         self, direction: str, technique: str, tactic: str, rationale: str
@@ -816,7 +847,7 @@ git commit -m "feat: Sentinel 조회 경계 추가"
 
 **Interfaces:**
 - Consumes:
-  - `ActiveHuntPlanner.plan(...) -> list[HuntQuery]`
+  - `ActiveHuntPlanner.plan(...) -> ActiveHuntPlan`
   - `SentinelQueryClient.aquery(kql, timeout_seconds) -> SentinelQueryResult`
 - Produces:
   - `ActiveHuntAgent.run(state: SOCState) -> SOCState` returning `{"active_hunt_findings": findings, "trace": ["active_hunt"]}`
@@ -999,16 +1030,16 @@ class ActiveHuntAgent(BaseSOCAgent):
         inv: InvestigationResult | None = state.get("investigation")
         mission_risk: MissionRisk | None = state.get("mission_risk")
         predictions = inv.predictions if inv is not None else []
-        queries = self._planner.plan(
+        plan = self._planner.plan(
             alert, predictions, mission_risk, self._cpcon_level
         )
-        findings: list[ActiveHuntFinding] = []
-        for query in queries:
+        findings: list[ActiveHuntFinding] = list(plan.unavailable_findings)
+        for query in plan.queries:
             findings.append(await self._run_query(query))
         self._logger.info(
             "active_hunt: alert=%s queries=%d matched=%d",
             alert.id,
-            len(queries),
+            len(plan.queries),
             sum(1 for f in findings if f.matched),
         )
         return {"active_hunt_findings": findings, "trace": ["active_hunt"]}
