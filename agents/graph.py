@@ -176,6 +176,7 @@ def build_soc_graph(
     actor_write: ActorWriteGate | None = None,
     ragas: object | None = None,
     predictor: object | None = None,
+    reopener: object | None = None,
     reasoner: CausalReasoner | None = None,
     lineage: LineageCollector | None = None,
     judge: Judge = default_judge,
@@ -238,6 +239,7 @@ def build_soc_graph(
             predictor=predictor,  # type: ignore[arg-type]
             on_settle=lambda hit: _metrics().record_prediction(hit=hit),
             engage_advancer=_advancer,
+            reopener=reopener,  # type: ignore[arg-type]
         )
     # 예측 폐루프: 읽기 전용 pending 대조기 — triage 진입 전 alert enrich.
     matcher = PredictionMatcher(actor_read) if actor_read is not None else None

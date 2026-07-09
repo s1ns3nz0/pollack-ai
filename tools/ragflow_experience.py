@@ -18,7 +18,7 @@ from __future__ import annotations
 import httpx
 
 from core.exceptions import ExperienceStoreError
-from core.models import ExperienceRecord
+from core.models import EnvVerdict, ExperienceRecord
 from core.settings import Settings, get_settings
 from utils.logging import get_logger
 
@@ -38,6 +38,9 @@ class RagflowExperienceStore:
     ) -> None:
         self._settings = settings or get_settings()
         self._client_factory = client_factory
+        # 재심(cold-case) 캐시 — arevoke 가 갱신 재업로드할 레코드 전체를 보관.
+        # ascan_suppressions 가 채운다(ColdCaseReopener 는 scan→revoke 순서 호출).
+        self._suppression_cache: dict[str, ExperienceRecord] = {}
 
     def _make_client(self) -> httpx.AsyncClient:
         if self._client_factory is not None:
@@ -141,6 +144,131 @@ class RagflowExperienceStore:
         if not isinstance(body, dict) or body.get("code") != 0:
             raise ExperienceStoreError(f"경험메모리 회상 거부: {_err_detail(body)}")
         return self._parse_records(body, scenario_id, k)
+
+    async def ascan_suppressions(self) -> list[ExperienceRecord]:
+        """미revoke 억제(CONFIRMED_FP) 레코드를 반환한다(재심 스캔).
+
+        retrieval 을 넓게(scenario 무관) 긁어 CONFIRMED_FP·미revoke 만 필터한다.
+        arevoke 가 갱신 재업로드에 쓸 레코드를 내부 캐시에 보관한다.
+
+        **완전성 주의(Codex Medium)**: RAGFlow 는 청크 CONTENT 를 retrieval 로만
+        노출하므로 이 스캔은 top_k 상한의 유사도 랭킹 결과다 — 억제 레코드 수가
+        top_k 를 초과하면 저순위 일부가 누락될 수 있다. 반환 수가 상한에 도달하면
+        경고 로그로 truncation 을 노출한다(무음 절단 금지). 결정론 완전 열거는
+        문서 다운로드 API 필요 → RAGFlow 실검증(회사 PC) 후속. 파이프라인이 실제
+        쓰는 InMemoryExperienceStore.ascan_suppressions 는 완전 스캔이다.
+
+        Returns:
+            재심 후보 억제 레코드 목록.
+
+        Raises:
+            ExperienceStoreError: 설정 누락 또는 조회 장애 시.
+        """
+        ds = self._dataset()
+        url = f"{self._base()}/api/v1/retrieval"
+        cap = max(self._settings.ragflow_top_k, 100)
+        payload: dict[str, object] = {
+            "question": "CONFIRMED_FP suppression 억제",
+            "dataset_ids": [ds],
+            "page": 1,
+            "page_size": cap,
+            "similarity_threshold": 0.0,
+            "vector_similarity_weight": self._settings.ragflow_vector_weight,
+            "top_k": self._settings.ragflow_top_k,
+        }
+        try:
+            async with self._make_client() as client:
+                resp = await client.post(url, headers=self._headers(), json=payload)
+                resp.raise_for_status()
+                body = resp.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise ExperienceStoreError(f"억제 스캔 실패: {exc}") from exc
+        if not isinstance(body, dict) or body.get("code") != 0:
+            raise ExperienceStoreError(f"억제 스캔 거부: {_err_detail(body)}")
+        out: list[ExperienceRecord] = []
+        self._suppression_cache.clear()
+        scanned = 0
+        for content in _chunk_contents(body):
+            scanned += 1
+            try:
+                record = ExperienceRecord.model_validate_json(content)
+            except ValueError:
+                continue
+            if record.env_verdict != EnvVerdict.CONFIRMED_FP or record.revoked:
+                continue
+            self._suppression_cache[record.content_hash] = record
+            out.append(record)
+        if scanned >= cap:
+            _logger.warning(
+                "억제 스캔 상한(%d) 도달 — 저순위 억제 누락 가능(재심 불완전). "
+                "완전 열거는 RAGFlow 문서 다운로드 API 필요(후속).",
+                cap,
+            )
+        return out
+
+    async def arevoke(self, fingerprint: str, reason: str) -> bool:
+        """지문 레코드를 revoke — 기존 문서 삭제 후 갱신 레코드 재업로드.
+
+        revoked 는 fingerprint 에 포함되지 않으므로 content_hash·서명이 보존되고
+        문서 파일명(`<fp>.json`)도 그대로 유지된다. 갱신 대상 레코드는 직전
+        `ascan_suppressions` 캐시에서 가져온다(없으면 False).
+
+        Args:
+            fingerprint: revoke 대상 레코드 지문(content_hash).
+            reason: 재심 근거(트리거 종류 + 식별자).
+
+        Returns:
+            revoke 성공 시 True, 캐시에 없으면 False.
+
+        Raises:
+            ExperienceStoreError: 문서 조회/삭제/업로드 장애 시.
+        """
+        record = self._suppression_cache.get(fingerprint)
+        if record is None:
+            return False
+        doc_id = await self._find_doc_id(self._filename(fingerprint))
+        if doc_id is not None:
+            await self._delete_doc(doc_id)
+        revoked = record.model_copy(update={"revoked": True, "reopened_reason": reason})
+        await self.awrite(revoked)
+        self._suppression_cache.pop(fingerprint, None)
+        _logger.info("exp revoke: fp=%s reason=%s", fingerprint[:12], reason)
+        return True
+
+    async def _find_doc_id(self, name: str) -> str | None:
+        """문서 이름으로 RAGFlow 문서 id 를 조회한다(없으면 None)."""
+        ds = self._dataset()
+        url = f"{self._base()}/api/v1/datasets/{ds}/documents"
+        try:
+            async with self._make_client() as client:
+                resp = await client.get(
+                    url, headers=self._headers(), params={"keywords": name}
+                )
+                resp.raise_for_status()
+                body = resp.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise ExperienceStoreError(f"문서 조회 실패: {exc}") from exc
+        for doc in _docs_of(body):
+            if doc.get("name") == name:
+                doc_id = doc.get("id")
+                return str(doc_id) if doc_id is not None else None
+        return None
+
+    async def _delete_doc(self, doc_id: str) -> None:
+        """RAGFlow 문서를 id 로 삭제한다."""
+        ds = self._dataset()
+        url = f"{self._base()}/api/v1/datasets/{ds}/documents"
+        try:
+            async with self._make_client() as client:
+                resp = await client.request(
+                    "DELETE",
+                    url,
+                    headers=self._headers(),
+                    json={"ids": [doc_id]},
+                )
+                resp.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise ExperienceStoreError(f"문서 삭제 실패: {exc}") from exc
 
     @staticmethod
     def _parse_records(

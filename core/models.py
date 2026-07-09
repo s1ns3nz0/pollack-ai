@@ -489,15 +489,24 @@ class ExperienceRecord(BaseModel):
     playbook_id: str | None = None
     env_verdict: EnvVerdict
     provenance: Provenance
+    # 재심(cold-case): 적립 시점 actor 지문(빈값=구버전 호환). 억제 재심의 대조 키.
+    actor_fingerprint: str = ""
     ts: str = ""
+    # 재심 상태: revoked=True 면 SUPPRESSION 회상에서 제외(억제 무효화). fingerprint
+    # 에는 포함하지 않는다 — revoke 후에도 content_hash/서명이 유지돼야 하기 때문.
+    revoked: bool = False
+    reopened_reason: str = ""
     content_hash: str = ""
     signature: str = ""
 
     def fingerprint(self) -> str:
-        """의미 동일성 해시(ts/provenance/해시 제외)를 SHA-256 으로 산정한다.
+        """의미 동일성 해시(ts/provenance/상태/해시 제외)를 SHA-256 으로 산정한다.
 
-        중복 제거 키로 쓴다. 타임스탬프·출처등급·해시 자체는 제외해, 동일한 경험이
-        시점/출처만 달리 재관측돼도 같은 지문을 갖게 한다.
+        중복 제거 키로 쓴다. 타임스탬프·출처등급·재심 상태·해시 자체는 제외해,
+        동일한 경험이 시점/출처만 달리 재관측돼도 같은 지문을 갖게 한다. actor 지문은
+        **값이 있을 때만** 포함한다 — 같은 신호라도 다른 공격자면 별개 경험이며 재심
+        대조 키이기 때문. 빈값이면 key 를 아예 넣지 않아 구버전(actor_fingerprint
+        도입 전) 레코드의 해시·서명과 하위호환을 유지한다(Codex High).
 
         Returns:
             정규화된 핵심 내용의 16진 SHA-256 다이제스트.
@@ -512,6 +521,9 @@ class ExperienceRecord(BaseModel):
             "env_verdict": self.env_verdict.value,
             "judge_features": self.judge_features.model_dump(),
         }
+        # 값 있을 때만 포함 — 빈값 신규/구버전 레코드는 기존 해시와 동일(하위호환).
+        if self.actor_fingerprint:
+            payload["actor_fingerprint"] = self.actor_fingerprint
         canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 

@@ -8,7 +8,7 @@ Spec: docs/superpowers/specs/2026-06-30-attacker-profile-store-design.md
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from enum import StrEnum
 import hashlib
@@ -98,6 +98,26 @@ class EngageAdvancerProto(Protocol):
 
     def advance(self, profile: ActorProfile, alert: Alert) -> bool:
         """신뢰 교전 1건 반영 — 상태 전진 + cost 누적(alert_id 멱등)."""
+        ...
+
+
+@runtime_checkable
+class ColdCaseReopenerProto(Protocol):
+    """게이트가 의존하는 재심기 계약(core.coldcase.ColdCaseReopener 호환).
+
+    Protocol 로 두어 actors→coldcase→experience 순환 임포트를 피한다.
+    """
+
+    async def reopen_for_actor(
+        self, actor_fingerprint: str, trigger_alert_id: str
+    ) -> Sequence[object]:
+        """동일 actor 확정 트리거로 과거 억제를 재심한다."""
+        ...
+
+    async def reopen_for_signature(
+        self, signals: list[str], trigger_alert_id: str
+    ) -> Sequence[object]:
+        """동일 signature 후속 TP 트리거로 과거 억제를 재심한다."""
         ...
 
 
@@ -222,6 +242,7 @@ class ActorWriteGate:
         prediction_ttl_alerts: int = 5,
         on_settle: Callable[[bool], None] | None = None,
         engage_advancer: EngageAdvancerProto | None = None,
+        reopener: ColdCaseReopenerProto | None = None,
     ) -> None:
         self._store = store
         self._signer = signer or Sha256ActorSigner()
@@ -229,6 +250,7 @@ class ActorWriteGate:
         self._prediction_ttl = prediction_ttl_alerts
         self._on_settle = on_settle
         self._engage_advancer = engage_advancer
+        self._reopener = reopener
         self._logger = get_logger("ActorWriteGate")
 
     async def submit(
@@ -285,6 +307,7 @@ class ActorWriteGate:
                 status=ActorWriteStatus.REJECTED_STORE_ERROR,
                 reason=f"store 저장 실패: {exc}",
             )
+        await self._reopen_cold_cases(actor_id, alert)
         self._logger.info(
             "actor write: id=%s explicit=%s count=%d techs=%d",
             actor_id,
@@ -293,6 +316,25 @@ class ActorWriteGate:
             len(merged.ttp_stats),
         )
         return ActorWriteDecision(status=ActorWriteStatus.WRITTEN, actor_id=actor_id)
+
+    async def _reopen_cold_cases(self, actor_id: str, alert: Alert) -> None:
+        """재심(cold-case): 이 TP 확정이 과거 억제를 여는지 두 트리거로 검사.
+
+        ① 동일 actor 확정 — actor_id 지문의 과거 FP revoke.
+        ② 동일 signature 후속 TP — alert.signals 겹침 과거 FP revoke.
+        저장소 장애는 삼켜서 핫패스 적립을 막지 않는다(재심은 부가 기능).
+
+        Args:
+            actor_id: resolve 된 actor 지문(explicit id 또는 fp:...).
+            alert: CONFIRMED_TP 확정 알람.
+        """
+        if self._reopener is None:
+            return
+        try:
+            await self._reopener.reopen_for_actor(actor_id, alert.id)
+            await self._reopener.reopen_for_signature(alert.signals, alert.id)
+        except SOCPlatformError as exc:
+            self._logger.warning("cold-case 재심 실패(무시): %s", exc)
 
     def _settle_predictions(self, profile: ActorProfile, alert: Alert) -> None:
         """pending 예측을 TP 알람과 대조 — hit/miss 판정 후 미판정만 잔류.

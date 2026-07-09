@@ -76,6 +76,24 @@ class ExperienceStore(Protocol):
 
 
 @runtime_checkable
+class ReopenableStore(Protocol):
+    """재심(cold-case) 능력을 갖춘 저장소 계약(`ExperienceStore` 확장).
+
+    억제 재심은 시나리오 무관하게 actor/signature 로 과거 FP 를 스캔·revoke 해야
+    하므로 별도 계약으로 분리한다. RAGFlow 영속 구현은 후속(현재는 InMemory MVP) —
+    미구현 store 주입 시 재심 배선은 skip 한다(graceful).
+    """
+
+    async def ascan_suppressions(self) -> list[ExperienceRecord]:
+        """미revoke 억제(CONFIRMED_FP) 레코드 전체를 반환한다."""
+        ...
+
+    async def arevoke(self, fingerprint: str, reason: str) -> bool:
+        """지문 레코드를 revoke(억제 무효화). 성공 시 True(없으면 False)."""
+        ...
+
+
+@runtime_checkable
 class Signer(Protocol):
     """레코드 변조탐지 서명기 계약(실연동 시 비밀키 HMAC 으로 교체)."""
 
@@ -115,6 +133,24 @@ class InMemoryExperienceStore:
             r for r in self._by_fingerprint.values() if r.scenario_id == scenario_id
         ]
         return hits[:k]
+
+    async def ascan_suppressions(self) -> list[ExperienceRecord]:
+        """미revoke 억제(CONFIRMED_FP) 레코드 전체(재심 스캔용)."""
+        return [
+            r
+            for r in self._by_fingerprint.values()
+            if r.env_verdict == EnvVerdict.CONFIRMED_FP and not r.revoked
+        ]
+
+    async def arevoke(self, fingerprint: str, reason: str) -> bool:
+        """지문 레코드를 revoke — content_hash/서명 유지(fingerprint 불포함)."""
+        rec = self._by_fingerprint.get(fingerprint)
+        if rec is None:
+            return False
+        self._by_fingerprint[fingerprint] = rec.model_copy(
+            update={"revoked": True, "reopened_reason": reason}
+        )
+        return True
 
     def __len__(self) -> int:
         """적립된 레코드 수."""
@@ -268,7 +304,9 @@ class MemoryReadGate:
         """목적별 채택 조건(env_verdict + 억제 시 출처 신뢰등급)을 만족하는지."""
         if purpose == RecallPurpose.DETECTION:
             return record.env_verdict == EnvVerdict.CONFIRMED_TP
+        # 재심(cold-case): revoke 된 억제 근거는 무효 — 회상 제외.
         return (
-            record.env_verdict == EnvVerdict.CONFIRMED_FP
+            not record.revoked
+            and record.env_verdict == EnvVerdict.CONFIRMED_FP
             and record.provenance in _TRUSTED_FOR_SUPPRESSION
         )
