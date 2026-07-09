@@ -381,6 +381,19 @@ class Settings(BaseSettings):
     auto_kql_max_techniques: int = Field(
         default=5, ge=1, description="사이클당 KQL draft 처리 상한 (spam 방지)."
     )
+    # ── Active Hunt Agent ──────────────────────────────
+    active_hunt_enabled: bool = Field(
+        default=False,
+        description="opt-in — Sentinel KQL 능동 헌팅 노드 활성화.",
+    )
+    active_hunt_policy_path: str = Field(
+        default="core/policy/active-hunt.yaml",
+        description="Active hunt 정책 YAML 경로.",
+    )
+    sentinel_workspace_id: str = Field(
+        default="",
+        description="Sentinel Log Analytics workspace id.",
+    )
 
     @property
     def ragflow_retrieval_url(self) -> str:
