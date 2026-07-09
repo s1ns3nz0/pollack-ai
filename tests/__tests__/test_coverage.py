@@ -154,11 +154,10 @@ class TestRealData:
         m = CoverageMatrix.from_yaml(_DATA)
         assert len(m.tactics) == 15  # 15 전술 전부
 
-    def test_real_gap_count_around_20(self) -> None:
-        # dah S1~S126 재정렬 이후 실배포 재동기화(2026-07) — 10개(T1125/T1113/T1005/
-        # T1074/T1011/T1567/T1590/T1596/T1014/T1485)가 covered 로 이동해 30 -> 20.
+    def test_real_gap_count_around_17(self) -> None:
+        # 재동기화(10개) + 신규 룰 S127/S128/S129(T1119/T1560/T0882) 저작으로 30 -> 17.
         rep = CoverageMatrix.from_yaml(_DATA).report()
-        assert 18 <= rep.uncovered <= 22
+        assert 15 <= rep.uncovered <= 19
         assert rep.addressable_pct >= rep.coverage_pct
 
     def test_real_archetypes_present(self) -> None:
@@ -177,9 +176,9 @@ class TestRealData:
         assert grouped.get("D_uninstrumented_exfil") == []
 
     def test_staging_gap_has_adjacent_inference_anchor(self) -> None:
-        # T1119(Automated Collection, ❌) — 인접 단계(C2)의 탐지가능 형제로 추정.
-        # T1074 는 재동기화로 covered 전환됨.
+        # T1056(Input Capture, ❌) — 인접 단계(C2)의 탐지가능 형제로 추정.
+        # T1074/T1119 는 재동기화·신규저작으로 covered 전환됨.
         m = CoverageMatrix.from_yaml(_DATA)
-        anchors = m.inference_anchors("T1119")
+        anchors = m.inference_anchors("T1056")
         assert anchors.tactic == "Collection"
         assert "T1071" in anchors.adjacent_covered  # CommandAndControl(✅) 형제

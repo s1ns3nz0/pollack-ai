@@ -14,10 +14,10 @@ class TestBASRunner:
         assert 0.0 <= report.detection_ratio <= 1.0
 
     def test_detected_and_gaps(self) -> None:
-        """S1~S126 전면 재정렬(2026-07) 이후: 126개 전부 실배포 → gap 0."""
+        """S1~S126 재정렬 + 신규 S127~S129 저작(2026-07) — 전부 실배포 → gap 0."""
         report = BASRunner.from_yaml().run()
 
-        assert report.total == 126
+        assert report.total == 129
         assert report.detected == report.total
         assert report.gaps == []
 

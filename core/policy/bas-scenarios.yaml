@@ -1081,3 +1081,27 @@ scenarios:
     stride: [T]
     campaign: [C32]
 
+  - id: S127-AUTOMATED-COLLECTION
+    name: "Automated Collection (Scripted Repeated File Access)"
+    status: deployed
+    signals: ["[Goal] 사람이 아니라 스크립트/자동화 프로세스가 짧은 시간 안에 같은 파일을 반복 읽어가는 패턴(자동수집)을 탐지한다", "[Categorization] Collection / T1119(Automated Collection)", "ATT&CK Enterprise 매핑(ICS 전용 근접기법 없음)"]
+    detection_rule: S127_Automated_Collection.json
+    tactic: Collection
+    stride: [T, I]
+
+  - id: S128-ARCHIVE-COLLECTED-DATA
+    name: "Archive Collected Data (Compression Tool / Archive File)"
+    status: deployed
+    signals: ["[Goal] 수집한 데이터를 유출 전 압축·아카이브하는 행위(아카이브 도구 실행 또는 압축 확장자 파일 생성)를 탐지한다", "[Categorization] Collection / T1560(Archive Collected Data)", "ATT&CK Enterprise 매핑"]
+    detection_rule: S128_Archive_Collected_Data.json
+    tactic: Collection
+    stride: [T, I]
+
+  - id: S129-THEFT-OF-OPERATIONAL-INFORMATION
+    name: "Theft of Operational Information (Bulk Mission Data Read)"
+    status: deployed
+    signals: ["[Goal] 임무데이터(/data/missions/*)에 대한 대용량 읽기를 탐지해 운영정보 절취 시도를 잡는다", "[Categorization] Collection / T0882(Theft of Operational Information, MITRE ATT&CK for ICS)", "참고: data/attack_coverage.yaml 은 이 기법을 Impact 전술로 분류해뒀으나, MITRE 공식 분류는 Collection — 이 룰은 공식 분류를 따름(불일치는 별도 확인 필요)"]
+    detection_rule: S129_Theft_Of_Operational_Information.json
+    tactic: Collection
+    stride: [T, I]
+
