@@ -76,7 +76,7 @@ class TestStrideCoverage:
     """BAS by_stride 연계 — STRIDE 유형별 방어 커버리지."""
 
     def test_coverage_from_bas(self) -> None:
-        """BAS 검증 결과로 STRIDE 커버리지 산출 — 전면 재정렬(2026-07) 이후 전부 실배포."""
+        """BAS 검증 결과로 STRIDE 커버리지 산출 — 재정렬 이후 전부 실배포."""
         from core.bas import BASRunner
 
         bas = BASRunner.from_yaml().run()
