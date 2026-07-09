@@ -932,6 +932,34 @@ class HuntHypothesis(BaseModel):
     target_hint: str = ""
 
 
+class ActiveHuntFinding(BaseModel):
+    """능동 헌팅 KQL 조회 결과 — 예측/역추적 evidence-only finding.
+
+    Attributes:
+        direction: "forward" 또는 "backward".
+        technique: 조회 대상 MITRE technique id.
+        tactic: technique 소속 tactic.
+        query_id: 정책 query template id 또는 "query_unavailable".
+        matched: Sentinel 조회 결과가 1건 이상인지 여부.
+        row_count: 전체 결과 수. 샘플 수와 다를 수 있다.
+        time_window: 조회 시간창 설명.
+        rationale: 왜 조회했는가.
+        sample: 보고서에 남길 작은 샘플(row_limit 이하, 문자열화).
+        error: 조회 실패나 template 부재 사유.
+    """
+
+    direction: str
+    technique: str
+    tactic: str = ""
+    query_id: str
+    matched: bool = False
+    row_count: int = 0
+    time_window: str = ""
+    rationale: str = ""
+    sample: list[dict[str, str]] = Field(default_factory=list)
+    error: str = ""
+
+
 class IncidentState(StrEnum):
     """NIST 800-61 인시던트 생명주기 상태."""
 
@@ -1320,6 +1348,10 @@ class SOCReport(BaseModel):
         default_factory=list,
         description="Tier3 위협 헌팅 백로그 — 예측/campaign/gap 융합 우선순위 리드.",
     )
+    active_hunt_findings: list[ActiveHuntFinding] = Field(
+        default_factory=list,
+        description="ActiveHuntAgent Sentinel KQL 조회 결과(evidence-only).",
+    )
     staged_defenses: list[StagedDefense] = Field(
         default_factory=list,
         description="예측 폐루프: 예측 TTP 선제 스테이징 판정(staged/accelerate/gap).",
@@ -1440,6 +1472,10 @@ class OscalEvidence(BaseModel):
     investigation: InvestigationResult | None = None
     response: ResponseResult | None = None
     severity_rationale: list[str] | None = None
+    active_hunt_findings: list[ActiveHuntFinding] = Field(
+        default_factory=list,
+        description="Active hunt KQL 조회 evidence.",
+    )
     causal_chain: CausalChain | None = Field(
         default=None, description="spec A1: OSCAL evidence 임베드용."
     )
@@ -1472,3 +1508,4 @@ class SOCState(TypedDict, total=False):
     guardrail_flags: Annotated[list[str], operator.add]
     node_timings: Annotated[list[dict[str, object]], operator.add]
     mission_risk: MissionRisk  # triage 산출 METT-TC 임무위험(approval/report 소비)
+    active_hunt_findings: list[ActiveHuntFinding]

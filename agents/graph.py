@@ -18,6 +18,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from agents.active_hunt_agent import ActiveHuntAgent
 from agents.approval_agent import ApprovalAgent
 from agents.investigation_agent import (
     AirspaceProvider,
@@ -42,6 +43,7 @@ from agents.validation_agent import (
     default_judge,
     route_after_validation,
 )
+from core.active_hunt import ActiveHuntPlanner, ActiveHuntPolicy
 from core.actors import ActorReadGate, ActorWriteGate, InMemoryActorStore
 from core.cacao import CacaoPlaybook, load_playbooks, scenario_tactic_map
 from core.campaign import CampaignChains, CampaignDetector
@@ -74,6 +76,7 @@ from core.stride import StrideClassifier, StrideModel
 from core.terrain import KeyTerrainDetector, KeyTerrainMap, MissionRiskAssessor
 from tools.coverage import CoverageMatrix
 from tools.rule_publisher import RulePublisher
+from tools.sentinel_query_tool import AzureMonitorSentinelQueryClient
 from utils.logging import get_logger
 
 # LangGraph 노드 시그니처(에이전트 .run 과 동일: 비동기 SOCState→SOCState).
@@ -474,6 +477,23 @@ def build_soc_graph(
         _hunt_planner: HuntPlanner | None = HuntPlanner(CoverageMatrix.from_yaml())
     except SOCPlatformError:
         _hunt_planner = HuntPlanner(None)
+    # Active hunt: opt-in(기본 off) + workspace 필수. 의존성 로드 실패 시 기본 그래프
+    # 형상으로 폴백(빌드 크래시 금지) — 로깅으로 비활성 사유를 남긴다.
+    active_hunt: ActiveHuntAgent | None = None
+    if settings.active_hunt_enabled and settings.sentinel_workspace_id:
+        try:
+            _active_policy = ActiveHuntPolicy.from_yaml(
+                settings.active_hunt_policy_path
+            )
+            _active_coverage = CoverageMatrix.from_yaml()
+            active_hunt = ActiveHuntAgent(
+                settings,
+                ActiveHuntPlanner(_active_policy, _active_coverage),
+                AzureMonitorSentinelQueryClient(settings),
+                cpcon_level=settings.cyber_posture_level,
+            )
+        except (SOCPlatformError, ValueError) as exc:
+            get_logger("graph").warning("active_hunt 비활성화: %s", exc)
     report = ReportAgent(
         settings,
         engine,
@@ -545,17 +565,27 @@ def build_soc_graph(
     nodes: list[tuple[str, _NodeFn]] = [
         ("triage", _triage_with_match),
         ("investigation", investigation.run),
-        ("validation", validation.run),
-        ("response", response.run),
-        ("rule_update", rule_update.run),
-        ("report", report.run),
     ]
+    if active_hunt is not None:
+        nodes.append(("active_hunt", active_hunt.run))
+    nodes.extend(
+        [
+            ("validation", validation.run),
+            ("response", response.run),
+            ("rule_update", rule_update.run),
+            ("report", report.run),
+        ]
+    )
     for _name, _fn in nodes:
         graph.add_node(_name, _timed(_name, _fn))  # type: ignore[call-overload]
 
     graph.set_entry_point("triage")
     graph.add_edge("triage", "investigation")
-    graph.add_edge("investigation", "validation")
+    if active_hunt is not None:
+        graph.add_edge("investigation", "active_hunt")
+        graph.add_edge("active_hunt", "validation")
+    else:
+        graph.add_edge("investigation", "validation")
     # HITL on: 정탐 → approval(고위험 시 운용자 승인 대기) → response
     tp_target = "approval" if hitl else "response"
     if hitl:

@@ -16,11 +16,11 @@
 **`core/alert.py`**(계약 파일 — models.py 에서 분리, 양측 리뷰). `UntrustedAlertPayload`
 (외부 유입 형태) → `Alert`. 공유 원시타입(Severity/Verdict/SbomComponent)은
 `core/primitives.py`. `from core.models import Alert` 는 하위호환 re-export 로 그대로
-동작. detection이 채우는 **wire 필드(15)**만 신뢰 입력이다:
+동작. detection이 채우는 **wire 필드(16)**만 신뢰 입력이다:
 ```
-id, scenario_id, title, asset_id, asset_tier, mission_phase, severity_baseline,
-mitre(dict), signals(list), iocs(list), cves(list), sbom_components(list),
-llm_suggested_severity, lat, lon
+id, scenario_id, title, time_generated, asset_id, asset_tier, mission_phase,
+severity_baseline, mitre(dict), signals(list), iocs(list), cves(list),
+sbom_components(list), llm_suggested_severity, lat, lon
 ```
 - `_INTERNAL_ONLY_FIELDS`(12개: enrich·dynamics·actor_id·ground_truth 등)는 detection이
   **채울 수 없다**(위조 불가 — 트러스트 경계). 이 목록은 analysis 전용.

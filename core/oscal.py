@@ -34,4 +34,5 @@ def build_evidence(state: SOCState, evidence_level: str) -> OscalEvidence:
         ev.investigation = state.get("investigation")
         ev.response = state.get("response")
         ev.severity_rationale = state.get("severity_rationale")
+        ev.active_hunt_findings = list(state.get("active_hunt_findings", []))
     return ev
