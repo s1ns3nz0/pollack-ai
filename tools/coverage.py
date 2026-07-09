@@ -38,6 +38,20 @@ class Archetype(BaseModel):
     strategy: str = ""
 
 
+class TechniqueDataQuality(BaseModel):
+    """기법별 탐지 품질 점수(DeTT&CT 방법론 — 선택, 점진적 채움).
+
+    covered/planned/uncovered(이분법) 과 의미가 다르다 — "covered" 판정 자체엔
+    영향 없이, 그 covered 가 실제로 얼마나 신뢰 가능한지를 별도로 표현한다.
+    """
+
+    technique: str
+    visibility: int = Field(default=0, ge=0, le=3)  # 로그원 정보가치(0=없음~3=탁월)
+    detection_maturity: int = Field(default=0, ge=0, le=4)  # 탐지 로직 성숙도
+    log_source: str = ""
+    notes: str = ""
+
+
 class GapTechnique(BaseModel):
     """미탐지(❌) 기법 + 소속 전술 + 대응 archetype."""
 
@@ -107,10 +121,14 @@ class CoverageMatrix:
     """
 
     def __init__(
-        self, tactics: list[TacticCoverage], archetypes: dict[str, Archetype]
+        self,
+        tactics: list[TacticCoverage],
+        archetypes: dict[str, Archetype],
+        data_quality: dict[str, TechniqueDataQuality] | None = None,
     ) -> None:
         self.tactics = sorted(tactics, key=lambda t: t.order)
         self.archetypes = archetypes
+        self.data_quality = data_quality or {}
 
     @classmethod
     def from_yaml(cls, path: str | Path | None = None) -> CoverageMatrix:
@@ -163,7 +181,32 @@ class CoverageMatrix:
             )
         if not tactics:
             raise CoverageDataError("커버리지 매트릭스에 전술이 없음.")
-        return cls(tactics, archetypes)
+        raw_dq = raw.get("data_quality")
+        try:
+            data_quality = (
+                {
+                    str(tid): TechniqueDataQuality(
+                        technique=str(tid), **(meta if isinstance(meta, dict) else {})
+                    )
+                    for tid, meta in raw_dq.items()
+                }
+                if isinstance(raw_dq, dict)
+                else {}
+            )
+        except ValidationError as e:
+            raise CoverageDataError(f"data_quality 스키마 오류: {e}") from e
+        return cls(tactics, archetypes, data_quality)
+
+    def data_quality_for(self, technique: str) -> TechniqueDataQuality | None:
+        """기법의 DeTT&CT 품질 점수를 반환한다(미채점이면 None — covered 판정과 무관).
+
+        Args:
+            technique: MITRE technique id.
+
+        Returns:
+            채점돼 있으면 TechniqueDataQuality, 아니면 None.
+        """
+        return self.data_quality.get(technique)
 
     def tactic_order(self, tactic: str) -> int | None:
         """tactic 이름의 kill-chain order 를 반환한다(미매핑이면 None).

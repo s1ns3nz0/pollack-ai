@@ -1,0 +1,38 @@
+name: Weekly KPI/Coverage Snapshot
+
+on:
+  schedule:
+    # 매주 월요일 00:00 UTC(한국시간 09:00) — 커버리지/KPI 숫자가 조용히 낡는 걸 방지.
+    - cron: "0 0 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  kpi-snapshot:
+    name: KPI/Coverage 재산출 (offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: 의존성 설치
+        run: pip install -e ".[dev]"
+
+      # 1차: 오프라인/결정론 산출만(projects/ 없음 → 커밋된 benchmarks/eval_scenarios/ 사용,
+      # LLM 미사용). 라이브 RAGFlow KPI는 secrets/환경 준비 확인 후 별도 job으로 확장.
+      - name: KPI 재산출 (offline)
+        run: python benchmarks/run_kpi.py
+
+      - name: 결과 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: kpi-results-${{ github.run_number }}
+          path: benchmarks/results/kpi_results.json
+          retention-days: 90

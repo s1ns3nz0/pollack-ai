@@ -95,6 +95,58 @@ class TestErrors:
             CoverageMatrix.from_yaml(tmp_path / "nope.yaml")
 
 
+class TestDataQuality:
+    """data_quality(DeTT&CT) 소비 API — append-only, covered 판정과 분리."""
+
+    def test_no_data_quality_section_loads_as_before(self, tmp_path: Path) -> None:
+        # data_quality 키가 아예 없는 YAML(기존 _SAMPLE)도 그대로 로드된다.
+        m = _matrix(tmp_path)
+        assert m.data_quality == {}
+        assert m.data_quality_for("T1595") is None
+
+    def test_out_of_range_visibility_raises(self, tmp_path: Path) -> None:
+        p = tmp_path / "cov.yaml"
+        p.write_text(
+            _SAMPLE + "data_quality:\n  T1595: {visibility: 9}\n", encoding="utf-8"
+        )
+        with pytest.raises(CoverageDataError):
+            CoverageMatrix.from_yaml(p)
+
+    def test_out_of_range_detection_maturity_raises(self, tmp_path: Path) -> None:
+        p = tmp_path / "cov.yaml"
+        p.write_text(
+            _SAMPLE + "data_quality:\n  T1595: {detection_maturity: 99}\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(CoverageDataError):
+            CoverageMatrix.from_yaml(p)
+
+    def test_real_data_quality_examples_resolve(self) -> None:
+        # PR #74 예시 3건(T0835/T1692.001/T1195) 조회.
+        m = CoverageMatrix.from_yaml(_DATA)
+        gnss = m.data_quality_for("T0835")
+        assert (
+            gnss is not None and gnss.visibility == 3 and gnss.detection_maturity == 3
+        )
+        cmd = m.data_quality_for("T1692.001")
+        assert cmd is not None and cmd.log_source
+        supply_chain = m.data_quality_for("T1195")
+        assert supply_chain is not None and supply_chain.visibility == 1
+        assert m.data_quality_for("T9999-not-scored") is None
+
+    def test_report_unaffected_by_data_quality_presence(self, tmp_path: Path) -> None:
+        # data_quality 유무가 covered/planned/uncovered 집계(KPI 분모/분자)를 안 바꾼다.
+        without_dq = _matrix(tmp_path).report()
+        p = tmp_path / "cov_with_dq.yaml"
+        p.write_text(
+            _SAMPLE
+            + "data_quality:\n  T1595: {visibility: 2, detection_maturity: 1}\n",
+            encoding="utf-8",
+        )
+        with_dq = CoverageMatrix.from_yaml(p).report()
+        assert with_dq == without_dq
+
+
 class TestRealData:
     """실제 data/attack_coverage.yaml 무결성 — 발표 수치의 근거."""
 
