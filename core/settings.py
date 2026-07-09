@@ -102,6 +102,14 @@ class Settings(BaseSettings):
         gt=0,
         description="외부 호출 전 alert당 IOC 상한(untrusted wire IOC 쿼터번 방지).",
     )
+    enrichment_deadline_seconds: float = Field(
+        default=20.0,
+        gt=0.0,
+        description=(
+            "enrich(TI/샌드박스/vuln) 호출당 벽시계 데드라인(초). per-request"
+            " 타임아웃과 별개 — 직렬 다중 IOC 조회 hotpath 정체 방지(fail-open 강등)."
+        ),
+    )
 
     # ── 외부 위협 인텔(TI) — 멀티소스 어댑터 ──────────────
     virustotal_api_key: SecretStr = Field(

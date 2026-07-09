@@ -39,9 +39,10 @@ def default_judge(state: SOCState) -> Verdict:
 def signal_judge(state: SOCState) -> Verdict:
     """근거 기반 정탐/오탐 판정(ground_truth 비참조 — FPR/FNR 측정용 실판정).
 
-    탐지 신호 + 매칭 탐지룰 + 조사 근거(신뢰 유사사례 또는 신뢰도≥0.5)가 동시
-    충족될 때만 정탐. 어느 하나라도 빠지면(예: 매칭 룰 없는 양성 노이즈, RAG 근거
-    부재) 오탐으로 본다. 라벨을 참조하지 않으므로 라벨 대비 FPR/FNR 이 의미를 갖는다.
+    탐지 신호 + 매칭 탐지룰 + **내부/신뢰 조사근거**(유사사례·경험·GNSS·공역)가 동시
+    충족될 때만 정탐. 외부 enrich confidence 는 코로보레이션에 단독 기여하지 않는다
+    (verdict 를 외부가 좌우하지 못하게 — Codex). 어느 하나라도 빠지면(매칭 룰 없는 양성
+    노이즈, 근거 부재) 오탐. 라벨 비참조라 라벨 대비 FPR/FNR 이 의미를 갖는다.
 
     Args:
         state: investigation 까지 완료된 상태.
@@ -56,9 +57,12 @@ def signal_judge(state: SOCState) -> Verdict:
         alert.expected_detection.get("sigma_rule")
         or alert.expected_detection.get("sentinel_rule")
     )
+    # 코로보레이션은 **내부/신뢰 신호**로만 성립(Codex diff High): 외부 enrich
+    # (TI/sandbox/KEV)가 `inv.confidence` 를 밀어 verdict 를 간접 좌우하지 못하게
+    # `confidence>=0.5` 항을 제거. 내부 신호(유사사례·경험·GNSS·공역)는 각자 항으로
+    # 그대로 기여하므로 내부 코로보레이션은 불변. 외부는 confidence(표시)만 조정.
     corroborated = inv is not None and (
         bool(inv.similar_cases)
-        or inv.confidence >= 0.5
         or inv.experience_corroboration > 0  # exp/ 과거 정탐 자문(하한 불변)
         # spec #1: 외부 GNSS/Airspace 컨텍스트도 corroborated 기여.
         or any(f.level >= 2 for f in inv.gnss_jam_findings)
