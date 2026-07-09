@@ -19,7 +19,6 @@ from core.policy_loader import load_policy_mapping, require_mapping
 from tools.coverage import CoverageMatrix, TacticCoverage
 
 _POLICY = Path(__file__).resolve().parent / "policy" / "active-hunt.yaml"
-_DEFAULT_ALERT_TIME = datetime(1970, 1, 1, tzinfo=UTC)
 
 
 class HuntLimits(BaseModel):
@@ -111,11 +110,14 @@ class ActiveHuntPolicy(BaseModel):
             queries_raw = require_mapping(
                 data.get("queries"), label="active hunt queries"
             )
-            data["queries"] = {
-                str(qid): HuntQueryTemplate.model_validate(q)
-                for qid, q in queries_raw.items()
-                if isinstance(q, dict)
-            }
+            queries: dict[str, HuntQueryTemplate] = {}
+            for qid, query in queries_raw.items():
+                if not isinstance(query, dict):
+                    raise PolicyError(
+                        f"active hunt queries 항목 구조 오류({qid}: 매핑 아님)."
+                    )
+                queries[str(qid)] = HuntQueryTemplate.model_validate(query)
+            data["queries"] = queries
             return cls.model_validate(data)
         except ValidationError as exc:
             raise PolicyError(f"active hunt 정책 검증 실패: {exc}") from exc
@@ -195,14 +197,26 @@ class ActiveHuntPlanner:
             end = alert_time
             for previous_tactic in self._previous_tactics(current_order):
                 for technique in self._techniques_for_tactic(previous_tactic.name):
-                    queries.extend(
-                        self._queries_for(
+                    planned = self._queries_for(
+                        direction="backward",
+                        technique=technique,
+                        tactic=previous_tactic.name,
+                        start=start,
+                        end=end,
+                        rationale=f"후반 단계 alert 역추적({previous_tactic.name})",
+                    )
+                    if planned:
+                        queries.extend(planned)
+                        continue
+                    unavailable.append(
+                        self.unavailable_finding(
                             direction="backward",
                             technique=technique,
                             tactic=previous_tactic.name,
-                            start=start,
-                            end=end,
-                            rationale=f"후반 단계 alert 역추적({previous_tactic.name})",
+                            rationale=(
+                                f"후반 단계 alert 역추적({previous_tactic.name}) "
+                                "template 없음"
+                            ),
                         )
                     )
         return ActiveHuntPlan(
@@ -291,11 +305,11 @@ def _alert_tactics(alert: Alert) -> list[str]:
 def _alert_time(alert: Alert) -> datetime:
     raw = getattr(alert, "timestamp", None) or getattr(alert, "time_generated", None)
     if not isinstance(raw, str) or not raw:
-        return _DEFAULT_ALERT_TIME
+        return datetime.now(UTC)
     try:
         return datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except ValueError:
-        return _DEFAULT_ALERT_TIME
+        return datetime.now(UTC)
 
 
 def _fmt(dt: datetime) -> str:

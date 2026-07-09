@@ -1,13 +1,23 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+import pytest
+
 from core.active_hunt import ActiveHuntPlanner, ActiveHuntPolicy
+from core.exceptions import PolicyError
 from core.models import Alert, AttackPrediction, MissionRisk
 from tools.coverage import Archetype, CoverageMatrix, TacticCoverage
 
 
 def _coverage() -> CoverageMatrix:
     tactics = [
-        TacticCoverage(name="InitialAccess", order=3, covered=["T1133"]),
+        TacticCoverage(
+            name="InitialAccess",
+            order=3,
+            covered=["T1133"],
+            planned=["T1190"],
+        ),
         TacticCoverage(name="Discovery", order=8, covered=["T0842"]),
         TacticCoverage(name="LateralMovement", order=9, covered=["T1563"]),
         TacticCoverage(name="CommandAndControl", order=11, covered=["T1071"]),
@@ -98,6 +108,30 @@ def test_forward_planner_uses_registered_template_only() -> None:
     assert "{end}" not in queries[0].kql
 
 
+def test_forward_planner_without_alert_time_avoids_epoch_window() -> None:
+    policy = ActiveHuntPolicy.from_yaml()
+    planner = ActiveHuntPlanner(policy, _coverage())
+    plan = planner.plan(
+        _alert("InitialAccess"),
+        [
+            AttackPrediction(
+                next_technique="T1133",
+                probability=0.9,
+                support_count=3,
+                basis_actor_id="actor-1",
+            )
+        ],
+        None,
+        cpcon_level=5,
+    )
+    query = plan.queries[0]
+    assert "1970-01-01" not in query.kql
+    assert "1970-01-01" not in query.time_window
+    assert "{start}" not in query.kql
+    assert "{end}" not in query.kql
+    assert "datetime(" in query.kql
+
+
 def test_missing_template_becomes_unavailable_finding() -> None:
     policy = ActiveHuntPolicy.from_yaml()
     planner = ActiveHuntPlanner(policy, _coverage())
@@ -119,3 +153,44 @@ def test_missing_template_becomes_unavailable_finding() -> None:
     assert finding.technique == "T9999"
     assert finding.query_id == "query_unavailable"
     assert finding.error == "query template unavailable"
+
+
+def test_backward_planner_records_untemplated_previous_techniques() -> None:
+    policy = ActiveHuntPolicy.from_yaml()
+    planner = ActiveHuntPlanner(policy, _coverage())
+    plan = planner.plan(
+        _alert("CommandAndControl"),
+        [],
+        None,
+        cpcon_level=5,
+    )
+    assert any(
+        query.direction == "backward" and query.technique == "T1133"
+        for query in plan.queries
+    )
+    finding = next(
+        finding
+        for finding in plan.unavailable_findings
+        if finding.direction == "backward" and finding.technique == "T1190"
+    )
+    assert finding.tactic == "InitialAccess"
+    assert finding.query_id == "query_unavailable"
+    assert finding.error == "query template unavailable"
+
+
+def test_policy_loader_rejects_non_mapping_query_entries(tmp_path: Path) -> None:
+    policy_path = tmp_path / "active-hunt.yaml"
+    policy_path.write_text(
+        """
+version: 0.1
+queries:
+  bad_query:
+    - not
+    - a
+    - mapping
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PolicyError, match="active hunt queries 항목 구조 오류"):
+        ActiveHuntPolicy.from_yaml(policy_path)
