@@ -56,6 +56,13 @@ def _state(inv: InvestigationResult | None) -> SOCState:
     return state
 
 
+def _node_type(node: dict[str, object]) -> object:
+    """Cytoscape 노드의 data.type 을 좁혀서 반환(mypy — data 는 object)."""
+    data = node["data"]
+    assert isinstance(data, dict)
+    return data.get("type")
+
+
 class TestIoaGraphReport:
     @pytest.mark.asyncio
     async def test_predictions_populate_ioa_graph(self) -> None:
@@ -77,8 +84,9 @@ class TestIoaGraphReport:
         # Cytoscape 형태: 각 노드는 data.id/label/type 보유
         for node in ioa["nodes"]:
             data = node["data"]
+            assert isinstance(data, dict)
             assert "id" in data and "label" in data and "type" in data
-        assert any(n["data"]["type"] == "prediction" for n in ioa["nodes"])
+        assert any(_node_type(n) == "prediction" for n in ioa["nodes"])
 
     @pytest.mark.asyncio
     async def test_no_graph_data_yields_none(self) -> None:
@@ -97,9 +105,13 @@ class TestIoaGraphReport:
     @pytest.mark.asyncio
     async def test_causal_only_populates_ioa_graph(self) -> None:
         """profile·inv 없이 causal 만 있어도 IoA 그래프 생성(Codex diff Medium)."""
-        agent = ReportAgent(Settings(), SeverityEngine(), reasoner=_StubReasoner())
+        agent = ReportAgent(
+            Settings(),
+            SeverityEngine(),
+            reasoner=_StubReasoner(),  # type: ignore[arg-type]  # 덕타이핑 스텁
+        )
         out = await agent.run(_state(None))
         ioa = out["report"].ioa_graph
         assert isinstance(ioa, dict)
         assert ioa["nodes"]
-        assert any(n["data"]["type"] == "effect" for n in ioa["nodes"])
+        assert any(_node_type(n) == "effect" for n in ioa["nodes"])
