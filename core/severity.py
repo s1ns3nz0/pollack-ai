@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
@@ -16,6 +17,53 @@ from core.models import Alert, Severity
 
 POLICY_DIR = Path(__file__).resolve().parent / "policy"
 _POSTURE_RANK = {"normal": 0, "elevated": 1, "high": 2}
+
+
+@dataclass(frozen=True)
+class MettTcConfig:
+    """METT-TC 가중 트리아지 정책(`severity-policy.yaml` 의 `mett_tc` 섹션).
+
+    Attributes:
+        priority_delta_factors: 트리아지 priority 상승에 쓰는 mission_risk 요소 키
+            (severity 미중복분만 — 이중계산 방지).
+        priority_delta_min: 요소 합이 이 값 이상일 때만 priority 상승.
+        priority_delta_cap: priority 상승 상한(밴드 수 — 위조 blast 반경 제한).
+        hitl_force_threshold: mission_risk.score 가 이 값 이상이면 HITL 강제(상향만).
+    """
+
+    priority_delta_factors: tuple[str, ...] = ("terrain_dependents", "civil_geo")
+    priority_delta_min: int = 2
+    priority_delta_cap: int = 1
+    hitl_force_threshold: int = 6
+
+
+def _mett_int(raw: dict[str, object], key: str, default: int) -> int:
+    """mett_tc 정수값(명시 0 존중, 결측/형식오류 시 default)."""
+    value = raw.get(key, default)
+    return value if isinstance(value, int) and not isinstance(value, bool) else default
+
+
+def _load_mett_tc(raw: object) -> MettTcConfig:
+    """`mett_tc` 섹션을 MettTcConfig 로 파싱(결측 시 기본값).
+
+    escalate-only 불변식을 **코드로 강제**한다(Codex diff M): 오설정 음수 cap 은
+    de-escalation(priority 하향) 벡터이므로 `priority_delta_cap`/`priority_delta_min`
+    을 non-negative 로 클램프한다. YAML 값에 의존하지 않는 안전 보장.
+    """
+    if not isinstance(raw, dict):
+        return MettTcConfig()
+    factors = raw.get("priority_delta_factors")
+    fac = (
+        tuple(str(x) for x in factors)
+        if isinstance(factors, list) and factors
+        else MettTcConfig().priority_delta_factors
+    )
+    return MettTcConfig(
+        priority_delta_factors=fac,
+        priority_delta_min=max(0, _mett_int(raw, "priority_delta_min", 2)),
+        priority_delta_cap=max(0, _mett_int(raw, "priority_delta_cap", 1)),
+        hitl_force_threshold=_mett_int(raw, "hitl_force_threshold", 6),
+    )
 
 
 def _as_dict(value: object, *, where: str) -> dict[str, object]:
@@ -82,6 +130,9 @@ class SeverityEngine:
 
         dyn = self.policy.get("dynamics", {})
         self.dynamics = _as_dict(dyn, where="dynamics") if isinstance(dyn, dict) else {}
+
+        # METT-TC 가중 트리아지 정책(결측 시 기본값 — 하위호환).
+        self.mett_tc: MettTcConfig = _load_mett_tc(self.policy.get("mett_tc"))
 
     def compute(self, alert: Alert) -> tuple[Severity, list[str]]:
         """경보의 심각도 등급과 산정 근거를 반환한다.

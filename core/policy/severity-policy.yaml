@@ -94,6 +94,18 @@ dynamics:
       window_min: 60
       action: -1
 
+# --- METT-TC 가중 트리아지 (triage priority 상승 + response HITL 강제) ---
+# severity 레벨은 미접촉(정책 엔진 권한 유지 — h 레벨 auto_response 오발동 방지).
+# 위조 wire 필드(asset_id/lat) 파생이라 상승-전용 + cap 으로 blast 반경 제한.
+mett_tc:
+  # triage priority 상승에 쓰는 mission_risk 요소(severity 미중복분만 — 이중계산 방지).
+  # severity 는 이미 tier/phase/key_terrain/kill_chain/dwelling 소비 → 여기선 제외.
+  priority_delta_factors: [terrain_dependents, civil_geo]
+  priority_delta_min: 2        # 요소 합 ≥ 2 → priority 1밴드 급상
+  priority_delta_cap: 1        # 최대 +1 밴드(위조 blast 반경 제한)
+  # response/approval HITL 강제 임계(상향만; 하향 불가). score 범위 0~13.
+  hitl_force_threshold: 6
+
 # --- 휴먼 검토/피드백 루프 ---
 feedback:
   source: validation_agent              # 오탐/정탐 판정

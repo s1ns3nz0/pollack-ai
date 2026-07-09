@@ -276,7 +276,17 @@ def build_soc_graph(
         from tools.ragas_evaluator import RagasEvaluator
 
         ragas = RagasEvaluator(settings)
-    triage = TriageAgent(settings, engine, actor_read=actor_read)
+    # MBCRA: asset-tiers.yaml 있으면 METT-TC 임무위험 산정기 배선. triage(priority
+    # 상승·HITL 신호)·report(노출) 가 동일 인스턴스 공유.
+    try:
+        _mission_risk_assessor: MissionRiskAssessor | None = MissionRiskAssessor(
+            KeyTerrainMap.from_yaml()
+        )
+    except SOCPlatformError:
+        _mission_risk_assessor = None
+    triage = TriageAgent(
+        settings, engine, actor_read=actor_read, mission_risk=_mission_risk_assessor
+    )
     investigation = InvestigationAgent(
         settings,
         retriever,
@@ -352,13 +362,6 @@ def build_soc_graph(
         )
     except SOCPlatformError:
         campaign_detector = None
-    # MBCRA: asset-tiers.yaml 있으면 METT-TC 임무위험 산정기 배선(report 노출).
-    try:
-        _mission_risk_assessor: MissionRiskAssessor | None = MissionRiskAssessor(
-            KeyTerrainMap.from_yaml()
-        )
-    except SOCPlatformError:
-        _mission_risk_assessor = None
     # Tier3 헌팅: coverage 있으면 hunt 플래너 배선(gap 소스). 실패 시 예측/campaign 만.
     try:
         _hunt_planner: HuntPlanner | None = HuntPlanner(CoverageMatrix.from_yaml())
@@ -443,7 +446,12 @@ def build_soc_graph(
     if hitl:
         graph.add_node(
             "approval",
-            _timed("approval", ApprovalAgent(settings).run),  # type: ignore[call-overload]
+            _timed(  # type: ignore[call-overload]
+                "approval",
+                ApprovalAgent(
+                    settings, hitl_force_threshold=engine.mett_tc.hitl_force_threshold
+                ).run,
+            ),
         )
         graph.add_edge("approval", "response")
     graph.add_conditional_edges(
