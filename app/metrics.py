@@ -131,7 +131,11 @@ class _Counters:
             self.cisa_reportable_total += 1
 
     def record_ztmm_unverified(self, n: int = 1) -> None:
-        """ZTMM 근거 미검증 성숙도 주장(씨어터) n건 누적. 정적 — 로드 시 1회."""
+        """ZTMM 근거 미검증 성숙도 주장(씨어터) 누적.
+
+        Args:
+            n: 누적 건수(정적 posture — 로드 시 1회 계상).
+        """
         with self._lock:
             self.ztmm_unverified_total += n
 
