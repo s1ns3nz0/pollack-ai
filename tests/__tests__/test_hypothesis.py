@@ -8,6 +8,9 @@ from core.exceptions import HypothesisCatalogError, SOCPlatformError
 from core.hypothesis import (
     EVIDENCE_KEYS,
     NULL_HYPOTHESIS_ID,
+    AchEvaluator,
+    EvidenceRule,
+    HypothesisDef,
     extract_evidence,
     load_hypothesis_catalog,
 )
@@ -198,3 +201,144 @@ class TestExtractEvidence:
         assert ev["kill_chain_advanced"] == 1.0
         assert ev["sandbox_malicious"] == 0.0
         assert ev["airspace_hostile"] == 0.0
+
+
+def _hyp(hid: str, *rules: EvidenceRule) -> HypothesisDef:
+    return HypothesisDef(hypothesis_id=hid, name=hid, mitre=(), rules=rules)
+
+
+def _r(
+    key: str,
+    direction: str,
+    weight: float,
+    op: str = ">",
+    th: float = 0.0,
+) -> EvidenceRule:
+    return EvidenceRule(
+        key=key, op=op, threshold=th, direction=direction, weight=weight
+    )
+
+
+class TestAchEvaluator:
+    """ACH 스코어링·순위·diagnosticity 테스트."""
+
+    def test_least_refuted_wins_despite_less_support(self) -> None:
+        cat = (
+            _hyp(
+                "HYP-A",
+                _r("ti_malicious_count", "consistent", 0.7),
+                _r("kev_present", "consistent", 0.5),
+                _r("suppression_corroboration", "inconsistent", 0.4),
+            ),
+            _hyp("HYP-B", _r("ti_malicious_count", "consistent", 0.5)),
+        )
+        ev = {
+            "ti_malicious_count": 2.0,
+            "kev_present": 1.0,
+            "suppression_corroboration": 1.0,
+        }
+        out = AchEvaluator(cat).evaluate(ev)
+        assert out[0].hypothesis_id == "HYP-B"
+        assert out[0].rank == 1
+        assert out[1].hypothesis_id == "HYP-A"
+        assert out[1].inconsistency == pytest.approx(0.4)
+
+    def test_strength_capped_at_one(self) -> None:
+        cat = (_hyp("HYP-A", _r("ti_malicious_count", "consistent", 0.5)),)
+        out = AchEvaluator(cat).evaluate({"ti_malicious_count": 7.0})
+        assert out[0].consistency == pytest.approx(0.5)
+
+    def test_fractional_strength_scales(self) -> None:
+        cat = (
+            _hyp(
+                "HYP-A",
+                _r("prediction_probability", "consistent", 1.0, op=">=", th=0.6),
+            ),
+        )
+        out = AchEvaluator(cat).evaluate({"prediction_probability": 0.8})
+        assert out[0].consistency == pytest.approx(0.8)
+
+    def test_no_evidence_all_rank_none_catalog_order(self) -> None:
+        cat = (
+            _hyp("HYP-B", _r("decoy_hit", "consistent", 0.5)),
+            _hyp("HYP-A", _r("kev_present", "consistent", 0.5)),
+        )
+        out = AchEvaluator(cat).evaluate({"decoy_hit": 0.0, "kev_present": 0.0})
+        assert [a.hypothesis_id for a in out] == ["HYP-B", "HYP-A"]
+        assert all(a.rank is None for a in out)
+        assert all(not a.ledger for a in out)
+
+    def test_tiebreak_id_lexicographic_deterministic(self) -> None:
+        cat = (
+            _hyp("HYP-B", _r("kev_present", "consistent", 0.5)),
+            _hyp("HYP-A", _r("kev_present", "consistent", 0.5)),
+        )
+        for _ in range(5):
+            out = AchEvaluator(cat).evaluate({"kev_present": 1.0})
+            assert [a.hypothesis_id for a in out] == ["HYP-A", "HYP-B"]
+            assert out[0].rank == 1 and out[1].rank == 2
+
+    def test_rounding_boundary_treated_as_tie(self) -> None:
+        cat = (
+            _hyp("HYP-B", _r("prediction_probability", "consistent", 0.500049999)),
+            _hyp("HYP-A", _r("prediction_probability", "consistent", 0.5)),
+        )
+        out = AchEvaluator(cat).evaluate({"prediction_probability": 1.0})
+        assert out[0].consistency == out[1].consistency
+        assert out[0].hypothesis_id == "HYP-A"
+
+    def test_common_consistent_evidence_nondiagnostic(self) -> None:
+        cat = (
+            _hyp("HYP-A", _r("kev_present", "consistent", 0.5)),
+            _hyp("HYP-B", _r("kev_present", "consistent", 0.3)),
+        )
+        out = AchEvaluator(cat).evaluate({"kev_present": 1.0})
+        for a in out:
+            assert all(e.diagnostic is False for e in a.ledger)
+
+    def test_common_inconsistent_evidence_nondiagnostic(self) -> None:
+        cat = (
+            _hyp("HYP-A", _r("kev_present", "inconsistent", 0.5)),
+            _hyp("HYP-B", _r("kev_present", "inconsistent", 0.3)),
+        )
+        out = AchEvaluator(cat).evaluate({"kev_present": 1.0})
+        for a in out:
+            assert all(e.diagnostic is False for e in a.ledger)
+
+    def test_mixed_direction_evidence_diagnostic(self) -> None:
+        cat = (
+            _hyp("HYP-A", _r("kev_present", "consistent", 0.5)),
+            _hyp("HYP-B", _r("kev_present", "inconsistent", 0.3)),
+        )
+        out = AchEvaluator(cat).evaluate({"kev_present": 1.0})
+        for a in out:
+            assert all(e.diagnostic is True for e in a.ledger)
+
+    def test_partial_match_evidence_diagnostic(self) -> None:
+        cat = (
+            _hyp("HYP-A", _r("kev_present", "consistent", 0.5)),
+            _hyp("HYP-B", _r("decoy_hit", "consistent", 0.3)),
+        )
+        out = AchEvaluator(cat).evaluate({"kev_present": 1.0, "decoy_hit": 0.0})
+        assert out[0].hypothesis_id == "HYP-A"
+        assert out[0].ledger[0].diagnostic is True
+
+    def test_per_hypothesis_isolation(self) -> None:
+        class _Boom(EvidenceRule):
+            def matches(self, value: float) -> bool:
+                raise RuntimeError("boom")
+
+        bad = _hyp(
+            "HYP-BAD",
+            _Boom(
+                key="kev_present",
+                op=">",
+                threshold=0.0,
+                direction="consistent",
+                weight=0.5,
+            ),
+        )
+        good = _hyp("HYP-GOOD", _r("kev_present", "consistent", 0.5))
+        out = AchEvaluator((bad, good)).evaluate({"kev_present": 1.0})
+        assert [a.hypothesis_id for a in out] == ["HYP-GOOD"]
+        assert out[0].rank == 1

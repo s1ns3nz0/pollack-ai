@@ -13,9 +13,17 @@ from pathlib import Path
 import re
 
 from core.exceptions import HypothesisCatalogError, PolicyError
-from core.models import Alert, InvestigationResult, TiVerdict
+from core.models import (
+    Alert,
+    EvidenceEntry,
+    HypothesisAssessment,
+    InvestigationResult,
+    TiVerdict,
+)
 from core.severity import POLICY_DIR, load_yaml
+from utils.logging import get_logger
 
+_logger = get_logger("hypothesis")
 NULL_HYPOTHESIS_ID = "HYP-BENIGN-ENV"
 _ID_RE = re.compile(r"^HYP-[A-Z0-9-]+$")
 # 3형태 고정: `key` / `key>0` / `key>=n` (n 은 음이 아닌 십진수)
@@ -214,3 +222,136 @@ def extract_evidence(
             (p.probability for p in result.predictions), default=0.0
         ),
     }
+
+
+class AchEvaluator:
+    """카탈로그 기반 ACH 평가기 — 순수 결정론, IO 없음.
+
+    반증 최소 승자: `inconsistency` 오름차순, `consistency` 내림차순, id
+    사전순. 점수는 소수 4자리 반올림 후 비교해 float 누적오차로 인한 순위 요동을
+    막는다.
+    """
+
+    def __init__(self, catalog: tuple[HypothesisDef, ...]) -> None:
+        """평가할 가설 카탈로그를 보관한다.
+
+        Args:
+            catalog: `load_hypothesis_catalog()` 가 반환한 가설 정의 튜플.
+        """
+        self._catalog = catalog
+
+    def evaluate(self, evidence: dict[str, float]) -> list[HypothesisAssessment]:
+        """증거값으로 전 가설을 평가하고 순위를 부여한다.
+
+        Args:
+            evidence: `extract_evidence` 산출 증거값(키→정규화 값).
+
+        Returns:
+            rank 오름차순 정렬 결과. 매칭 증거가 전무하면 전 가설 rank=None
+            (카탈로그 선언 순). 개별 가설 평가 실패는 해당 가설만 제외한다.
+        """
+        assessments: list[HypothesisAssessment] = []
+        key_hits: dict[str, int] = {}
+        key_dirs: dict[str, set[str]] = {}
+        for hyp in self._catalog:
+            try:
+                assessment = self._evaluate_hypothesis(hyp, evidence)
+            except Exception:  # noqa: BLE001 — 가설 단위 격리(전체 소실 금지)
+                _logger.warning(
+                    "가설 %s 평가 실패 — 해당 가설만 제외",
+                    hyp.hypothesis_id,
+                    exc_info=True,
+                )
+                continue
+            assessments.append(assessment)
+            seen_keys: set[str] = set()
+            for entry in assessment.ledger:
+                if entry.key not in seen_keys:
+                    seen_keys.add(entry.key)
+                    key_hits[entry.key] = key_hits.get(entry.key, 0) + 1
+                key_dirs.setdefault(entry.key, set()).add(entry.direction)
+
+        self._mark_nondiagnostic(assessments, key_hits, key_dirs)
+        if not any(a.ledger for a in assessments):
+            return assessments
+
+        ordered = sorted(
+            assessments,
+            key=lambda a: (a.inconsistency, -a.consistency, a.hypothesis_id),
+        )
+        for rank, assessment in enumerate(ordered, start=1):
+            assessment.rank = rank
+        return ordered
+
+    def _evaluate_hypothesis(
+        self, hyp: HypothesisDef, evidence: dict[str, float]
+    ) -> HypothesisAssessment:
+        """단일 가설을 평가한다.
+
+        Args:
+            hyp: 평가할 가설 정의.
+            evidence: 정규화 증거값.
+
+        Returns:
+            순위 미부여 상태의 평가 결과.
+        """
+        ledger: list[EvidenceEntry] = []
+        for rule in hyp.rules:
+            value = evidence.get(rule.key, 0.0)
+            if not rule.matches(value):
+                continue
+            ledger.append(
+                EvidenceEntry(
+                    key=rule.key,
+                    value=value,
+                    direction=rule.direction,
+                    weight=rule.weight,
+                )
+            )
+        consistency = round(
+            sum(
+                e.weight * min(1.0, e.value)
+                for e in ledger
+                if e.direction == "consistent"
+            ),
+            _SCORE_NDIGITS,
+        )
+        inconsistency = round(
+            sum(
+                e.weight * min(1.0, e.value)
+                for e in ledger
+                if e.direction == "inconsistent"
+            ),
+            _SCORE_NDIGITS,
+        )
+        return HypothesisAssessment(
+            hypothesis_id=hyp.hypothesis_id,
+            name=hyp.name,
+            consistency=consistency,
+            inconsistency=inconsistency,
+            ledger=ledger,
+        )
+
+    def _mark_nondiagnostic(
+        self,
+        assessments: list[HypothesisAssessment],
+        key_hits: dict[str, int],
+        key_dirs: dict[str, set[str]],
+    ) -> None:
+        """전 가설에 같은 방향으로만 걸린 증거를 비변별로 표시한다.
+
+        Args:
+            assessments: 평가 성공한 가설 결과.
+            key_hits: 증거 키별 매칭 가설 수.
+            key_dirs: 증거 키별 매칭 방향 집합.
+        """
+        total = len(assessments)
+        nondiagnostic = {
+            key
+            for key, hits in key_hits.items()
+            if total > 1 and hits == total and len(key_dirs[key]) == 1
+        }
+        for assessment in assessments:
+            for entry in assessment.ledger:
+                if entry.key in nondiagnostic:
+                    entry.diagnostic = False
