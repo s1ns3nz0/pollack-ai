@@ -88,6 +88,20 @@ class Settings(BaseSettings):
         description="LLM 요청 타임아웃(초).",
     )
 
+    # ── kagent 오케스트레이터 전용 Azure OpenAI (SOC 엔진 LLM 과 별개) ──
+    azure_openai_endpoint: str = Field(
+        default="",
+        description="kagent ModelConfig 용 Azure OpenAI 엔드포인트.",
+    )
+    azure_openai_deployment: str = Field(
+        default="gpt-4o-soc",
+        description="kagent ModelConfig 용 Azure OpenAI 배포명.",
+    )
+    azure_openai_api_version: str = Field(
+        default="2024-10-21",
+        description="Azure OpenAI API 버전.",
+    )
+
     # ── 외부 enrich 마스터 게이트 (방산 OPSEC — default-deny) ──────────────
     external_enrichment_enabled: bool = Field(
         default=False,
