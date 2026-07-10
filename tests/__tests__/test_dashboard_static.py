@@ -35,9 +35,9 @@ def test_dashboard_js_handles_replay_and_sse() -> None:
     """JavaScript includes replay and live stream adapters."""
     js = (_STATIC / "dashboard.js").read_text(encoding="utf-8")
 
-    assert "fetch('/api/snapshots')" in js
-    assert "fetch('/api/topology')" in js
-    assert "new EventSource('/events')" in js
+    assert "fetch('api/snapshots')" in js
+    assert "fetch('api/topology')" in js
+    assert "new EventSource('events')" in js
     assert "renderSnapshot" in js
     assert "selectStory" in js
     assert "state.eventSource" in js

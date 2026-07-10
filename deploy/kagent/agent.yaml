@@ -1,0 +1,27 @@
+# SOC 트리아지 오케스트레이터. coarse analyze_alert 툴만 호출, 판정은 hotpath 권위.
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: soc-orchestrator
+  namespace: dah-soc
+spec:
+  description: Submits UAV SOC alerts to the analyze_alert MCP tool and summarizes the returned verdict.
+  type: Declarative
+  declarative:
+    modelConfig: soc-azure-openai
+    systemMessage: |-
+      You are the UAV AI SOC triage orchestrator.
+
+      Constraints:
+      - You may call only the coarse analyze_alert MCP tool.
+      - Pass the alert JSON through unchanged; do not fabricate verdict, severity, or mission impact.
+      - The tool returns the authoritative hotpath verdict. Summarize it faithfully in Markdown.
+      - Do not invent detections or downgrade severity. Surface degraded/unknown states honestly.
+    tools:
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: soc-toolserver
+          toolNames:
+            - analyze_alert

@@ -88,6 +88,20 @@ class Settings(BaseSettings):
         description="LLM 요청 타임아웃(초).",
     )
 
+    # ── kagent 오케스트레이터 전용 Azure OpenAI (SOC 엔진 LLM 과 별개) ──
+    azure_openai_endpoint: str = Field(
+        default="",
+        description="kagent ModelConfig 용 Azure OpenAI 엔드포인트.",
+    )
+    azure_openai_deployment: str = Field(
+        default="gpt-4o-soc",
+        description="kagent ModelConfig 용 Azure OpenAI 배포명.",
+    )
+    azure_openai_api_version: str = Field(
+        default="2024-10-21",
+        description="Azure OpenAI API 버전.",
+    )
+
     # ── 외부 enrich 마스터 게이트 (방산 OPSEC — default-deny) ──────────────
     external_enrichment_enabled: bool = Field(
         default=False,
@@ -463,6 +477,13 @@ class Settings(BaseSettings):
         description=(
             "외부 공개 도메인(예: https://uav-soc.koreacentral.cloudapp"
             ".azure.com). 비우면 로컬 주소로만 접속 가능."
+        ),
+    )
+    dashboard_root_path: str = Field(
+        default="/dashboard",
+        description=(
+            "대시보드를 서빙할 URL prefix(예: /dashboard). 비우면 루트(/)에서 "
+            "서빙. /healthz·/readyz 프로브 라우트는 항상 prefix 없이 노출된다."
         ),
     )
 

@@ -1399,12 +1399,12 @@ function nextSnapshot() {
 }
 
 async function loadTopology() {
-  const response = await fetch('/api/topology');
+  const response = await fetch('api/topology');
   state.topology = await response.json();
 }
 
 async function loadReplay() {
-  const response = await fetch('/api/snapshots');
+  const response = await fetch('api/snapshots');
   const payload = await response.json();
   resetSnapshots(Array.isArray(payload.snapshots) ? payload.snapshots : []);
   state.index = 0;
@@ -1426,7 +1426,7 @@ function connectLive() {
     return;
   }
 
-  state.eventSource = new EventSource('/events');
+  state.eventSource = new EventSource('events');
   state.live = true;
   state.connectionState = "reconnecting";
   renderControls();
