@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 import uvicorn
@@ -57,11 +57,15 @@ def _sse_events(snapshot_dir: Path) -> Iterator[str]:
     yield 'event: done\ndata: {"status":"complete"}\n\n'
 
 
-def create_app(snapshot_dir: str | Path | None = None) -> FastAPI:
+def create_app(snapshot_dir: str | Path | None = None, root_path: str = "") -> FastAPI:
     """Create the dashboard FastAPI app.
 
     Args:
         snapshot_dir: Optional replay snapshot directory.
+        root_path: URL prefix under which the dashboard is served. When empty
+            the app is served at root; when set (e.g. ``/dashboard``) the app is
+            mounted under that prefix. The ``/healthz`` and ``/readyz`` probe
+            routes are always registered unprefixed for K8s probes.
 
     Returns:
         Configured FastAPI application.
@@ -117,6 +121,24 @@ def create_app(snapshot_dir: str | Path | None = None) -> FastAPI:
             media_type="text/event-stream",
         )
 
+    def _register_health(target: FastAPI) -> None:
+        @target.get("/healthz", response_class=PlainTextResponse)
+        async def healthz() -> str:
+            """Liveness probe."""
+            return "ok"
+
+        @target.get("/readyz", response_class=PlainTextResponse)
+        async def readyz() -> str:
+            """Readiness probe."""
+            return "ok"
+
+    if root_path:
+        parent = FastAPI(title="UAV AI SOC Defense Dashboard (mounted)")
+        parent.mount(root_path, app)
+        _register_health(parent)
+        return parent
+
+    _register_health(app)
     return app
 
 
@@ -124,28 +146,21 @@ app = create_app()
 
 
 def main() -> None:
-    """Run the dashboard server using Settings-driven host/port.
-
-    `dashboard_public_url` 이 설정되면 외부(Azure 도메인) 접속을 위해 모든
-    인터페이스에 바인드하고, 비어 있으면 로컬 전용(127.0.0.1)으로만 연다.
-    """
+    """Run the dashboard server using Settings-driven host/port/prefix."""
     settings = get_settings()
-    public_url = settings.dashboard_public_url.strip().rstrip("/")
     host = settings.dashboard_host
+    public_url = settings.dashboard_public_url.strip().rstrip("/")
     if public_url and host == "127.0.0.1":
         host = "0.0.0.0"  # noqa: S104 — 공개 도메인 opt-in 시에만 외부 바인드
 
+    server_app = create_app(root_path=settings.dashboard_root_path)
     _logger.info(
-        "dashboard listening: http://127.0.0.1:%d (host=%s)",
-        settings.dashboard_port,
+        "dashboard listening host=%s port=%d root_path=%s",
         host,
+        settings.dashboard_port,
+        settings.dashboard_root_path,
     )
-    if public_url:
-        _logger.info("dashboard public url: %s", public_url)
-    else:
-        _logger.info("dashboard public url unset — local access only")
-
-    uvicorn.run(app, host=host, port=settings.dashboard_port)
+    uvicorn.run(server_app, host=host, port=settings.dashboard_port)
 
 
 if __name__ == "__main__":

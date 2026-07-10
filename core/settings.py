@@ -465,6 +465,13 @@ class Settings(BaseSettings):
             ".azure.com). 비우면 로컬 주소로만 접속 가능."
         ),
     )
+    dashboard_root_path: str = Field(
+        default="/dashboard",
+        description=(
+            "대시보드를 서빙할 URL prefix(예: /dashboard). 비우면 루트(/)에서 "
+            "서빙. /healthz·/readyz 프로브 라우트는 항상 prefix 없이 노출된다."
+        ),
+    )
 
     @property
     def ragflow_retrieval_url(self) -> str:
