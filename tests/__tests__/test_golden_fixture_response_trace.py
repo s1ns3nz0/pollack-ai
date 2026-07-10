@@ -11,6 +11,8 @@ Spec: https://github.com/s1ns3nz0/pollack-ai/issues/83
 
 from __future__ import annotations
 
+import json
+import os
 from pathlib import Path
 
 import pytest
@@ -26,7 +28,9 @@ from core.settings import Settings
 from core.severity import SeverityEngine
 from tools.coverage import CoverageMatrix
 
-_FIXTURES_DIR = Path(__file__).resolve().parents[2] / "benchmarks" / "eval_scenarios"
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_FIXTURES_DIR = _REPO_ROOT / "benchmarks" / "eval_scenarios"
+_MANIFEST_PATH = _REPO_ROOT / "sentinel" / "rule_manifest.json"
 
 # benchmarks/eval_scenarios 의 모든 golden fixture 를 response trace 로 검증한다.
 _GOLDEN_FIXTURES = sorted(p.name for p in _FIXTURES_DIR.glob("*.yaml"))
@@ -67,6 +71,56 @@ def _alert_from_fixture(fx: dict[str, object]) -> Alert:
         ),
         defense_playbook=playbook if isinstance(playbook, dict) else {},
     )
+
+
+def _load_manifest() -> dict[str, dict[str, list[str]]]:
+    """`sentinel/rule_manifest.json` 의 rules 맵(파일명 -> tactics/techniques) 반환.
+
+    Returns:
+        룰 파일명을 tactics/techniques 리스트에 매핑한 딕셔너리.
+
+    Raises:
+        AssertionError: 매니페스트가 없거나 구조가 예상과 다를 때.
+    """
+    assert _MANIFEST_PATH.exists(), (
+        f"룰 매니페스트 없음: {_MANIFEST_PATH} — "
+        "`python scripts/sync_rule_manifest.py` 로 생성"
+    )
+    data = json.loads(_MANIFEST_PATH.read_text(encoding="utf-8"))
+    assert isinstance(data, dict)
+    rules = data.get("rules")
+    assert isinstance(rules, dict)
+    return {
+        str(name): {
+            "tactics": [str(t) for t in entry.get("tactics", [])],
+            "techniques": [str(t) for t in entry.get("techniques", [])],
+        }
+        for name, entry in rules.items()
+        if isinstance(entry, dict)
+    }
+
+
+def _technique_covered(fixture_tech: str, rule_techs: list[str]) -> bool:
+    """fixture 기법이 룰 기법 집합에 부모-자식(prefix) 관점으로 커버되는지.
+
+    ATT&CK 하위기법(`T1565.001`)은 부모(`T1565`)만 선언한 룰로도 커버로 본다.
+    반대로 fixture 가 부모만 선언하고 룰이 하위기법만 가진 경우도 커버로 인정한다.
+
+    Args:
+        fixture_tech: fixture 의 `expected_techniques` 항목 하나.
+        rule_techs: 대응 Sentinel 룰의 `techniques` 목록.
+
+    Returns:
+        커버되면 True.
+    """
+    for rt in rule_techs:
+        if fixture_tech == rt:
+            return True
+        if fixture_tech.startswith(f"{rt}."):
+            return True
+        if rt.startswith(f"{fixture_tech}."):
+            return True
+    return False
 
 
 @pytest.fixture(scope="module")
@@ -114,6 +168,67 @@ class TestFixtureContract:
             severity_baseline=Severity.HIGH,
         )
         assert degradation.assess(probe, Verdict.TRUE_POSITIVE) is not None
+
+    @pytest.mark.parametrize("name", _GOLDEN_FIXTURES)
+    def test_sentinel_rule_exists_in_manifest(self, name: str) -> None:
+        """fixture 가 가리키는 sentinel_rule 이 dah-sentinel-content 카탈로그에 실재."""
+        fx = _load_fixture(name)
+        detection = fx.get("expected_detection")
+        assert isinstance(detection, dict), f"{name}: expected_detection 누락/형식오류"
+        rule = detection.get("sentinel_rule")
+        assert isinstance(rule, str) and rule, f"{name}: sentinel_rule 누락"
+        manifest = _load_manifest()
+        assert rule in manifest, (
+            f"{name}: sentinel_rule '{rule}' 이 룰 매니페스트에 없음 — "
+            "dah-sentinel-content 에 룰이 있는지 확인 후 "
+            "`python scripts/sync_rule_manifest.py` 재실행"
+        )
+
+    @pytest.mark.parametrize("name", _GOLDEN_FIXTURES)
+    def test_expected_techniques_consistent_with_rule(self, name: str) -> None:
+        """fixture 의 expected_techniques 가 실제 룰 techniques 와 정합(부모-자식 허용).
+
+        오배선(엉뚱한 실존 룰을 가리키는) 방지 — fixture 기법과 룰 기법이
+        전혀 겹치지 않으면 잘못된 매핑으로 간주하고 실패시킨다.
+        """
+        fx = _load_fixture(name)
+        detection = fx.get("expected_detection")
+        assert isinstance(detection, dict)
+        rule = str(detection["sentinel_rule"])
+        manifest = _load_manifest()
+        assert rule in manifest
+        rule_techs = manifest[rule]["techniques"]
+        fixture_techs = fx.get("expected_techniques") or []
+        assert isinstance(fixture_techs, list)
+
+        uncovered = [
+            str(t) for t in fixture_techs if not _technique_covered(str(t), rule_techs)
+        ]
+        assert not uncovered, (
+            f"{name}: expected_techniques {uncovered} 가 룰 '{rule}' 의 "
+            f"techniques {rule_techs} 로 커버되지 않음 (오배선 의심)"
+        )
+
+
+class TestManifestDrift:
+    """룰 매니페스트가 dah-sentinel-content 실물과 어긋나지 않는지(로컬 옵트인)."""
+
+    @pytest.mark.skipif(
+        not os.environ.get("DAH_SENTINEL_PATH"),
+        reason="DAH_SENTINEL_PATH 미설정 — CI hermetic 실행에서는 드리프트 검사 생략",
+    )
+    def test_manifest_matches_source_repo(self) -> None:
+        """env 로 소스 레포가 주어지면 재생성본과 커밋본이 일치해야 한다."""
+        from scripts.sync_rule_manifest import build_manifest
+
+        source = Path(os.environ["DAH_SENTINEL_PATH"])
+        regenerated = build_manifest(source)
+        committed = json.loads(_MANIFEST_PATH.read_text(encoding="utf-8"))
+
+        assert regenerated["rules"] == committed["rules"], (
+            "룰 매니페스트가 소스 레포와 어긋남 — "
+            "`python scripts/sync_rule_manifest.py` 로 갱신 후 커밋"
+        )
 
 
 class TestFixtureToCacaoPlaybookTrace:
