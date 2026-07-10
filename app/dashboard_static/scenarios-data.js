@@ -17,6 +17,9 @@
     "ImpairProcessControl", "InhibitResponseFunction", "Impact",
   ];
 
+  // dashboard.js IMPACT_LABELS 와 동일한 유효 값만 사용(미등록 값은 raw 로 표시됨).
+  var IMPACT_KO = { SUSTAINED: "임무 지속 가능", MINIMAL: "제한적 임무 지속", ABORT: "임무 중지 검토" };
+
   // 각 시나리오: 보고서 킬체인 단계. tactic은 ATT&CK 매트릭스 열, technique은 표기.
   var DEFS = {
     A: {
@@ -28,11 +31,11 @@
           sit: "공격자가 datalink-los(TCP 5790) MAVLink 세션을 하이재킹해 통제 채널을 장악했습니다.",
           rec: "MAVLink2 메시지 서명 강제 · 세션 소유권 고정.", next: "무허가 GUIDED 모드 강제(T0855)" },
         { tactic: "ImpairProcessControl", tech: "T0855", title: "무허가 명령으로 GUIDED 모드 강제", asset: "av-mpd",
-          trace: "UAVOperator_CL", cpcon: 3, impact: "DEGRADED",
+          trace: "UAVOperator_CL", cpcon: 3, impact: "MINIMAL",
           sit: "SourceSystemId∉{1,254,255}의 무허가 명령이 av-mpd에 수용되어 비행 모드가 GUIDED로 전환됐습니다.",
           rec: "비정상 sysid 세션 차단 · 명령 발신주체 검증.", next: "제어권 전환(Loss/Manipulation of Control)" },
         { tactic: "Impact", tech: "T0827·T0831", title: "제어 권한 운용자→공격자 전환", asset: "비행 제어권",
-          trace: "UAVTelemetry_CL", cpcon: 2, impact: "SEVERE",
+          trace: "UAVTelemetry_CL", cpcon: 2, impact: "ABORT",
           sit: "제어 권한이 공격자로 넘어갔습니다. 기체는 비행을 유지하나 조종권을 상실했습니다.",
           rec: "링크 무결성 페일오버 · 2인 통제 강제.", next: "종착: 파괴 없이 기동 장악" },
       ],
@@ -46,15 +49,15 @@
           sit: "함대관리 API의 객체 권한검사 부재(IDOR)로 공격자가 임무·스트림 식별자에 접근했습니다.",
           rec: "객체 단위 인가 강제 · 식별자 열거 차단.", next: "텔레메트리 위조 주입(T1565.001)" },
         { tactic: "Impact", tech: "T1565.001", title: "텔레메트리 버스 위조 데이터 주입", asset: "telemetry bus",
-          trace: "UAV*_CL", cpcon: 3, impact: "DEGRADED",
+          trace: "UAV*_CL", cpcon: 3, impact: "MINIMAL",
           sit: "서명 없는 위조 좌표·타임스탬프가 텔레메트리 버스에 주입되어 무결성이 붕괴됐습니다.",
           rec: "producer identity·서명·replay 방지값 강제.", next: "RTSP 중간자 프레임 주입(T1557)" },
         { tactic: "Collection", tech: "T1557", title: "EO/IR RTSP 중간자 프레임 주입", asset: "EO/IR RTSP",
-          trace: "RTSP", cpcon: 3, impact: "DEGRADED",
+          trace: "RTSP", cpcon: 3, impact: "MINIMAL",
           sit: "미암호·핀닝 부재 RTSP 스트림에 중간자가 노이즈·위조 프레임을 주입했습니다.",
           rec: "RTSP 암호화·인증서 핀닝 · 프레임 시퀀스 검증.", next: "운용자 시야 조작(T0832)" },
         { tactic: "Impact", tech: "T0832", title: "운용자 화면 시야 조작(Manipulation of View)", asset: "GCS/QGC 화면",
-          trace: "GCS 표시 불일치", cpcon: 2, impact: "SEVERE",
+          trace: "GCS 표시 불일치", cpcon: 2, impact: "ABORT",
           sit: "원본 텔레메트리와 GCS 표시값이 불일치합니다. 운용자가 표적을 오인합니다. 기체는 정상 비행.",
           rec: "표시-원본 교차검증 · 이상 오버레이 경보.", next: "종착: 상황인식 왜곡" },
       ],
@@ -68,11 +71,11 @@
           sit: "MFA 미적용·약한 자격으로 공격자가 GCS 정규 계정·고권한을 획득했습니다.",
           rec: "MFA 강제 · 세션 격리 · 자격증명 재발급.", next: "링크·저장소 암호키 탈취(T1041)" },
         { tactic: "Exfiltration", tech: "T1041", title: "링크·저장소 암호키 탈취", asset: "ISR 저장소",
-          trace: "동일 세션 민감객체 접근", cpcon: 3, impact: "DEGRADED",
+          trace: "동일 세션 민감객체 접근", cpcon: 3, impact: "MINIMAL",
           sit: "동일 세션에서 키·SAR·영상 등 민감 객체가 연속 접근됐습니다(향후 복호 확보).",
           rec: "객체 접근 세분화 · 키 접근 감사·격리.", next: "SAR·정찰 데이터 C2 반출(T1041·T1565)" },
         { tactic: "Exfiltration", tech: "T1041·T1565", title: "SAR 좌표·정찰 데이터 C2 반출", asset: "외부 C2",
-          trace: "outbound C2", cpcon: 2, impact: "SEVERE",
+          trace: "outbound C2", cpcon: 2, impact: "ABORT",
           sit: "SAR 표적좌표·정찰 데이터가 C2 채널로 반출됐습니다. 정찰 성과물·통신 기밀성을 상실합니다.",
           rec: "egress default-deny · outbound 이상탐지.", next: "종착: 키·SAR 유출" },
       ],
@@ -123,7 +126,7 @@
       navigator: navigator,
       topology: { nodes: [], edges: [] },
       bluf: {
-        situation: cur.sit, mission_impact: "임무영향 " + cur.impact + " · 표적 " + cur.asset,
+        situation: cur.sit, mission_impact: (IMPACT_KO[cur.impact] || cur.impact) + " · 표적 " + cur.asset,
         recommendation: cur.rec, next_move: "다음 예상 수순: " + cur.next,
         confidence: i < n - 1 ? "medium" : "high", hitl_badge: "NOT_REQUIRED",
         caveats: ["보고서 시나리오 " + def.id.slice(-1) + " 테스트 · 데모 재생(실 트래픽 아님)"],
