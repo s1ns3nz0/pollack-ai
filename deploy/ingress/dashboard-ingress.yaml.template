@@ -3,16 +3,15 @@
 # TLS: 실도메인일 때만 cert-manager 발급, 폴백(Azure 호스트명)은 평문 HTTP.
 # deploy-soc.sh 가 DOMAIN / TLS 애노테이션 / TLS 블록을 envsubst 로 치환.
 #
-# Prefix 처리: 대시보드 앱은 DASHBOARD_ROOT_PATH=/dashboard 로 /dashboard/ 에서
-# 서빙하고 클라이언트 자산은 상대경로(base href="./"). rewrite-target 이 캡처
-# 경로($2)를 백엔드에 전달해 앱 마운트 지점과 정합.
+# Prefix 처리: 대시보드 앱은 /dashboard 에 마운트(parent.mount)되어 /dashboard/,
+# /dashboard/api/*, /dashboard/static/* 를 직접 서빙한다. 따라서 Ingress 는 경로를
+# 벗기지 않고(pathType Prefix, rewrite 없음) 원 경로를 그대로 백엔드에 전달한다.
+# (rewrite-target 으로 /dashboard 를 벗기면 앱 마운트 지점과 어긋나 404 — 금지.)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: soc-dashboard
   namespace: dah-soc
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
 ${TLS_ANNOTATION}
 spec:
   ingressClassName: webapprouting.kubernetes.azure.com
@@ -20,8 +19,8 @@ spec:
     - host: "${DOMAIN}"
       http:
         paths:
-          - path: /dashboard(/|$)(.*)
-            pathType: ImplementationSpecific
+          - path: /dashboard
+            pathType: Prefix
             backend:
               service:
                 name: soc-dashboard

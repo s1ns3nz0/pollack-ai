@@ -61,7 +61,8 @@ echo "==> [8/8] 대시보드 Ingress (DOMAIN 해석)"
 if [[ -n "${DOMAIN:-}" ]]; then
   echo "    실도메인: ${DOMAIN} (cert-manager TLS)"
   export DOMAIN
-  export TLS_ANNOTATION="    cert-manager.io/cluster-issuer: letsencrypt-prod"
+  export TLS_ANNOTATION="  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod"
   export TLS_BLOCK="  tls:
     - hosts:
         - ${DOMAIN}
