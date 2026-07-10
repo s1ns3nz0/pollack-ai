@@ -20,6 +20,7 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
+        runAsUser: 10001 # Dockerfile USER soc(uid 10001) — runAsNonRoot 는 숫자 UID 필요
         seccompProfile:
           type: RuntimeDefault
       containers:
