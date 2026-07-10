@@ -1,0 +1,72 @@
+/* 보고서 시나리오 테스트 바 — 기존 대시보드 상단에 얹는 추가 스타일(비파괴). */
+
+/* .dashboard-shell 은 grid-template-rows 5행 고정. 상단에 scenario-bar 를 끼우면
+   요소가 한 행씩 밀려 top-strip 이 워크벤치(620px) 행을 먹어 카드가 커진다.
+   행 정의를 재선언해 정렬을 복원한다(replay-controls 는 JS가 바 안으로 이동시키므로
+   grid 자식은 header/scenario-bar/top-strip/workbench/topology 5개). */
+.dashboard-shell{
+  grid-template-rows: auto auto auto minmax(620px, auto) minmax(330px, auto);
+}
+
+/* 하단에서 시나리오 바 액션 행으로 옮겨온 리플레이 컨트롤: 인라인 정렬. */
+.scenario-bar .replay-controls{
+  border:none; background:transparent; box-shadow:none;
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:0;
+  margin:0 0 0 auto;   /* 오른쪽으로 밀기 — 시나리오 선택/테스트는 왼쪽 */
+}
+
+.scenario-bar{
+  margin:12px 0 4px; padding:14px 16px;
+  background:linear-gradient(180deg,rgba(20,30,40,.55),rgba(14,22,30,.55));
+  border:1px solid rgba(120,150,180,.22); border-radius:14px;
+  display:flex; flex-direction:column; gap:10px;
+}
+.scenario-bar .scn-head{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+.scenario-bar .scn-kicker{
+  font-size:12px; font-weight:800; letter-spacing:.12em; text-transform:uppercase;
+  color:#38bdf8;
+}
+.scenario-bar .scn-sub{font-size:12.5px; color:rgba(200,215,230,.65)}
+
+.scenario-bar .scn-tabs{display:flex; gap:8px; flex-wrap:wrap}
+.scenario-bar .scn-tab{
+  text-align:left; cursor:pointer; font:inherit;
+  background:rgba(255,255,255,.03); border:1px solid rgba(120,150,180,.25);
+  border-radius:10px; padding:8px 14px; color:rgba(210,222,235,.8); transition:.15s;
+  display:flex; flex-direction:column; gap:1px; min-width:140px;
+}
+.scenario-bar .scn-tab:hover{border-color:rgba(120,150,180,.5)}
+.scenario-bar .scn-tab[aria-pressed="true"]{
+  border-color:#38bdf8; color:#eaf6ff; background:rgba(56,189,248,.10);
+  box-shadow:0 0 0 1px rgba(56,189,248,.5);
+}
+.scenario-bar .scn-id{font-weight:800; font-size:12.5px; letter-spacing:.06em; color:#38bdf8}
+.scenario-bar .scn-tab[aria-pressed="true"] .scn-id{color:#7dd3fc}
+.scenario-bar .scn-name{font-size:13px}
+.scenario-bar .scn-sec{font-size:11px; color:rgba(180,195,210,.5)}
+
+.scenario-bar .scn-actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.scenario-bar .scn-btn{
+  cursor:pointer; font:inherit; font-size:13px;
+  background:rgba(255,255,255,.04); border:1px solid rgba(120,150,180,.28);
+  border-radius:10px; padding:8px 16px; color:#e6edf3; transition:.15s;
+}
+.scenario-bar .scn-btn:hover{border-color:rgba(120,150,180,.55)}
+.scenario-bar .scn-btn:focus-visible{outline:2px solid #38bdf8; outline-offset:2px}
+.scenario-bar .scn-btn-run{
+  background:linear-gradient(180deg,rgba(18,50,67,.9),rgba(14,38,52,.9));
+  border-color:#38bdf8; color:#dff3ff; font-weight:700;
+}
+.scenario-bar .scn-btn-run.running{
+  background:linear-gradient(180deg,rgba(61,52,16,.9),rgba(40,34,10,.9));
+  border-color:#e5c455; color:#fff8e6;
+}
+.scenario-bar .scn-status{font-size:12.5px; color:rgba(200,215,230,.7)}
+/* 이동해온 리플레이 컨트롤 버튼/뱃지가 바 안에서 튀지 않게 크기 정돈. */
+.scenario-bar .scn-actions{row-gap:8px}
+.scenario-bar .replay-controls .control{font-size:12px; padding:6px 10px}
+.scenario-bar .replay-controls .step-counter,
+.scenario-bar .replay-controls .status-line,
+.scenario-bar .replay-controls .mode-badge{font-size:11.5px}
+
+@media (prefers-reduced-motion:reduce){.scenario-bar *{transition:none !important}}

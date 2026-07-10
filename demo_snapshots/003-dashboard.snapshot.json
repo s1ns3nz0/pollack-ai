@@ -4,7 +4,7 @@
   "mode": "replay",
   "generated_at": "2026-07-10T04:17:00+09:00",
   "summary": {
-    "active_story_count": 2,
+    "active_story_count": 1,
     "max_mission_impact": "MINIMAL",
     "hitl_pending_count": 1,
     "decision_advantage": "contested",
@@ -51,28 +51,6 @@
           "tactic": "Execution",
           "technique": "T0821",
           "order": 3
-        }
-      ]
-    },
-    {
-      "story_id": "MUAV-AKS-001",
-      "actor": "MUAV-AKS-001",
-      "campaign_id": "C3",
-      "campaign_name": "임무 자기승인 → AOI 이탈 → SATCOM 유출 (캠페인 C3)",
-      "matched": 1,
-      "total": 3,
-      "next_expected": "S109-AOI-EXCURSION",
-      "target_asset": "AUTOPILOT",
-      "mission_impact": "SUSTAINED",
-      "hitl_status": "NOT_REQUIRED",
-      "alerts": [
-        {
-          "alert_id": "ALERT-MPS-0410",
-          "scenario_id": "S36-MISSION-SELFAPPROVAL",
-          "title": "임무계획 2인통제 우회 자기승인",
-          "tactic": "Execution",
-          "technique": "T1204",
-          "order": 1
         }
       ]
     }
