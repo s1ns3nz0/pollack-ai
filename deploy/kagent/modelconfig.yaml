@@ -1,0 +1,17 @@
+# kagent 오케스트레이터 전용 Azure OpenAI ModelConfig (SOC 엔진 LLM 과 별개).
+# deploy-soc.sh 가 ${AZURE_OPENAI_*} 를 envsubst 로 채운다.
+# ⚠️ 설치된 kagent CRD 버전에 맞춰 apiVersion/필드 검증(deploy-soc.sh 6단계).
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata:
+  name: soc-azure-openai
+  namespace: dah-soc
+spec:
+  provider: AzureOpenAI
+  model: gpt-4o-mini
+  apiKeySecret: kagent-azure-openai
+  apiKeySecretKey: AZUREOPENAI_API_KEY
+  azureOpenAI:
+    azureEndpoint: "${AZURE_OPENAI_ENDPOINT}"
+    azureDeployment: "${AZURE_OPENAI_DEPLOYMENT}"
+    apiVersion: "${AZURE_OPENAI_API_VERSION}"

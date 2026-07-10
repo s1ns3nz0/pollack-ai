@@ -1,0 +1,13 @@
+# soc-toolserver 를 kagent RemoteMCPServer 로 등록(in-cluster SSE).
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
+metadata:
+  name: soc-toolserver
+  namespace: dah-soc
+spec:
+  description: UAV SOC coarse ops MCP toolserver (analyze_alert → hotpath)
+  protocol: SSE
+  url: http://soc-toolserver.dah-soc.svc.cluster.local:8080/sse
+  timeout: 30s
+  sseReadTimeout: 5m
+  terminateOnClose: true

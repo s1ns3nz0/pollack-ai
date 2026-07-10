@@ -1,0 +1,34 @@
+# kagent 플랫폼 Helm 값. 내장 에이전트/툴은 전부 비활성 — SOC 오케스트레이터만 사용.
+# deploy-soc.sh 가 ${AZURE_OPENAI_*} 를 envsubst 로 채운다.
+providers:
+  default: azureOpenAI
+  azureOpenAI:
+    provider: AzureOpenAI
+    model: gpt-4o-mini
+    apiKeySecretRef: kagent-azure-openai
+    apiKeySecretKey: AZUREOPENAI_API_KEY
+    config:
+      apiVersion: "2024-10-21"
+      azureEndpoint: "${AZURE_OPENAI_ENDPOINT}"
+      azureDeployment: "${AZURE_OPENAI_DEPLOYMENT}"
+
+kagent-tools:
+  enabled: false
+grafana-mcp:
+  enabled: false
+querydoc:
+  enabled: false
+k8s-agent:
+  enabled: false
+kgateway-agent:
+  enabled: false
+istio-agent:
+  enabled: false
+promql-agent:
+  enabled: false
+observability-agent:
+  enabled: false
+argo-rollouts-agent:
+  enabled: false
+cilium-agent:
+  enabled: false

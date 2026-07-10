@@ -7,7 +7,10 @@
 | **Deployment A** `soc-hotpath` | 지연민감 SOC 핫패스(경보→판정) | single-replica(상태 보유) | `30-deployment-a-hotpath.yaml` |
 | **Deployment B** `soc-learning` | 버스티 경험/학습 루프(exp 적립→RuleUpdate) | HPA 1~4 | `40-deployment-b-learning.yaml` |
 | **공유 상태** `ragflow` | exp/ 경험메모리 + KB(영속) | StatefulSet+PVC | `20-ragflow.yaml` |
-| (선택) kagent | 운영 MCP 도구 등록 | — | `50-kagent-toolserver.yaml` |
+| **대시보드** `soc-dashboard` | read-only replay 상황도(외부 노출) | single-replica | `60-deployment-dashboard.yaml` |
+| **MCP toolserver** `soc-toolserver` | kagent coarse 툴(analyze_alert→hotpath) | single-replica | `61-deployment-toolserver.yaml` |
+
+> kagent CRD(ModelConfig/Agent/RemoteMCPServer)와 Ingress 는 `deploy/kagent/`·`deploy/ingress/` 로 이전. operator 설치 후 `deploy/scripts/deploy-soc.sh` 가 적용한다(ArgoCD 자동 동기화 경로에 두면 operator 미설치 시 sync 실패).
 
 A/B 는 **동일 이미지**(`deploy/Dockerfile`)에서 `command` 로 분기한다.
 
@@ -35,8 +38,9 @@ kubectl apply -f deploy/k8s/10-configmap.yaml
 kubectl apply -f deploy/k8s/20-ragflow.yaml
 kubectl apply -f deploy/k8s/30-deployment-a-hotpath.yaml
 kubectl apply -f deploy/k8s/40-deployment-b-learning.yaml
-# (선택) kagent CRD 설치돼 있으면
-kubectl apply -f deploy/k8s/50-kagent-toolserver.yaml
+kubectl apply -f deploy/k8s/60-deployment-dashboard.yaml
+kubectl apply -f deploy/k8s/61-deployment-toolserver.yaml
+# kagent 플랫폼 + CRD + Ingress 는 deploy/scripts/deploy-soc.sh 가 처리
 ```
 
 ## 헬스/관측

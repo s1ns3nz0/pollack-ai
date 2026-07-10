@@ -1,0 +1,65 @@
+# 대시보드(read-only replay). 외부 노출 대상 — Ingress 가 /dashboard 로 라우팅.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: soc-dashboard
+  namespace: dah-soc
+  labels:
+    app: soc-dashboard
+    soc.role: dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: soc-dashboard
+  template:
+    metadata:
+      labels:
+        app: soc-dashboard
+    spec:
+      containers:
+        - name: dashboard
+          image: ghcr.io/s1ns3nz0/uav-ai-soc:latest
+          command: ["python", "-m", "app.dashboard"]
+          ports:
+            - name: http
+              containerPort: 8791
+          envFrom:
+            - configMapRef:
+                name: soc-config
+            - secretRef:
+                name: soc-secrets
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8791
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8791
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: soc-dashboard
+  namespace: dah-soc
+  labels:
+    app: soc-dashboard
+spec:
+  selector:
+    app: soc-dashboard
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8791

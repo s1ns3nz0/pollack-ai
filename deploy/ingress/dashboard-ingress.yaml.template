@@ -1,0 +1,30 @@
+# 대시보드 외부 노출 Ingress. app-routing managed nginx 사용.
+# host 는 실도메인(soc.pollak.store) 또는 Azure 기본 호스트명.
+# TLS: 실도메인일 때만 cert-manager 발급, 폴백(Azure 호스트명)은 평문 HTTP.
+# deploy-soc.sh 가 DOMAIN / TLS 애노테이션 / TLS 블록을 envsubst 로 치환.
+#
+# Prefix 처리: 대시보드 앱은 DASHBOARD_ROOT_PATH=/dashboard 로 /dashboard/ 에서
+# 서빙하고 클라이언트 자산은 상대경로(base href="./"). rewrite-target 이 캡처
+# 경로($2)를 백엔드에 전달해 앱 마운트 지점과 정합.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: soc-dashboard
+  namespace: dah-soc
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+${TLS_ANNOTATION}
+spec:
+  ingressClassName: webapprouting.kubernetes.azure.com
+  rules:
+    - host: "${DOMAIN}"
+      http:
+        paths:
+          - path: /dashboard(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: soc-dashboard
+                port:
+                  number: 80
+${TLS_BLOCK}

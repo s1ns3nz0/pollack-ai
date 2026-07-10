@@ -16,6 +16,7 @@ COPY utils/ ./utils/
 COPY agents/ ./agents/
 COPY app/ ./app/
 COPY data/ ./data/
+COPY demo_snapshots/ ./demo_snapshots/
 
 RUN pip install --upgrade pip && pip install .
 

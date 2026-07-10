@@ -21,3 +21,6 @@ data:
   OLLAMA_BASE_URL: "http://ollama.dah-soc.svc.cluster.local:11434"
   OLLAMA_CHAT_MODEL: "qwen2.5:14b"
   LOG_LEVEL: "INFO"
+  # 대시보드(컨테이너 내부 바인드 + 외부 노출 prefix)
+  DASHBOARD_HOST: "0.0.0.0"
+  DASHBOARD_ROOT_PATH: "/dashboard"
