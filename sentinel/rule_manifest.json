@@ -1,0 +1,1490 @@
+{
+  "_generated_by": "scripts/sync_rule_manifest.py",
+  "_rule_count": 165,
+  "_source": "github.com/s1ns3nz0/dah-sentinel-content",
+  "_source_sha": "2998f7d7f896e50d6e227c47e44f2ebecb0e83f0",
+  "rules": {
+    "C10_Campaign_GNSSJam_StealthSpoof_SARExfil.json": {
+      "tactics": [
+        "Exfiltration",
+        "Impact"
+      ],
+      "techniques": [
+        "T1499",
+        "T1565",
+        "T1041"
+      ]
+    },
+    "C11_Campaign_Credential_KeyExfil_AuthExfil.json": {
+      "tactics": [
+        "CredentialAccess",
+        "Exfiltration",
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1078",
+        "T1552",
+        "T1041"
+      ]
+    },
+    "C12_Campaign_Credential_Staging_BulkExfil.json": {
+      "tactics": [
+        "Collection",
+        "CredentialAccess",
+        "Exfiltration",
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1078",
+        "T1074",
+        "T1041"
+      ]
+    },
+    "C13_Campaign_Credential_Webshell_Escape_Cron.json": {
+      "tactics": [
+        "InitialAccess",
+        "Persistence",
+        "PrivilegeEscalation"
+      ],
+      "techniques": [
+        "T1078",
+        "T1505",
+        "T1611",
+        "T1053"
+      ]
+    },
+    "C14_Campaign_ArchiveSupplyChain_Firmware_NavReject.json": {
+      "tactics": [
+        "DefenseEvasion",
+        "Impact",
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1195",
+        "T1601",
+        "T1565"
+      ]
+    },
+    "C15_Campaign_Webshell_Escape_SelfApproval_Weapon.json": {
+      "tactics": [
+        "Impact",
+        "InitialAccess",
+        "Persistence",
+        "PrivilegeEscalation"
+      ],
+      "techniques": [
+        "T1505",
+        "T1611",
+        "T1078"
+      ]
+    },
+    "C16_Campaign_Webshell_SUID_Escape_Cron.json": {
+      "tactics": [
+        "InitialAccess",
+        "Persistence",
+        "PrivilegeEscalation"
+      ],
+      "techniques": [
+        "T1505",
+        "T1548",
+        "T1611",
+        "T1053"
+      ]
+    },
+    "C17_Campaign_ArchiveDelivery_Webshell_SARExfil.json": {
+      "tactics": [
+        "Exfiltration",
+        "InitialAccess",
+        "Persistence"
+      ],
+      "techniques": [
+        "T1195",
+        "T1505",
+        "T1041"
+      ]
+    },
+    "C18_Campaign_IDOR_Weapon.json": {
+      "tactics": [
+        "InitialAccess",
+        "Impact"
+      ],
+      "techniques": [
+        "T1190",
+        "T1078"
+      ]
+    },
+    "C19_Campaign_GcsMaliciousMission_MavrosInject_C4IForgery.json": {
+      "tactics": [
+        "Execution",
+        "Impact"
+      ],
+      "techniques": [
+        "T1204",
+        "T1059",
+        "T1565"
+      ]
+    },
+    "C1_Campaign_GCS_CT_C4I_Weapon.json": {
+      "tactics": [
+        "Execution",
+        "Impact",
+        "InitialAccess",
+        "PrivilegeEscalation"
+      ],
+      "techniques": [
+        "T1078",
+        "T1548",
+        "T1565"
+      ]
+    },
+    "C20_Campaign_FleetApiBypass_TelemetryPoison_ImageryHijack.json": {
+      "tactics": [
+        "Collection",
+        "Impact",
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1190",
+        "T1565",
+        "T1557"
+      ]
+    },
+    "C21_Campaign_CICD_RegistryTamper_Firmware_NavReject.json": {
+      "tactics": [
+        "DefenseEvasion",
+        "Impact",
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1195",
+        "T1601"
+      ]
+    },
+    "C22_Campaign_PassiveRecon_BmsSpoof_ParamReset_FailsafeSuppress.json": {
+      "tactics": [
+        "DefenseEvasion",
+        "Impact",
+        "Reconnaissance"
+      ],
+      "techniques": [
+        "T1595",
+        "T1565",
+        "T1562"
+      ]
+    },
+    "C23_Campaign_LeaderHijack_ConsensusPoison_Collision.json": {
+      "tactics": [
+        "CredentialAccess",
+        "Impact",
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1078",
+        "T1565",
+        "T1499"
+      ]
+    },
+    "C24_Campaign_LeaderDecapitation_Recon_Spoof_Amplify_Scatter.json": {
+      "tactics": [
+        "CredentialAccess",
+        "Impact",
+        "InitialAccess",
+        "Reconnaissance"
+      ],
+      "techniques": [
+        "T1595",
+        "T1078",
+        "T1499"
+      ]
+    },
+    "C25_Campaign_ConsensusSubversion_Sybil_Poison_ForgedImagery_C4I.json": {
+      "tactics": [
+        "Impact",
+        "ResourceDevelopment"
+      ],
+      "techniques": [
+        "T1584",
+        "T1565"
+      ]
+    },
+    "C26_Campaign_MeshPartition_C2Jam_IsolatedSpoof_Collision.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1499",
+        "T1565"
+      ]
+    },
+    "C27_Campaign_SupplyChainPropagation_CICD_Backdoor_LeaderTakeover.json": {
+      "tactics": [
+        "DefenseEvasion",
+        "Impact",
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1195",
+        "T1601",
+        "T1078"
+      ]
+    },
+    "C28_Campaign_PhysicalDestruction_FlockingTamper_Collision_MeshPartition.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1565",
+        "T1499"
+      ]
+    },
+    "C29_Campaign_MassExfil_LeaderTakeover_Amplify_SwarmWideExfil.json": {
+      "tactics": [
+        "Collection",
+        "Exfiltration",
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1078",
+        "T1074",
+        "T1041"
+      ]
+    },
+    "C2_Campaign_TI_FW_GNSS.json": {
+      "tactics": [
+        "Collection",
+        "Impact",
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1195",
+        "T1565"
+      ]
+    },
+    "C30_Campaign_MissionHijack_Recon_GuidedForce_TrackingLock_SARExfil.json": {
+      "tactics": [
+        "Exfiltration",
+        "Impact",
+        "Reconnaissance"
+      ],
+      "techniques": [
+        "T1595",
+        "T1499",
+        "T1041"
+      ]
+    },
+    "C31_Campaign_ControlSeizure_C2Hijack_ControlSwitch_AttitudeCorrupt_Stall.json": {
+      "tactics": [
+        "CredentialAccess",
+        "Impact"
+      ],
+      "techniques": [
+        "T1557",
+        "T1565",
+        "T1499"
+      ]
+    },
+    "C32_Campaign_ForcedLanding_FailsafeBlock_RTB_LandingPhaseAttack.json": {
+      "tactics": [
+        "DefenseEvasion",
+        "Impact"
+      ],
+      "techniques": [
+        "T1562",
+        "T1499"
+      ]
+    },
+    "C33_Campaign_AutonomousImpact_BlosForgery_AutonomyHijack_VtolFail.json": {
+      "tactics": [
+        "CredentialAccess",
+        "Impact"
+      ],
+      "techniques": [
+        "T1557",
+        "T1499"
+      ]
+    },
+    "C34_Campaign_AutomatedCollection_Archive_SatcomExfil.json": {
+      "tactics": [
+        "Collection",
+        "Exfiltration"
+      ],
+      "techniques": [
+        "T1119",
+        "T1560",
+        "T1011",
+        "T1567"
+      ]
+    },
+    "C3_Campaign_SelfApproval_AOI_SATCOM.json": {
+      "tactics": [
+        "Collection",
+        "Exfiltration",
+        "PrivilegeEscalation"
+      ],
+      "techniques": [
+        "T1020",
+        "T1557",
+        "T1548"
+      ]
+    },
+    "C4_Campaign_BruteForce_SelfApproval_Weapon.json": {
+      "tactics": [
+        "CredentialAccess",
+        "Execution",
+        "Impact",
+        "InitialAccess",
+        "PrivilegeEscalation"
+      ],
+      "techniques": [
+        "T1110",
+        "T1078",
+        "T1548"
+      ]
+    },
+    "C5_Campaign_Failsafe_MITM_DoS.json": {
+      "tactics": [
+        "CredentialAccess",
+        "DefenseEvasion",
+        "Impact"
+      ],
+      "techniques": [
+        "T1562",
+        "T1040",
+        "T1499"
+      ]
+    },
+    "C6_Campaign_Maintenance_FW_SAR.json": {
+      "tactics": [
+        "Exfiltration",
+        "InitialAccess",
+        "Persistence"
+      ],
+      "techniques": [
+        "T1195",
+        "T1020"
+      ]
+    },
+    "C7_Campaign_ServiceKill_Blind_GCS.json": {
+      "tactics": [
+        "Execution",
+        "Impact",
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1489",
+        "T1078"
+      ]
+    },
+    "C8_Campaign_GNSSJam_NavReject_AOI.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1499",
+        "T1565"
+      ]
+    },
+    "C9_Campaign_SocLlmInjection_SwarmSaturation.json": {
+      "tactics": [
+        "DefenseEvasion",
+        "Impact"
+      ],
+      "techniques": [
+        "T1565",
+        "T1499"
+      ]
+    },
+    "S100_Swarm_Saturation_SOC_Overload.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1499"
+      ]
+    },
+    "S101_Swarm_Leader_Spoof.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": []
+    },
+    "S102_Swarm_Consensus_Poison.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": []
+    },
+    "S103_Swarm_RelPos_Spoof_Collision.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": []
+    },
+    "S104_Swarm_Scatter_Cmd_Injection.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": []
+    },
+    "S105_Swarm_Sybil_Injection.json": {
+      "tactics": [
+        "InitialAccess"
+      ],
+      "techniques": []
+    },
+    "S106_Swarm_Flocking_Rule_Tamper.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": []
+    },
+    "S107_Swarm_Cmd_Replay_Amplify.json": {
+      "tactics": [
+        "CommandAndControl"
+      ],
+      "techniques": []
+    },
+    "S108_Swarm_Mesh_Partition.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": []
+    },
+    "S109_AOI_Excursion.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1499"
+      ]
+    },
+    "S10_Baro_Spoofing.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S110_Gimbal_Payload_Ctrl_Hijack.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S111_Loiter_Center_Spoofing.json": {
+      "tactics": [
+        "DefenseEvasion"
+      ],
+      "techniques": [
+        "T1562"
+      ]
+    },
+    "S112_RTB_Forced_Trigger.json": {
+      "tactics": [
+        "Collection",
+        "Impact"
+      ],
+      "techniques": [
+        "T1557"
+      ]
+    },
+    "S113_Track_Lock_Hijack.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1499"
+      ]
+    },
+    "S114_Survey_Grid_Tamper.json": {
+      "tactics": [
+        "DefenseEvasion"
+      ],
+      "techniques": [
+        "T1562"
+      ]
+    },
+    "S115_Control_Mode_Transition_Attack.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1489"
+      ]
+    },
+    "S116_Stabilization_Loop_Poisoning.json": {
+      "tactics": [
+        "Collection",
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S117_BLOS_Autonomy_Command_Forge.json": {
+      "tactics": [
+        "Collection",
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S118_Autonomy_Decision_Hijack.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1499"
+      ]
+    },
+    "S119_Flight_Mode_GUIDED_Injection.json": {
+      "tactics": [
+        "Collection",
+        "Impact"
+      ],
+      "techniques": [
+        "T1557"
+      ]
+    },
+    "S11_Mag_Spoofing.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S120_Failsafe_Recovery_Block.json": {
+      "tactics": [
+        "DefenseEvasion"
+      ],
+      "techniques": [
+        "T1562"
+      ]
+    },
+    "S121_Flight_Mode_Falsified_Report.json": {
+      "tactics": [
+        "Collection",
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S122_Acro_Mode_Forced.json": {
+      "tactics": [
+        "DefenseEvasion"
+      ],
+      "techniques": [
+        "T1562"
+      ]
+    },
+    "S123_Fixedwing_Stall_Induction.json": {
+      "tactics": [
+        "Collection",
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S124_Rotary_Yaw_Authority_Loss.json": {
+      "tactics": [
+        "Collection",
+        "Impact"
+      ],
+      "techniques": [
+        "T1557"
+      ]
+    },
+    "S125_VTOL_Transition_Attack.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1489"
+      ]
+    },
+    "S126_Takeoff_Landing_Phase_Attack.json": {
+      "tactics": [
+        "DefenseEvasion"
+      ],
+      "techniques": [
+        "T1562"
+      ]
+    },
+    "S127_Automated_Collection.json": {
+      "tactics": [
+        "Collection"
+      ],
+      "techniques": [
+        "T1119"
+      ]
+    },
+    "S128_Archive_Collected_Data.json": {
+      "tactics": [
+        "Collection"
+      ],
+      "techniques": [
+        "T1560"
+      ]
+    },
+    "S129_Theft_Of_Operational_Information.json": {
+      "tactics": [
+        "Collection"
+      ],
+      "techniques": [
+        "T1005"
+      ]
+    },
+    "S12_Airspeed_Spoofing.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S130_Program_Upload.json": {
+      "tactics": [
+        "CommandAndControl"
+      ],
+      "techniques": [
+        "T1105"
+      ]
+    },
+    "S131_Input_Capture_VNC_Session.json": {
+      "tactics": [
+        "Collection"
+      ],
+      "techniques": [
+        "T1056"
+      ]
+    },
+    "S13_SATCOM_C2_Hijack_Beacon.json": {
+      "tactics": [
+        "CommandAndControl"
+      ],
+      "techniques": [
+        "T1090"
+      ]
+    },
+    "S14_Coordinated_MultiSensor_EKF_Defeat.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S15_BMS_Spoofing_Premature_RTL.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S16_ESC_Firmware_Tamper.json": {
+      "tactics": [
+        "Persistence",
+        "Impact"
+      ],
+      "techniques": [
+        "T1495"
+      ]
+    },
+    "S17_C2_Hijacking.json": {
+      "tactics": [
+        "CommandAndControl",
+        "Impact"
+      ],
+      "techniques": [
+        "T1071"
+      ]
+    },
+    "S18_MAVLink_Unsigned_Burst.json": {
+      "tactics": [
+        "CredentialAccess",
+        "Discovery",
+        "CommandAndControl"
+      ],
+      "techniques": [
+        "T1040",
+        "T1557"
+      ]
+    },
+    "S19_SOC_Capacity_Threshold.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1499"
+      ]
+    },
+    "S1_GNSS_Spoofing.json": {
+      "tactics": [
+        "Collection",
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S20_MAVLink_Injection_Failsafe_Suppress.json": {
+      "tactics": [
+        "CommandAndControl",
+        "Discovery",
+        "Impact"
+      ],
+      "techniques": [
+        "T1040"
+      ]
+    },
+    "S21_Lateral_Movement.json": {
+      "tactics": [
+        "LateralMovement"
+      ],
+      "techniques": [
+        "T1570",
+        "T1021"
+      ]
+    },
+    "S22_Router_Endpoint_Rogue.json": {
+      "tactics": [
+        "CommandAndControl"
+      ],
+      "techniques": [
+        "T1090"
+      ]
+    },
+    "S23_GNSS_Jamming_Loss_Of_Control.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1498",
+        "T1499",
+        "T1489"
+      ]
+    },
+    "S24_Datalink_C2_Takeover.json": {
+      "tactics": [
+        "CommandAndControl",
+        "Impact",
+        "InhibitResponseFunction"
+      ],
+      "techniques": [
+        "T1499"
+      ]
+    },
+    "S25_WiFi_Deauth.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1499"
+      ]
+    },
+    "S26_WiFi_Evil_Twin.json": {
+      "tactics": [
+        "Collection",
+        "CredentialAccess"
+      ],
+      "techniques": [
+        "T1557"
+      ]
+    },
+    "S27_WiFi_Jamming.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1498"
+      ]
+    },
+    "S28_WiFi_Default_Credentials.json": {
+      "tactics": [
+        "CredentialAccess",
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1078",
+        "T1552"
+      ]
+    },
+    "S29_RC_Link_Binding_Hijack.json": {
+      "tactics": [
+        "CredentialAccess"
+      ],
+      "techniques": [
+        "T1555"
+      ]
+    },
+    "S2_Parameter_Tampering.json": {
+      "tactics": [
+        "DefenseEvasion"
+      ],
+      "techniques": [
+        "T1562"
+      ]
+    },
+    "S30_RC_Override_Injection.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S31_RC_Protocol_Downgrade.json": {
+      "tactics": [
+        "DefenseEvasion"
+      ],
+      "techniques": [
+        "T1600"
+      ]
+    },
+    "S32_GNSS_Spoofing_Walkoff.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1499",
+        "T1565"
+      ]
+    },
+    "S33_Firmware_Supply_Chain_Tamper.json": {
+      "tactics": [
+        "InitialAccess",
+        "Persistence",
+        "Impact"
+      ],
+      "techniques": [
+        "T1195",
+        "T1495"
+      ]
+    },
+    "S34_Operator_BruteForce.json": {
+      "tactics": [
+        "InitialAccess",
+        "Reconnaissance"
+      ],
+      "techniques": [
+        "T1078",
+        "T1595"
+      ]
+    },
+    "S35_Credential_Theft_Anomaly.json": {
+      "tactics": [
+        "InitialAccess",
+        "Persistence"
+      ],
+      "techniques": [
+        "T1078"
+      ]
+    },
+    "S36_Mission_SelfApproval.json": {
+      "tactics": [
+        "Execution",
+        "Impact",
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1204",
+        "T1078"
+      ]
+    },
+    "S37_CT_Level_Tamper.json": {
+      "tactics": [
+        "DefenseEvasion",
+        "Impact"
+      ],
+      "techniques": [
+        "T1601"
+      ]
+    },
+    "S38_Maintenance_Implant.json": {
+      "tactics": [
+        "InitialAccess",
+        "Persistence"
+      ],
+      "techniques": [
+        "T1200"
+      ]
+    },
+    "S39_LOTL_Infra_Breach.json": {
+      "tactics": [
+        "Execution",
+        "LateralMovement"
+      ],
+      "techniques": [
+        "T1059",
+        "T1570"
+      ]
+    },
+    "S3_Unauthorized_Weapon_Cmd.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S40_Anti_Forensics_Log_Tamper.json": {
+      "tactics": [
+        "DefenseEvasion"
+      ],
+      "techniques": [
+        "T1070"
+      ]
+    },
+    "S41_GCS_Mission_File_Parse_Exploit.json": {
+      "tactics": [
+        "Execution"
+      ],
+      "techniques": [
+        "T1203"
+      ]
+    },
+    "S42_GCS_QML_Plugin_Injection.json": {
+      "tactics": [
+        "Execution"
+      ],
+      "techniques": [
+        "T1059"
+      ]
+    },
+    "S43_GCS_AutoUpdate_MITM.json": {
+      "tactics": [
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1195"
+      ]
+    },
+    "S44_GCS_Config_Log_Tamper.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S45_ROS_Master_Unauthenticated.json": {
+      "tactics": [
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1190"
+      ]
+    },
+    "S46_ROS_Topic_Injection.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S47_MAVROS_Command_Injection.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1499"
+      ]
+    },
+    "S48_Modem_SATCOM_Firmware_Tamper.json": {
+      "tactics": [
+        "DefenseEvasion",
+        "Persistence"
+      ],
+      "techniques": [
+        "T1542"
+      ]
+    },
+    "S49_Telemetry_Relay_MITM.json": {
+      "tactics": [
+        "CredentialAccess",
+        "Collection"
+      ],
+      "techniques": [
+        "T1557"
+      ]
+    },
+    "S4_Failsafe_Param_Tamper.json": {
+      "tactics": [
+        "DefenseEvasion",
+        "Impact"
+      ],
+      "techniques": [
+        "T1562"
+      ]
+    },
+    "S50_GDT_NTP_Spoofing.json": {
+      "tactics": [
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1195"
+      ]
+    },
+    "S51_Container_Service_Kill.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1529"
+      ]
+    },
+    "S52_Container_Resource_DoS.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1499"
+      ]
+    },
+    "S53_Weapon_Endpoint_IDOR.json": {
+      "tactics": [
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1078"
+      ]
+    },
+    "S54_Upload_WebShell_RCE.json": {
+      "tactics": [
+        "Persistence",
+        "Execution"
+      ],
+      "techniques": [
+        "T1505",
+        "T1059"
+      ]
+    },
+    "S55_SUID_GTFOBins_PrivEsc.json": {
+      "tactics": [
+        "DefenseEvasion",
+        "PrivilegeEscalation"
+      ],
+      "techniques": [
+        "T1548",
+        "T1068"
+      ]
+    },
+    "S56_Container_Escape.json": {
+      "tactics": [
+        "PrivilegeEscalation"
+      ],
+      "techniques": [
+        "T1611"
+      ]
+    },
+    "S57_Cron_PATH_Hijack.json": {
+      "tactics": [
+        "Persistence",
+        "PrivilegeEscalation"
+      ],
+      "techniques": [
+        "T1053",
+        "T1546"
+      ]
+    },
+    "S58_Archive_ZipSlip.json": {
+      "tactics": [
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1195"
+      ]
+    },
+    "S59_Archive_Symlink_Traversal.json": {
+      "tactics": [
+        "InitialAccess"
+      ],
+      "techniques": []
+    },
+    "S5_Failsafe_Suppressed.json": {
+      "tactics": [
+        "DefenseEvasion"
+      ],
+      "techniques": [
+        "T1562"
+      ]
+    },
+    "S60_Archive_Absolute_Path_Traversal.json": {
+      "tactics": [
+        "InitialAccess"
+      ],
+      "techniques": []
+    },
+    "S61_Data_Destruction.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1485"
+      ]
+    },
+    "S62_Rootkit_LD_Preload.json": {
+      "tactics": [
+        "DefenseEvasion"
+      ],
+      "techniques": [
+        "T1014"
+      ]
+    },
+    "S63_FW_Update_Mode_Forced.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": []
+    },
+    "S64_Auth_Process_Tamper.json": {
+      "tactics": [
+        "CredentialAccess",
+        "DefenseEvasion"
+      ],
+      "techniques": [
+        "T1556"
+      ]
+    },
+    "S65_Exfil_SATCOM_Web.json": {
+      "tactics": [
+        "Exfiltration"
+      ],
+      "techniques": [
+        "T1011",
+        "T1567"
+      ]
+    },
+    "S66_OpInfo_Exfil.json": {
+      "tactics": [
+        "Collection"
+      ],
+      "techniques": []
+    },
+    "S67_Container_Registry_Tamper.json": {
+      "tactics": [
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1195"
+      ]
+    },
+    "S68_CICD_Pipeline_Compromise.json": {
+      "tactics": [
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1195"
+      ]
+    },
+    "S69_Vault_Secret_Theft.json": {
+      "tactics": [
+        "CredentialAccess"
+      ],
+      "techniques": [
+        "T1552"
+      ]
+    },
+    "S6_Param_Mass_Reset.json": {
+      "tactics": [
+        "DefenseEvasion",
+        "Impact"
+      ],
+      "techniques": [
+        "T1562"
+      ]
+    },
+    "S70_mTLS_Cert_Forgery.json": {
+      "tactics": [
+        "CredentialAccess"
+      ],
+      "techniques": [
+        "T1649"
+      ]
+    },
+    "S71_Dependency_Confusion.json": {
+      "tactics": [
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1195"
+      ]
+    },
+    "S72_IaC_Tamper.json": {
+      "tactics": [
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1195"
+      ]
+    },
+    "S73_Artifact_Signature_Bypass.json": {
+      "tactics": [
+        "DefenseEvasion"
+      ],
+      "techniques": [
+        "T1553"
+      ]
+    },
+    "S74_Build_Provenance_Attack.json": {
+      "tactics": [
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1195"
+      ]
+    },
+    "S75_DDS_ROS2_Discovery_Flood.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1499"
+      ]
+    },
+    "S76_MQTT_Telemetry_Poison.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S77_Geofence_Tamper.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S78_TI_Source_Poison.json": {
+      "tactics": [
+        "LateralMovement"
+      ],
+      "techniques": [
+        "T1080"
+      ]
+    },
+    "S79_OffHours_C4I_Cmd.json": {
+      "tactics": [
+        "Execution",
+        "ImpairProcessControl",
+        "InitialAccess",
+        "PrivilegeEscalation"
+      ],
+      "techniques": [
+        "T1078"
+      ]
+    },
+    "S7_EOIR_Downlink_Intercept_Inject.json": {
+      "tactics": [
+        "Collection",
+        "CommandAndControl"
+      ],
+      "techniques": [
+        "T1557"
+      ]
+    },
+    "S80_ISR_Handoff_Target_Tamper.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S81_Fleet_API_IDOR.json": {
+      "tactics": [
+        "InitialAccess"
+      ],
+      "techniques": [
+        "T1190"
+      ]
+    },
+    "S82_Telemetry_Ingest_Poison.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S83_RTSP_Stream_Hijack.json": {
+      "tactics": [
+        "Collection",
+        "CredentialAccess"
+      ],
+      "techniques": [
+        "T1557"
+      ]
+    },
+    "S84_C4I_Message_Injection.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S85_SocReport_Forgery.json": {
+      "tactics": [
+        "DefenseEvasion",
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S86_OSCAL_Evidence_Tamper.json": {
+      "tactics": [
+        "DefenseEvasion",
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S87_RuleUpdate_PR_Backdoor.json": {
+      "tactics": [
+        "DefenseEvasion",
+        "Impact",
+        "Persistence"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S88_Adversarial_Patch_Attack.json": {
+      "tactics": [
+        "DefenseEvasion",
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S89_RAG_Poisoning_Orient_Deception.json": {
+      "tactics": [
+        "DefenseEvasion",
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S8_DShot_ESC_Manipulation.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    },
+    "S90_SOC_LLM_Prompt_Injection.json": {
+      "tactics": [
+        "DefenseEvasion",
+        "Execution"
+      ],
+      "techniques": [
+        "T1059"
+      ]
+    },
+    "S91_Model_Extraction_Probing_Ladder.json": {
+      "tactics": [
+        "Exfiltration",
+        "Collection"
+      ],
+      "techniques": [
+        "T1020"
+      ]
+    },
+    "S92_SAR_Coord_Exfil.json": {
+      "tactics": [
+        "Exfiltration"
+      ],
+      "techniques": [
+        "T1041"
+      ]
+    },
+    "S93_Mass_Imagery_SAR_Exfil.json": {
+      "tactics": [
+        "Exfiltration"
+      ],
+      "techniques": [
+        "T1020"
+      ]
+    },
+    "S94_C2_Hidden_Port_Exfil.json": {
+      "tactics": [
+        "CommandAndControl",
+        "Exfiltration"
+      ],
+      "techniques": [
+        "T1041"
+      ]
+    },
+    "S95_Staged_Split_Exfil.json": {
+      "tactics": [
+        "Collection",
+        "Exfiltration"
+      ],
+      "techniques": [
+        "T1074",
+        "T1030"
+      ]
+    },
+    "S96_Key_Material_Exfil.json": {
+      "tactics": [
+        "CredentialAccess"
+      ],
+      "techniques": []
+    },
+    "S97_Active_Recon_PortScan.json": {
+      "tactics": [
+        "Reconnaissance"
+      ],
+      "techniques": [
+        "T1595"
+      ]
+    },
+    "S98_Passive_Plaintext_Interception.json": {
+      "tactics": [
+        "Collection",
+        "CredentialAccess"
+      ],
+      "techniques": [
+        "T1125",
+        "T1113",
+        "T1005",
+        "T1040"
+      ]
+    },
+    "S99_Passive_Asset_Network_Enumeration.json": {
+      "tactics": [
+        "Reconnaissance"
+      ],
+      "techniques": [
+        "T1590",
+        "T1596"
+      ]
+    },
+    "S9_IMU_Spoofing.json": {
+      "tactics": [
+        "Impact"
+      ],
+      "techniques": [
+        "T1565"
+      ]
+    }
+  }
+}
