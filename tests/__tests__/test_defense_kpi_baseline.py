@@ -23,17 +23,22 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import re
+from typing import TypedDict
 
 import pytest
+import yaml
 
 from agents.graph import build_soc_graph
+from core.cacao import load_playbooks, scenario_tactic_map, select_playbook
 from core.models import SOCState
+from core.runbook import load_runbooks
 from core.settings import Settings
 from tools.coverage import CoverageMatrix
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _MANIFEST_PATH = _REPO_ROOT / "sentinel" / "rule_manifest.json"
 _FIXTURES_DIR = _REPO_ROOT / "benchmarks" / "eval_scenarios"
+_ANALYTIC_RULES_DIR = _REPO_ROOT / "sentinel" / "Analytic Rules"
 _TESTS_DIR = _REPO_ROOT / "tests"
 _KPI_RESULTS_PATH = _REPO_ROOT / "benchmarks" / "results" / "kpi_results.json"
 
@@ -49,7 +54,92 @@ _MIN_TEST_FILES = 140
 _MIN_TEST_FUNCTIONS = 1300
 _MIN_KILLCHAIN_STAGES = 10
 
+# 시나리오 커버리지 펀넬 floor(회귀만 차단 — 실물 랜딩으로만 성장).
+_MIN_SCENARIOS = 131  # 런북 배선 시나리오 총수(분모)
+_MIN_GOLDEN_E2E = 9  # 골든픽스처로 end-to-end 검증된 시나리오
+_MIN_IMPL_DETECTORS = 1  # in-repo 구현 분석룰(런타임 탐지 근사) — S1_GNSS
+
 _TEST_DEF_RE = re.compile(r"^\s*(?:async\s+)?def\s+test_", re.MULTILINE)
+
+
+class ScenarioFunnel(TypedDict):
+    """131 시나리오 커버리지 펀넬 계량 결과."""
+
+    scenario_total: int
+    contract_wired: int
+    golden_e2e: int
+    impl_detectors: int
+    contract_pct: float
+    golden_e2e_pct: float
+    impl_detector_pct: float
+    runbook_count: int
+    cacao_playbooks: int
+    attack_technique_mapping: str
+
+
+def _scenario_coverage_funnel() -> ScenarioFunnel:
+    """131 시나리오 기준 방어 커버리지 펀넬을 계산한다.
+
+    3계단(계약→검증→구현)은 각각 다른 높이이며, 배선 존재(계약)가 검증·구현을
+    대신하지 않는다. 계단은 오직 실물 랜딩(픽스처 파일·탐지기/룰 추가)으로만
+    오른다 — 따라서 이 값이 움직였다는 것 자체가 실 작업이 들어왔다는 증거다.
+
+    Returns:
+        펀넬 계단(절대수·백분율)과, 과소평가를 막는 정직한 상단 지표(계약 폭·
+        ATT&CK 매핑·픽스처 경로 다양성)를 함께 담은 dict.
+    """
+    runbooks = load_runbooks().runbooks
+    scenarios = {getattr(rb, "scenario_id", "") for rb in runbooks}
+    scenarios.discard("")
+    total = len(scenarios)
+
+    # 계약 배선: 런북 + tactic 매핑 + tactic→playbook 선택 가능이 모두 성립한 시나리오.
+    stm = scenario_tactic_map()
+    playbooks = load_playbooks()
+    contract_wired = sum(
+        1
+        for s in scenarios
+        if s in stm and select_playbook(stm.get(s, ""), playbooks) is not None
+    )
+
+    # 검증: 골든픽스처 scenario_id 중 런북 시나리오에 실재하는 것(오배선 픽스처 제외).
+    fixture_scn = set()
+    for path in _FIXTURES_DIR.glob("*.yaml"):
+        fx = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if isinstance(fx, dict) and fx.get("scenario_id") in scenarios:
+            fixture_scn.add(fx["scenario_id"])
+    golden_e2e = len(fixture_scn)
+
+    # 구현: in-repo 분석룰 JSON(런타임 탐지 근사) — 매핑(165)이 아니라 실제 구현물.
+    impl_detectors = (
+        len(list(_ANALYTIC_RULES_DIR.glob("*.json")))
+        if _ANALYTIC_RULES_DIR.is_dir()
+        else 0
+    )
+
+    # 과소평가 방지용 정직한 상단 지표(구현 1/131만 보이면 방어 폭이 가려진다).
+    matrix = CoverageMatrix.from_yaml()
+    attack_covered = sum(len(t.covered) for t in matrix.tactics)
+    attack_total = attack_covered + sum(
+        len(t.planned) + len(t.uncovered) for t in matrix.tactics
+    )
+
+    def _pct(n: int, d: int) -> float:
+        return round(100.0 * n / d, 1) if d else 0.0
+
+    return {
+        "scenario_total": total,
+        "contract_wired": contract_wired,
+        "golden_e2e": golden_e2e,
+        "impl_detectors": impl_detectors,
+        "contract_pct": _pct(contract_wired, total),
+        "golden_e2e_pct": _pct(golden_e2e, total),
+        "impl_detector_pct": _pct(impl_detectors, total),
+        # 정직한 상단 지표(라벨 유지 — 매핑≠구현).
+        "runbook_count": len(runbooks),
+        "cacao_playbooks": len(playbooks),
+        "attack_technique_mapping": f"{attack_covered}/{attack_total} (매핑)",
+    }
 
 
 def _real_nodes(*, active_hunt: bool = False, hitl: bool = False) -> set[str]:
@@ -131,6 +221,7 @@ def defense_kpi_snapshot() -> dict[str, object]:
         "killchain_stage_count": len(tactics),
         "pollack_ai_test_files": len(test_files),
         "pollack_ai_test_functions": _count_test_functions(),
+        "scenario_coverage": _scenario_coverage_funnel(),
         "mttt_mttc": kpi,
     }
 
@@ -230,8 +321,47 @@ class TestDefenseKpiBaseline:
             "killchain_stage_count",
             "pollack_ai_test_files",
             "pollack_ai_test_functions",
+            "scenario_coverage",
             "mttt_mttc",
         ):
             assert key in snap, f"snapshot 누락 필드: {key}"
         assert snap["soc_graph_core_nodes"] == 6
         assert isinstance(snap["mttt_mttc"], dict)
+
+
+class TestScenarioCoverageFunnel:
+    """131 시나리오 기준 방어 커버리지 펀넬(계약→검증→구현) 게이트.
+
+    핵심 불변식: 계단은 실물 랜딩으로만 오른다. 배선 존재(계약 100%)가 검증·구현을
+    대신하지 않으므로 세 계단은 monotonic 하게 좁아진다(구현 ≤ 검증 ≤ 계약 ≤ 총).
+    """
+
+    def test_all_scenarios_contract_wired(self) -> None:
+        """모든 시나리오가 런북+tactic+playbook 로 계약 배선돼 있다(계약 계단=100%)."""
+        f = _scenario_coverage_funnel()
+        assert f["scenario_total"] >= _MIN_SCENARIOS
+        assert f["contract_wired"] == f["scenario_total"]
+        assert f["contract_pct"] == 100.0
+
+    def test_golden_e2e_coverage_meets_floor(self) -> None:
+        """골든픽스처 e2e 검증 시나리오 수가 floor 이상이다(성장은 픽스처 추가로만)."""
+        assert _scenario_coverage_funnel()["golden_e2e"] >= _MIN_GOLDEN_E2E
+
+    def test_impl_detector_count_is_honest(self) -> None:
+        """in-repo 구현 분석룰 수가 floor 이상 — 매핑(165)이 아닌 실제 구현물 계량."""
+        assert _scenario_coverage_funnel()["impl_detectors"] >= _MIN_IMPL_DETECTORS
+
+    def test_funnel_is_monotonic(self) -> None:
+        """펀넬이 좁아진다 — 구현 ≤ 검증 ≤ 계약 ≤ 총(배선≠검증≠구현 불변식)."""
+        f = _scenario_coverage_funnel()
+        assert (
+            f["impl_detectors"]
+            <= f["golden_e2e"]
+            <= f["contract_wired"]
+            <= f["scenario_total"]
+        )
+
+    def test_attack_mapping_metric_labeled_as_mapping(self) -> None:
+        """ATT&CK 상단 지표는 '매핑' 라벨을 유지한다(구현으로 세탁 금지)."""
+        f = _scenario_coverage_funnel()
+        assert "매핑" in str(f["attack_technique_mapping"])
